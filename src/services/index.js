@@ -3,6 +3,7 @@ import {ref} from 'vue';
 import 'axios';
 import axios from "axios";
 import { message } from 'ant-design-vue';
+import router from "../router";
 
 //-------------------------1.创建axios实例-----------------------
 const instance=axios.create({
@@ -20,7 +21,7 @@ instance.interceptors.request.use(
     config => {
         let access_token = localStorage.getItem('access_token');
         if (access_token) {
-            config.headers['Authorization'] = 'Bearer ' + access_token
+            config.headers['Authorization'] = `Bearer ${access_token}`
         }
         //加载loading
         addLoading();
@@ -51,7 +52,8 @@ instance.interceptors.response.use(
         case 401:
           message.error("未授权，请重新登录");
           // 跳转到登录页面
-          window.location.replace('/login/');
+          localStorage.removeItem('access_token');
+          router.push('/login/')
           break;
         case 403:
           message.error("登录过期，请重新登录");

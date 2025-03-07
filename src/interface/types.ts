@@ -50,8 +50,23 @@ export interface IAccount {
     mobile?: null | string;
     nick_name?: string;
     password?: string;
-    sex?: number | null;
+    sex?: string | null;
     account_type?: number;
-    username: string;
+    username?: string;
     [property: string]: any;
+}
+
+/**
+ * 评论信息
+ */
+export interface IComment {
+    id: number;
+    comment_id: string;
+    is_root?: boolean;
+    parent_id?: string | null;
+    content: string;
+    account_id: string;
+    obj_id: string;
+    obj_type: number;
+    gmt_created: string
 }

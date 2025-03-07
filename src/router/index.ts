@@ -3,7 +3,6 @@ import type {RouteRecordRaw} from 'vue-router'
 // 引入nprogress
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css'; // 引入样式
-import {message} from 'ant-design-vue';
 
 import NotFoundPage from "../pages/NotFoundPage.vue";
 import HomePage from "../pages/HomePage.vue";
@@ -27,14 +26,14 @@ NProgress.configure({
 }); // 不显示默认的spinner
 
 const routes: RouteRecordRaw[] = [
-    {path: '/', name: 'home', component: HomePage},
-    {path: '/login/', name: 'login', component: LoginPage},
-    {path: '/register/', name: 'register', component: RegisterPage},
-    {path: '/settings/', name: 'settings', component: SettingsPage},
-    {path: '/friends/', name: 'friends', component: FriendsPage},
-    {path: '/hot/', name: 'hot', component: HotPage},
-    {path: '/test/', name: 'test', component: TestPage},
-    {path: '/u/:username/', name: 'user', component: UserPage},
+    {path: '/', name: 'home', component: HomePage, meta: {title: "首页"}},
+    {path: '/login/', name: 'login', component: LoginPage, meta: {title: "登录"}},
+    {path: '/register/', name: 'register', component: RegisterPage, meta: {title: "注册"}},
+    {path: '/settings/', name: 'settings', component: SettingsPage, meta: {title: "设置"}},
+    {path: '/friends/', name: 'friends', component: FriendsPage, meta: {title: "朋友"}},
+    {path: '/hot/', name: 'hot', component: HotPage, meta: {title: "热点"}},
+    {path: '/test/', name: 'test', component: TestPage, meta: {title: "测试"}},
+    {path: '/u/:username/', name: 'user', component: UserPage, meta: {title: "用户中心"}},
     {path: '/:catchALL(.*)/', component: NotFoundPage, name: 'not-fond', meta: {title: "Not Found"}},
 ]
 
@@ -56,15 +55,13 @@ router.beforeEach((to, from, next) => {
     if (!to.path.endsWith('/')) {
         next({path: to.path + '/'});
     } else {
-        // 获取本地token,判断是否存在
+        // 检查用户是否登录
         const access_token = localStorage.getItem('access_token');
-        if((!access_token || access_token === '') && !(to.name === 'login' || to.name === 'register')) {
-            message.warn("你还没登录,请登录!");
-            return next({name: 'login', query: {redirect: to.fullPath}});
-        }else if(!(!access_token || access_token === '') && (to.name === 'login' || to.name === 'register')){
-            return next({name: "home"})
+        if ((to.path !== '/login/' && to.path !== '/register/')  && !access_token) {
+            next({path: '/login/', query: {redirect: to.fullPath}});
+        } else {
+            next();
         }
-        next()
     }
 })
 

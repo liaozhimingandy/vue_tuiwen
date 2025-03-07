@@ -1,12 +1,17 @@
-
 <script lang="ts" setup>
-import {ref, getCurrentInstance} from 'vue';
+import {ref, getCurrentInstance, onBeforeMount} from 'vue';
+import {useRoute} from "vue-router";
 
 import {message} from 'ant-design-vue';
 import {md5} from 'js-md5';
 
 import instance from '../services/';
+import router from '../router';
+import appStore from "../stores";
+import type {IAccount} from "../interface/types.ts";
 
+const useAccountStore = appStore.useAccountStore;
+const route = useRoute();
 const proxy = getCurrentInstance();
 const formRef = ref(null);
 const formData = ref({
@@ -18,13 +23,53 @@ const rules = {
   password: [{required: true, message: '请输入密码', trigger: 'blur'}],
 };
 
-const handleLogin = () => {
+// 获取帐户信息
+const get_account = async (account_id: string) => {
+  await instance.get(`/accounts/${account_id}/`).then((r: any) => {
+    useAccountStore.update_account(r.data as IAccount);
+    localStorage.setItem('nick_name', r.data.nick_name)
+  });
+}
+
+// 刷新请求令牌
+const refreshAccessToken = async (refresh_token: string) => {
+  const account_id = localStorage.getItem('account_id');
+  await instance.get(`/oauth/refresh-token/${account_id}/refresh_token/`, {
+    headers: {
+      Authorization: "Bearer " + refresh_token,
+    },
+  }).then((r: any) => {
+    localStorage.setItem('access_token', r.data.access_token);
+    localStorage.setItem('account_id', r.data.account_id);
+  }).catch((e: any) => {
+    // 可能是刷新令牌过期,重新登录
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    message.error("登录失败!原因:" + e + "!")
+  })
+
+  // 获取帐户信息
+  await get_account(localStorage.getItem('account_id') || 'unknow');
+  const redirect = route.query.redirect || '/';
+  router.push(redirect as string);
+}
+
+
+onBeforeMount(() => {
+  // 在此处理页面初始化逻辑
+  const refresh_token = localStorage.getItem('refresh_token');
+  if (refresh_token) {
+    refreshAccessToken(refresh_token);
+  }
+})
+
+const handleLogin = async () => {
   // 在此处理登录逻辑
   let data = {
     "username": formData.value.username,
     "password": md5(formData.value.password)
   }
-  instance.post("/oauth/authorize/password/", data, {
+  await instance.post("/oauth/authorize/password/", data, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"
     }
@@ -33,11 +78,12 @@ const handleLogin = () => {
     localStorage.setItem('refresh_token', res.data.refresh_token);
     localStorage.setItem('account_id', res.data.account_id);
     message.success("登录成功!")
+  });
 
-    // 登录成功后台跳转到原页面
-    window.location.replace(proxy.proxy.$route.query.redirect || '/')
-
-  })
+  // 获取帐户信息
+  await get_account(localStorage.getItem('account_id') || 'unknow');
+  // 登录成功后台跳转到原页面
+  window.location.replace(proxy.proxy.$route.query.redirect || '/');
 };
 
 const handleRegister = () => {
@@ -56,7 +102,7 @@ const handleRegister = () => {
         <a-form-item label="密码" name="password">
           <a-input-password v-model:value="formData.password" placeholder="请输入密码"/>
         </a-form-item>
-        <a-divider/>
+        <a-divider>更多</a-divider>
         <a-form-item>
           <a-flex size="large" justify="space-evenly">
             <a-button type="primary" html-type="submit">登录</a-button>

@@ -1,0 +1,6 @@
+ARG VER_NGX="1.21.6-alpine"
+
+FROM "liaozhiming/vue_tuiwen:latest-assets" AS assets
+FROM "nginx:$VER_NGX"
+LABEL MAINTAINER="andy<contact@liaozhimingandy>"
+COPY --from=assets /app/* /usr/share/nginx/html

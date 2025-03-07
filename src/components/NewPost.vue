@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {ref} from 'vue';
-import {FileImageOutlined, DownOutlined, PlusOutlined} from "@ant-design/icons-vue";
+import {FileImageFilled, DownOutlined, PlusOutlined} from "@ant-design/icons-vue";
 import type {IPost} from "../interface/types.ts";
 import appStore from '../stores/';
 import {storeToRefs} from 'pinia';
@@ -79,18 +79,18 @@ const handlePublish = () => {
     })
   }
   let post: IPost = {
-    "post_id": crypto.randomUUID(),
-    "account_id": "string",
-    "right_status": 1,
-    "content": {"text": content.value, "images": images},
-    "from_ip": "string",
-    "from_device": 9,
-    "status": 1
+    post_id: crypto.randomUUID(),
+    account_id: localStorage.getItem('account_id') || "unknow",
+    right_status: 1,
+    content: {"text": content.value, "images": images},
+    from_ip: "string",
+    from_device: 9,
+    status: 1
   }
   // 调发布接口
-  instance.post("/posts/", post).then((res: any) => {
-    posts.value.push(res as IPost);
-    posts.value.sort((a, b) => new Date(a.gmt_created).getTime() - new Date(b.gmt_created).getTime());
+  instance.post("/posts/", JSON.stringify(post)).then((r: any) => {
+    posts.value.push(r.data as IPost);
+    posts.value = posts.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
   });
   0
   is_open.value = false;
@@ -167,7 +167,7 @@ const access_token = 'Bearer ' + localStorage.getItem('access_token');
               </template>
               <a-button type="text" size="large" @click="is_open_upload_image=!is_open_upload_image">
                 <template #icon>
-                  <FileImageOutlined/>
+                  <FileImageFilled/>
                 </template>
               </a-button>
             </a-tooltip>
@@ -179,7 +179,7 @@ const access_token = 'Bearer ' + localStorage.getItem('access_token');
             >
               发布
             </a-button>
-         </a-flex>
+          </a-flex>
         </a-modal>
         <a-input
             v-model:value="content"
@@ -200,7 +200,7 @@ const access_token = 'Bearer ' + localStorage.getItem('access_token');
           </template>
           <a-button type="text" @click="handleOpenChange(true)">
             <template #icon>
-              <FileImageOutlined/>
+              <FileImageFilled/>
             </template>
           </a-button>
         </a-tooltip>

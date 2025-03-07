@@ -10,17 +10,14 @@ import type {IPost} from "../interface/types.ts";
 import Post from "../components/Post.vue";
 import {debounce} from "lodash";
 import {storeToRefs} from "pinia";
+import Header from '../components/Header.vue';
 
 import appStore from "../stores";
-import router from "../router";
 
-const header = ref<any>(null);
+const headerRef = ref<any>(null);
 const postContent = ref<any>(null);
 const contentHeight = ref<number | undefined>(undefined);
-const selectedKeys = ref<string[]>(['1']);
-const handleMenuClick = (e: any) => {
-  selectedKeys.value = [e.key];
-};
+
 const isMobile = ref<boolean>(false); // 判断是否为手机设备
 const showBackTop = ref<boolean>(false); // 控制返回顶部按钮的显示与隐藏
 
@@ -32,7 +29,7 @@ const checkDeviceSize = () => {
 }
 
 const updateContentHeight = () => {
-  contentHeight.value = window.innerHeight - header.value.$el.offsetHeight - 12;
+  contentHeight.value = window.innerHeight - headerRef.value.$el.offsetHeight - 12;
 };
 
 // 处理滚动事件
@@ -56,9 +53,8 @@ const scrollToTop = () => {
 };
 //获取推文信息
 const get_post = async () => {
-  instance.get("/posts/lasted/").then((res: any) => {
-    posts.value = posts.value.concat(res.data as IPost[]);
-    // message.info(`成功加载${res.data.length}条数据`)
+  instance.get("/posts/lasted/").then((r: any) => {
+    appStore.usePostStore.addPosts(r.data as IPost[]);
   })
 }
 
@@ -74,92 +70,13 @@ onBeforeUnmount(async () => {
   window.removeEventListener("resize", updateContentHeight);
   window.removeEventListener("resize", checkDeviceSize);
 })
-
-// 退出登录
-const logout = () => {
-  // 清空登录信息
-  localStorage.clear();
-  // 跳转到登录页面
-  router.push('login');
-}
 </script>
 
 <template>
   <a-layout style="min-height: 100vh; text-align: center;">
-    <a-layout-header ref="header" :style="{width: '100%',
+    <a-layout-header ref="headerRef" :style="{width: '100%',
       'background-color': 'white'}">
-      <a-row justify="space-between">
-        <!-- Logo 左侧 -->
-        <a-col :span="4">
-          <a href="/" style="font-size: 24px; font-weight: bold;">Logo</a>
-        </a-col>
-
-        <!-- Menu 中间 -->
-        <a-col :span="16">
-          <a-menu
-              theme="light"
-              mode="horizontal"
-              :selected-keys="selectedKeys"
-              @click="handleMenuClick"
-              style="line-height: 64px; display: flex; justify-content: center;font-size: 16px; ">
-            <a-menu-item key="1">
-              <a-button type="text" style="width: 100px; height: 80%;">
-                <HomeOutlined style="font-size: 20px"/>
-              </a-button>
-            </a-menu-item>
-            <!--            <a-menu-item key="2">-->
-            <!--              <router-link to="friends">-->
-            <!--                <a-button type="text" style="width: 100px; height: 80%;">-->
-            <!--                  <UserSwitchOutlined style="font-size: 20px"/>-->
-            <!--                </a-button>-->
-            <!--              </router-link>-->
-            <!--            </a-menu-item>-->
-            <!--            <a-menu-item key="3">-->
-            <!--              <router-link to="hot">-->
-            <!--                <a-button type="text" style="width: 100px; height: 80%;">-->
-            <!--                  <FireOutlined style="font-size: 20px"/>-->
-            <!--                </a-button>-->
-            <!--              </router-link>-->
-            <!--            </a-menu-item>-->
-          </a-menu>
-        </a-col>
-        <!-- User Info 右侧 -->
-        <a-col :span="4" style="text-align: right;">
-          <a-space>
-            <a-tooltip>
-              <template #title>
-                通知
-              </template>
-              <a-button type="text" shape="circle" size="large">
-                <template #icon>
-                  <BellOutlined/>
-                </template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown :trigger="['click']">
-              <a class="ant-dropdown-link" @click.prevent>
-                <a-avatar src="https://xsgames.co/randomusers/avatar.php?g=male" :size="40"/>
-                <span style="margin-left: 8px;">用户名</span>
-              </a>
-              <template #overlay>
-                <a-menu style="margin-top: 20px; background-color: #E9EBEE">
-                  <a-menu-item key="0">
-                    <a-button href="mailto:liaozhimingandy@gg.com" :icon="h(MailOutlined)" type="text"
-                              style="width: 100%; text-align: start">提供宝贵意见
-                    </a-button>
-                  </a-menu-item>
-                  <a-menu-divider/>
-                  <a-menu-item key="1">
-                    <a-button href="/" :icon="h(MailOutlined)" type="text" style="width: 100%; text-align: start"
-                              @click="logout">退出登录
-                    </a-button>
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </a-col>
-      </a-row>
+      <Header selected-keys="s"/>
     </a-layout-header>
     <a-layout-content style="padding-top: 8px">
       <a-row style="background-color: #E9EBEE">
@@ -195,14 +112,19 @@ const logout = () => {
 
               <NewPost/>
               <div style="height: 6px"></div>
-
               <!-- 博客列表内容 -->
-              <a-empty v-if="posts.length < 1"/>
+              <a-card v-if="posts.length < 1">
+                <template #title>
+                  <a-space>
+                    <a-skeleton-avatar/>
+                    <a-skeleton-input style="width: 200px"/>
+                  </a-space>
+                </template>
+                <a-skeleton-image/>
+              </a-card>
               <Post v-for="post in posts" style="padding-top: 2px" :post="post"/>
-
             </a-col>
           </c-scrollbar>
-
         </a-col>
 
         <!-- 推荐内容 (第三列) -->
