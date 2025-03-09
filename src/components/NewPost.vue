@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {ref} from 'vue';
 import {FileImageFilled, DownOutlined, PlusOutlined} from "@ant-design/icons-vue";
-import type {IPost} from "../interface/types.ts";
-import appStore from '../stores/';
+import type {IPost} from "@/interface";
+import appStore from '@/stores/';
 import {storeToRefs} from 'pinia';
-import instance from '../services/';
+import instance from '@/services/';
 
 const {posts} = storeToRefs(appStore.usePostStore);
 
@@ -107,7 +107,7 @@ const access_token = 'Bearer ' + localStorage.getItem('access_token');
       <!-- 第一段：用户头像 + 输入框 -->
       <div style="display: flex; align-items: center; margin-bottom: 16px;">
         <!-- 用户头像 -->
-        <a-avatar src="https://xsgames.co/randomusers/avatar.php?g=male" size="large"/>
+        <a-avatar :src="appStore.useAccountStore.account?.avatar" size="large"/>
         <!-- 输入框 -->
         <a-modal
             v-model:open="is_open"
@@ -119,7 +119,7 @@ const access_token = 'Bearer ' + localStorage.getItem('access_token');
           <a-space direction="vertical" style="width: 100%">
             <!-- 用户头像 -->
             <a-space direction="horizontal">
-              <a-avatar src="https://xsgames.co/randomusers/avatar.php?g=male" size="large"/>
+              <a-avatar :src="appStore.useAccountStore.account?.avatar" size="large"/>
               <a-dropdown :trigger="['click']">
                 <a-button class="ant-dropdown-link" @click.prevent type="text">
                   {{ selected_status.label }}

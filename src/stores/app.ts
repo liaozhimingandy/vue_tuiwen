@@ -1,6 +1,6 @@
 import {defineStore} from "pinia";
 import {ref} from "vue";
-import type {IAccount, IPost} from "../interface/types.ts";
+import type {IAccount, IPost} from "../interface";
 
 export const usePostStore = defineStore("posts", () => {
     const posts = ref<IPost[]>([]); // 推文列表
@@ -26,11 +26,10 @@ export const usePostStore = defineStore("posts", () => {
 
 // 帐户信息存储
 export const useAccountStore = defineStore("account", () => {
-    const account = ref<IAccount>();
+    const account = ref<IAccount>({account_id: ''});
 
     const update_account = (data: IAccount) => {
         account.value = data;
-        console.info(account.value);
     };
 
     return {

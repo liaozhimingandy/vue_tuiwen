@@ -1,0 +1,33 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+    if: github.repository == 'liaozhiming/vue_tuiwen'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          body: |
+            # tuiwen ${{ github.ref }} 发布🎈
+
+            [![github](https://badgen.net/badge/>>/GitHub/cyan)](https://github.com/doocs/md/releases) [![gitee](https://badgen.net/badge/>>/Gitee/cyan)](https://gitee.com/doocs/md/releases)
+
+            > tuiwen！
+
+          draft: false
+          prerelease: false

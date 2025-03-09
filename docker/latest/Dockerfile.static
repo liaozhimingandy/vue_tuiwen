@@ -6,7 +6,6 @@ FROM lipanski/docker-static-website
 WORKDIR /home/static
 
 COPY --from=assets /app/* /home/static
+COPY server/httpd.conf httpd.conf
 
-EXPOSE 80
-
-CMD ["/busybox-httpd", "-f", "-v", "-p", "80", "-c", "httpd.conf"]
+CMD ["/busybox-httpd", "-f", "-v", "-p", "3000", "-c", "httpd.conf"]

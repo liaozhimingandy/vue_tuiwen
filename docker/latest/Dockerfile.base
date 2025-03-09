@@ -4,10 +4,15 @@ ENV LANGUAGE="en_US.UTF-8"
 ENV LC_ALL="en_US.UTF-8"
 RUN apk add curl
 RUN curl -L "https://codeload.github.com/liaozhimingandy/vue_tuiwen/zip/refs/heads/main" -o "main.zip" && unzip "main.zip" && mv "vue_tuiwen-main" /app
+# 以下是本地测试
+# COPY main.zip .
+# RUN unzip "main.zip" && mv "vue_tuiwen-main" /app
+
 WORKDIR /app
+
 COPY ./patch/vite.config.ts /app/vite.config.ts
 ENV NODE_OPTIONS="--openssl-legacy-provider"
-RUN npm i && npm run build
+RUN npm i && npm run build && cp dist/index.html dist/404.html
 
 FROM scratch
 LABEL MAINTAINER="andy<contact@liaozhimingandy>"

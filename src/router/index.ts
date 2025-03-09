@@ -13,6 +13,7 @@ import FriendsPage from "../pages/FriendsPage.vue";
 import HotPage from "../pages/HotPage.vue";
 import LoginPage from "../pages/LoginPage.vue";
 import RegisterPage from "../pages/RegisterPage.vue";
+import {splitVendorChunk} from "vite";
 
 NProgress.inc(0.2)
 // 进度条配置（可选）

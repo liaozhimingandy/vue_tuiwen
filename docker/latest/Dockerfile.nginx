@@ -4,3 +4,4 @@ FROM "liaozhiming/vue_tuiwen:latest-assets" AS assets
 FROM "nginx:$VER_NGX"
 LABEL MAINTAINER="andy<contact@liaozhimingandy>"
 COPY --from=assets /app/* /usr/share/nginx/html
+COPY server/default.conf /etc/nginx/conf.d/default.conf

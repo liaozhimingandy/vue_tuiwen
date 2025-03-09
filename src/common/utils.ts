@@ -1,8 +1,9 @@
 const zeroize = (num: string) => {
         return (String(num).length == 1 ? '0' : '') + num;
-    }
+    };
 
-const timestampFormat = (datetime: string) => {
+
+export const timestampFormat = (datetime: string) => {
     // 时间显示格式
     let timestamp = parseInt((new Date(datetime).getTime() / 1000).toString());
     const curTimestamp = parseInt((new Date().getTime() / 1000).toString()); //当前时间戳
@@ -32,5 +33,3 @@ const timestampFormat = (datetime: string) => {
         }
     }
 }
-
-export default timestampFormat;

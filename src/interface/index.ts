@@ -40,7 +40,7 @@ export interface IAccount {
     allow_add_friend?: boolean;
     allow_beep?: boolean;
     allow_vibration?: boolean;
-    areaCode?: string;
+    area_code?: string;
     avatar?: string;
     email?: null | string;
     gmt_birth?: string;

@@ -7,8 +7,8 @@ import {message} from "ant-design-vue";
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
-import type {IAccount, IComment, IPost} from "../interface/types.ts";
-import timestampFormat from "../common/utils.ts";
+import type {IAccount, IComment, IPost} from "../interface";
+import {timestampFormat} from "@/common/utils.ts";
 import PictureList from "./PictureList.vue";
 import instance from '../services/';
 import appStore from "../stores";
@@ -39,7 +39,7 @@ const handleFollow = () => {
 };
 
 const handleLike = (post_id: string) => {
-  if(!like?.value.is_liked) {
+  if (!like?.value.is_liked) {
     // 处理点赞逻辑
     let data = {
       obj_id: post_id,
@@ -52,7 +52,7 @@ const handleLike = (post_id: string) => {
       like.value.count += 1;
       like.value.is_liked = !like.value.is_liked;
     });
-  }else{
+  } else {
     instance.delete(`/likes/${props.post.post_id}/`).then(() => {
       message.success("取消点赞成功");
       like.value.count -= 1;
@@ -91,27 +91,37 @@ const handleSubmit = () => {
     return;
   }
   submitting.value = true;
-  setTimeout(() => {
-    submitting.value = false;
-    // 提交成功后清空输入框
-    instance.post("/comments/", {
-      "content": comment_data.value,
-      "obj_id": props.post.post_id,
-      "obj_type": 1,
-      "account_id": localStorage.getItem('account_id')
-    }).then(() => {
-      message.success("评论成功!")
-    });
-    instance.get(`/comments/1/${props.post.post_id}/`)
-        .then((r: any) => {
-          comments.value = comments.value.concat(r.data as IComment[]);
-          comment_data.value = '';
-        })
-  }, 2000);
+  let data = {
+    content: comment_data.value,
+    obj_id: props.post.post_id,
+    obj_type: 1,
+    account_id: localStorage.getItem('account_id')
+  }
+  // 提交成功后清空输入框
+  instance.post("/comments/", JSON.stringify(data)).then((r: any) => {
+    message.success("评论成功!");
+    comment_data.value = '';
+    let els = comments.value.concat(r.data);
+    let map = new Map();
+    els.forEach((el) => map.set(el.comment_id, el));
+    comments.value = Array.from(map.values());
+    comments.value = comments.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
+  }).finally(() => submitting.value = false);
 }
 
 // 当点击评论按钮时
-const handleComment = () => select_item.value = select_item.value === 'c' ? '' : 'c';
+const handleComment = () => {
+  select_item.value = select_item.value === 'c' ? '' : 'c';
+  // 加载评论
+  instance.get(`/comments/1/${props.post.post_id}/`).then((r: any) => {
+    let els = comments.value.concat(r.data);
+    let map = new Map();
+    els.forEach((el) => map.set(el.comment_id, el));
+    comments.value = Array.from(map.values());
+    comments.value = comments.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
+
+  });
+}
 
 </script>
 
@@ -123,7 +133,7 @@ const handleComment = () => select_item.value = select_item.value === 'c' ? '' :
       <a-popover>
         <template #content>
           <a-space direction="vertical" style="width: 300px">
-            <a-avatar src="https://xsgames.co/randomusers/avatar.php?g=male" :size="64"/>
+            <a-avatar :src="account?.avatar" :size="64"/>
             <a-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</a-typography-text>
             <a-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
               {{ follow.follower_count }}
@@ -141,7 +151,7 @@ const handleComment = () => select_item.value = select_item.value === 'c' ? '' :
           </a-space>
         </template>
         <router-link :to="{ name: 'user', params: { username: post.account_id } }">
-          <a-avatar src="https://xsgames.co/randomusers/avatar.php?g=male" size="large"/>
+          <a-avatar :src="account?.avatar" size="large"/>
         </router-link>
       </a-popover>
 
@@ -182,7 +192,7 @@ const handleComment = () => select_item.value = select_item.value === 'c' ? '' :
       </a-button>
 
       <!-- 赞按钮 -->
-      <a-button :icon="h(HeartOutlined)" type="text" @click="handleLike(post.post_id)">赞({{like?.count}})</a-button>
+      <a-button :icon="h(HeartOutlined)" type="text" @click="handleLike(post.post_id)">赞({{ like?.count }})</a-button>
     </div>
     <a-list
         v-if="select_item === 'c'"

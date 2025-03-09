@@ -4,15 +4,16 @@ import {CScrollbar} from 'c-scrollbar'; // 滚动条
 import {BugFilled, MailOutlined, BellOutlined, SettingFilled, HomeOutlined}
   from "@ant-design/icons-vue";
 import {message} from 'ant-design-vue';
-import NewPost from "../components/NewPost.vue";
-import instance from '../services/';
-import type {IPost} from "../interface/types.ts";
-import Post from "../components/Post.vue";
+import NewPost from "@/components/NewPost.vue";
+import instance from '@/services/';
+import type {IPost} from "@/interface";
+import Post from "@/components/Post.vue";
 import {debounce} from "lodash";
 import {storeToRefs} from "pinia";
 import Header from '../components/Header.vue';
 
-import appStore from "../stores";
+import appStore from "@/stores";
+import {get_account} from "@/services/api.ts";
 
 const headerRef = ref<any>(null);
 const postContent = ref<any>(null);
@@ -57,7 +58,7 @@ const get_post = async () => {
     appStore.usePostStore.addPosts(r.data as IPost[]);
   })
 }
-
+const recommendations = ref<Array<Map<string, string>>>([]);
 onMounted(async () => {
   window.addEventListener("resize", updateContentHeight);
   updateContentHeight();
@@ -70,6 +71,8 @@ onBeforeUnmount(async () => {
   window.removeEventListener("resize", updateContentHeight);
   window.removeEventListener("resize", checkDeviceSize);
 })
+
+get_account(localStorage.getItem('account_id'));
 </script>
 
 <template>
@@ -87,15 +90,19 @@ onBeforeUnmount(async () => {
               class="content"
           >
             <!-- 功能列表内容 -->
-            <a-menu>
-              <a-menu-item key="1">
-                <router-link :to="{ name: 'settings'}">
-                  <a-button :icon="h(SettingFilled)" type="text" style="width: 100%; font-size: 16px">设置
-                  </a-button>
-                </router-link>
-              </a-menu-item>
-            </a-menu>
-
+            <a-space direction="vertical"
+                     style="width: 100%; border-radius: 60px; margin: 0">
+              <a-menu>
+                <a-menu-item key="1">
+                  <router-link :to="{ name: 'settings'}">
+                    <a-button :icon="h(SettingFilled)" type="text" style="width: 100%; font-size: 16px">设置
+                    </a-button>
+                  </router-link>
+                </a-menu-item>
+              </a-menu>
+              <a-typography-text>{{ new Date().getFullYear() }}&nbsp;|&nbsp;Beta&nbsp;|&nbsp;<a-button href="https://www.alsoapp.com/privacy/" target="_blank" type="text">隐私政策</a-button>
+              </a-typography-text>
+            </a-space>
           </c-scrollbar>
         </a-col>
 

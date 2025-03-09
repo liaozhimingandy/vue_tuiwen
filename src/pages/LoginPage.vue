@@ -7,10 +7,8 @@ import {md5} from 'js-md5';
 
 import instance from '../services/';
 import router from '../router';
-import appStore from "../stores";
-import type {IAccount} from "../interface/types.ts";
+import {get_account} from "@/services/api.ts";
 
-const useAccountStore = appStore.useAccountStore;
 const route = useRoute();
 const proxy = getCurrentInstance();
 const formRef = ref(null);
@@ -23,13 +21,7 @@ const rules = {
   password: [{required: true, message: '请输入密码', trigger: 'blur'}],
 };
 
-// 获取帐户信息
-const get_account = async (account_id: string) => {
-  await instance.get(`/accounts/${account_id}/`).then((r: any) => {
-    useAccountStore.update_account(r.data as IAccount);
-    localStorage.setItem('nick_name', r.data.nick_name)
-  });
-}
+
 
 // 刷新请求令牌
 const refreshAccessToken = async (refresh_token: string) => {
@@ -73,22 +65,22 @@ const handleLogin = async () => {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"
     }
-  }).then((res: any) => {
-    localStorage.setItem('access_token', res.data.access_token);
-    localStorage.setItem('refresh_token', res.data.refresh_token);
-    localStorage.setItem('account_id', res.data.account_id);
+  }).then((r: any) => {
+    localStorage.setItem('access_token', r.data.access_token);
+    localStorage.setItem('refresh_token', r.data.refresh_token);
+    localStorage.setItem('account_id', r.data.account_id);
     message.success("登录成功!")
   });
 
   // 获取帐户信息
   await get_account(localStorage.getItem('account_id') || 'unknow');
   // 登录成功后台跳转到原页面
-  window.location.replace(proxy.proxy.$route.query.redirect || '/');
+  await router.push(proxy.proxy.$route.query.redirect || '/');
 };
 
 const handleRegister = () => {
   // 跳转到注册页面
-  window.location.replace('/register/');
+  router.push('/register/');
 };
 </script>
 

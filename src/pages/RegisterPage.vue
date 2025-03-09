@@ -2,9 +2,9 @@
 import {ref} from 'vue';
 import {md5} from "js-md5";
 import cloneDeep from "lodash/cloneDeep";
-import instance from '../services'
+import instance from '@/services'
 import {message} from "ant-design-vue";
-import router from "../router";
+import router from "@/router";
 import {sex_code_list} from "../common/dataset.ts"
 
 const formRef = ref(null);
@@ -44,10 +44,10 @@ const rules = {
     {required: false, message: '请输入显示名称', trigger: 'blur'},
   ],
   sex: [
-    {required: false, message: '请选择你的性别', trigger: 'blur'}
+    {required: true, message: '请选择你的性别', trigger: 'blur'}
   ],
   gmt_birth: [
-    {required: false, message: '请选择出生日期', trigger: 'blur'}
+    {required: true, message: '请选择出生日期', trigger: 'blur'}
   ]
 };
 
@@ -58,7 +58,7 @@ const handleRegister = () => {
   data.sex = parseInt(data.sex);
 
   // 调用注册接口
-  instance.post('/accounts/register/', JSON.stringify(data)).then((r: any) => {
+  instance.post('/accounts/register/', JSON.stringify(data)).then(() => {
     message.success("注册成功,请登录!")
     router.push({name: "login"});
   })

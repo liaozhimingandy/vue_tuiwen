@@ -1,12 +1,12 @@
 {
   "name": "vue_tuiwen",
-  "private": true,
+  "private": false,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "build": "vite build",
+    "preview": "pm run build && vite preview"
   },
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",
