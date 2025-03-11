@@ -5,9 +5,9 @@ FROM "liaozhiming/vue_tuiwen:latest-assets" AS assets
 
 FROM "golang:$VER_GOLANG" AS gobuilder
 COPY --from=assets /app/* /app/assets/
-COPY server/main.go /app
 RUN apk add git bash gcc musl-dev upx
 WORKDIR /app
+COPY server/main.go /app
 RUN go build -ldflags "-w -s" -o md main.go && \
     apk add upx && \
     upx -9 -o md.minify md

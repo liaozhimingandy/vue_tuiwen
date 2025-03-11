@@ -13,7 +13,6 @@ import FriendsPage from "../pages/FriendsPage.vue";
 import HotPage from "../pages/HotPage.vue";
 import LoginPage from "../pages/LoginPage.vue";
 import RegisterPage from "../pages/RegisterPage.vue";
-import {splitVendorChunk} from "vite";
 
 NProgress.inc(0.2)
 // 进度条配置（可选）
@@ -44,7 +43,7 @@ const router = createRouter({
     routes: routes, // `routes: routes` 的缩写
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _, next) => {
     //beforeEach是router的钩子函数，在进入路由前执行
     // 开始进度条
     NProgress.start();

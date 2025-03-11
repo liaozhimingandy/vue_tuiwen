@@ -1,6 +1,6 @@
 import {defineStore} from "pinia";
 import {ref} from "vue";
-import type {IAccount, IPost} from "../interface";
+import type {IAccount, IPost} from "@/interface";
 
 export const usePostStore = defineStore("posts", () => {
     const posts = ref<IPost[]>([]); // 推文列表
