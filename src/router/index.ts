@@ -33,6 +33,7 @@ const routes: RouteRecordRaw[] = [
     {path: '/friends/', name: 'friends', component: FriendsPage, meta: {title: "朋友"}},
     {path: '/hot/', name: 'hot', component: HotPage, meta: {title: "热点"}},
     {path: '/test/', name: 'test', component: TestPage, meta: {title: "测试"}},
+    {path: '/s/:post_id', name: 'status', component: TestPage, meta: {title: "帖子"}},
     {path: '/u/:username/', name: 'user', component: UserPage, meta: {title: "用户中心"}},
     {path: '/:catchALL(.*)/', component: NotFoundPage, name: 'not-fond', meta: {title: "Not Found"}},
 ]

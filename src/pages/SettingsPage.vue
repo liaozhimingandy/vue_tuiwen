@@ -152,13 +152,13 @@ const url_upload = import.meta.env.VITE_APP_BASE_URL + '/upload/image/';
           >
             <a-tabs v-model:activeKey="activeKey" tab-position="left" animated class="content">
               <a-tab-pane key="1" tab="个人资料">
-                <a-typography-title>个人资料</a-typography-title>
+                <a-typography-title :level="4">个人资料</a-typography-title>
                 <a-form :model="account" :rules="rules_account" ref="formRef1" @finish="update_account">
                   <a-space direction="vertical">
                     <a-form-item>
                       <a-upload-dragger v-model:file-list="files" :action="url_upload" :headers="{'Authorization': access_token}"
                                         maxCount="1" @change="uploadChange">
-                        <a-avatar :src="account.avatar" :size="80"></a-avatar>
+                        <a-avatar :src="account.avatar" :size="120"></a-avatar>
                       </a-upload-dragger>
                     </a-form-item>
                     <a-form-item label="用户名" name="username">
@@ -180,7 +180,7 @@ const url_upload = import.meta.env.VITE_APP_BASE_URL + '/upload/image/';
                 </a-form>
               </a-tab-pane>
               <a-tab-pane key="2" tab="账号安全">
-                <a-typography-title>账号安全</a-typography-title>
+                <a-typography-title :level="4">账号安全</a-typography-title>
                 <a-form :model="formData" :rules="rules_password" ref="formRef" autocomplete="off" @finish="password_reset">
                   <a-space direction="vertical">
                     <a-form-item label="旧密码" name="password_current" hasFeedback>
@@ -211,7 +211,7 @@ const url_upload = import.meta.env.VITE_APP_BASE_URL + '/upload/image/';
                 </a-form>
               </a-tab-pane>
               <a-tab-pane key="3" tab="通用">
-                <a-typography-title>通用设置</a-typography-title>
+                <a-typography-title :level="4">通用设置</a-typography-title>
                 <a-form >
                   <a-form-item label="是否接收系统通知">
                     <a-switch value="true">推送</a-switch>

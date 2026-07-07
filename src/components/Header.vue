@@ -62,7 +62,7 @@ const logout = () => {
       </a-menu>
     </a-col>
     <!-- User Info 右侧 -->
-    <a-col :span="4" style="text-align: right;">
+    <a-col :span="4">
       <a-space>
         <a-popover>
           <template #content>

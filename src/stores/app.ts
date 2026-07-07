@@ -8,15 +8,15 @@ export const usePostStore = defineStore("posts", () => {
     // 新增推文数据
     const addPost = (data: IPost)=>  {
         posts.value.push(data);
-        posts.value = posts.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
+        posts.value = posts.value.sort((a: IPost, b: IPost) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
     }
     // 新增多份推文数据
     const addPosts = (data: IPost[])=>  {
         let els = posts.value.concat(data);
         let map = new Map();
-        els.forEach((el) => map.set(el.post_id, el));
+        els.forEach((el: IPost) => map.set(el.post_id, el));
         posts.value = Array.from(map.values());
-        posts.value = posts.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
+        posts.value = posts.value.sort((a: IPost, b: IPost) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
     }
     return {
         addPost,

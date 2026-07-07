@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {ref, onMounted, onBeforeUnmount, h} from 'vue';
 import {CScrollbar} from 'c-scrollbar'; // 滚动条
-import {BugFilled, MailOutlined, BellOutlined, SettingFilled, HomeOutlined}
+import {BugFilled, SettingFilled, UserOutlined,}
   from "@ant-design/icons-vue";
 import {message} from 'ant-design-vue';
 import NewPost from "@/components/NewPost.vue";
@@ -15,6 +15,7 @@ import Header from '../components/Header.vue';
 import appStore from "@/stores";
 import {get_account} from "@/services/api.ts";
 
+const account_id = localStorage.getItem('account_id')
 const headerRef = ref<any>(null);
 const postContent = ref<any>(null);
 const contentHeight = ref<number | undefined>(undefined);
@@ -60,6 +61,7 @@ const get_post = async () => {
 }
 const recommendations = ref<Array<Map<string, string>>>([]);
 onMounted(async () => {
+
   window.addEventListener("resize", updateContentHeight);
   updateContentHeight();
   window.addEventListener("resize", checkDeviceSize);
@@ -72,7 +74,8 @@ onBeforeUnmount(async () => {
   window.removeEventListener("resize", checkDeviceSize);
 })
 
-get_account(localStorage.getItem('account_id'));
+// 获取用户信息
+get_account(account_id);
 </script>
 
 <template>
@@ -91,16 +94,22 @@ get_account(localStorage.getItem('account_id'));
           >
             <!-- 功能列表内容 -->
             <a-space direction="vertical"
-                     style="width: 100%; border-radius: 60px; margin: 0">
+                     style="width: 100%; border-radius: 60px; margin: 0; text-align: center">
               <a-menu>
                 <a-menu-item key="1">
                   <router-link :to="{ name: 'settings'}">
-                    <a-button :icon="h(SettingFilled)" type="text" style="width: 100%; font-size: 16px">设置
+                    <a-button :icon="h(SettingFilled)" type="text" style="width: 100%; font-size: 16px; text-align: start">设置
+                    </a-button>
+                  </router-link>
+                </a-menu-item>
+                <a-menu-item key="2">
+                  <router-link :to="{ name: 'user', params: { username: account_id}}">
+                    <a-button :icon="h(UserOutlined)" type="text" style="width: 100%; font-size: 16px; text-align: start">个人中心
                     </a-button>
                   </router-link>
                 </a-menu-item>
               </a-menu>
-              <a-typography-text>{{ new Date().getFullYear() }}&nbsp;|&nbsp;Beta&nbsp;|&nbsp;<a-button href="https://www.alsoapp.com/privacy/" target="_blank" type="text">隐私政策</a-button>
+              <a-typography-text>{{ new Date().getFullYear() }}<a-button type="text" disabled>内侧中</a-button><a-button href="https://www.alsoapp.com/privacy/" target="_blank" type="text">隐私政策</a-button>
               </a-typography-text>
             </a-space>
           </c-scrollbar>

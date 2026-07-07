@@ -85,6 +85,7 @@ onBeforeMount(() => {
   // 查询点赞数
   instance.get(`/likes/${props.post.post_id}/count/`).then((r: any) => like.value = r.data);
 })
+
 // 提交评论
 const handleSubmit = () => {
   if (!comment_data.value) {
@@ -170,7 +171,7 @@ const handleComment = () => {
     </div>
 
     <!-- 第二段：博客内容 -->
-    <div style="margin-bottom: 16px; background-color: #888888;">
+    <div style="margin-bottom: 16px; background-color: white;">
       <a-space direction="vertical" :size="6">
         <!--          文本描述内容-->
         <p>
