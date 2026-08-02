@@ -13,6 +13,8 @@ import FriendsPage from "../pages/FriendsPage.vue";
 import HotPage from "../pages/HotPage.vue";
 import LoginPage from "../pages/LoginPage.vue";
 import RegisterPage from "../pages/RegisterPage.vue";
+import appStore from "../stores";
+import {message} from "ant-design-vue";
 
 NProgress.inc(0.2)
 // 进度条配置（可选）
@@ -33,8 +35,11 @@ const routes: RouteRecordRaw[] = [
     {path: '/friends/', name: 'friends', component: FriendsPage, meta: {title: "朋友"}},
     {path: '/hot/', name: 'hot', component: HotPage, meta: {title: "热点"}},
     {path: '/test/', name: 'test', component: TestPage, meta: {title: "测试"}},
-    {path: '/s/:post_id', name: 'status', component: TestPage, meta: {title: "帖子"}},
+    {path: '/l/', name: 'long', component: ()=>import("@/pages/LongPostPage.vue"), meta: {title: "发长文"}},
+    {path: '/s/:post_id/', name: 'post', component: ()=>import("@/pages/SharePage.vue"), meta: {title: "分享帖子"}},
     {path: '/u/:username/', name: 'user', component: UserPage, meta: {title: "用户中心"}},
+    {path: '/reset_password/', name: 'reset_password', component:()=>import("@/pages/ResetPasswordPage.vue"),
+        meta: {title: "密码重置"}},
     {path: '/:catchALL(.*)/', component: NotFoundPage, name: 'not-fond', meta: {title: "Not Found"}},
 ]
 
@@ -52,18 +57,23 @@ router.beforeEach((to, _, next) => {
         document.title = to.meta.title + ' | alsoapp'
     }
 
-    // 如果路径不是以 / 开头，则自动添加 /
-    if (!to.path.endsWith('/')) {
-        next({path: to.path + '/'});
-    } else {
-        // 检查用户是否登录
-        const access_token = localStorage.getItem('access_token');
-        if ((to.path !== '/login/' && to.path !== '/register/')  && !access_token) {
-            next({path: '/login/', query: {redirect: to.fullPath}});
-        } else {
-            next();
-        }
-    }
+    // 白名单：不需要登录的页面
+  const isWhiteList = ['/login/', '/register/', '/reset_password/'].includes(to.path)
+  const hasToken = !!appStore.useAccountStore.token.access_token; //access_token可能为 '' / null / undefined
+
+  // 已登录，访问登录/注册页 → 跳首页
+  if (isWhiteList && hasToken) {
+    return next('/')
+  }
+  // 未登录，访问需要权限的页 → 跳登录
+  if (!isWhiteList && !hasToken) {
+    message.warn("需要重新登录!");
+    return next({
+      path: '/login/',
+      query: { redirect: to.fullPath }
+    })
+  }
+  next();
 })
 
 router.afterEach(() => {

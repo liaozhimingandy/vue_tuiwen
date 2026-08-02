@@ -7,12 +7,14 @@ import {message} from "ant-design-vue";
 
 const headerRef = ref<Element>();
 import {CScrollbar} from "c-scrollbar";
-import {sex_code_list} from "@/common/dataset.ts";
+import {sex_code_map} from "@/common/constants.js";
 import type {Rule} from "ant-design-vue/es/form";
 import {md5} from "js-md5";
-import {get_account} from "@/services/api.ts";
+import {apiUrls, update_self_account} from "@/services/api.ts";
 import appStore from "@/stores";
 import {storeToRefs} from "pinia";
+import type {IAccount} from "@/interface";
+import router from "@/router";
 
 const activeKey = ref<string>('1');
 const {account} = storeToRefs(appStore.useAccountStore);
@@ -28,12 +30,12 @@ onMounted(()=>{
 })
 
 // 性别字典
-const sexListOptions = Object.entries(sex_code_list().sex_code_list).map(([k, v]) => {
+const sexListOptions = Object.entries(sex_code_map).map(([k, v]) => {
   return {"value": k[0], "label": v}
 });
 
 // 查询用户信息
-get_account(localStorage.getItem('account_id'));
+update_self_account(account.value.account_id);
 
 // 密码重置表单
 const formData = reactive({
@@ -92,14 +94,16 @@ const rules_account = {
 const password_reset = () => {
   saving.value = true;
   let data = {
-    account_id: localStorage.getItem('account_id'),
+    account_id: account.value.account_id,
     password_current: md5(formData.password_current),
     password_new: md5(formData.password_new)
   }
-  instance.put('/accounts/password/change/', JSON.stringify(data)).then(() => {
+  instance.put(apiUrls.update_password(), JSON.stringify(data)).then(() => {
     message.success("密码设置成功,下次请用新密码登录!");
-    localStorage.removeItem('refresh_token');
-  }).catch(((err: any) => message.error(err.response.data.message)))
+    appStore.useAccountStore.logout();
+    router.push({name: "login"});
+  }).catch(((err: any) =>
+    message.error(err.response.data.detail)))
       .finally(() => saving.value = false);
 }
 
@@ -114,10 +118,13 @@ const update_account = () => {
     sex: parseInt(account.value.sex),
     avatar: account.value.avatar
   }
-  localStorage.setItem('nick_name', account.value.nick_name);
-  instance.put(`/accounts/${account.value.account_id}/`, JSON.stringify(data))
-      .then(() => message.success("更新成功"))
-      .finally(() => saving.value=false)
+
+  instance.put(apiUrls.update_account(account.value.account_id), JSON.stringify(data))
+      .then((r: IAccount) => {
+        message.success("更新成功");
+        account.value = r.data as IAccount;
+      }
+      ).finally(() => saving.value=false)
 }
 
 // 上传的图片列表
@@ -131,10 +138,6 @@ const uploadChange = (info: any) => {
   }
 }
 
-//token
-const access_token = 'Bearer ' + localStorage.getItem('access_token');
-// 设置图片上传的接口地址
-const url_upload = import.meta.env.VITE_APP_BASE_URL + '/upload/image/';
 </script>
 
 <template>
@@ -156,7 +159,7 @@ const url_upload = import.meta.env.VITE_APP_BASE_URL + '/upload/image/';
                 <a-form :model="account" :rules="rules_account" ref="formRef1" @finish="update_account">
                   <a-space direction="vertical">
                     <a-form-item>
-                      <a-upload-dragger v-model:file-list="files" :action="url_upload" :headers="{'Authorization': access_token}"
+                      <a-upload-dragger v-model:file-list="files" :action="apiUrls.upload_image_url()" :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
                                         maxCount="1" @change="uploadChange">
                         <a-avatar :src="account.avatar" :size="120"></a-avatar>
                       </a-upload-dragger>

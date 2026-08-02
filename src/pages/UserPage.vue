@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import {h, ref, onMounted, computed} from 'vue';
 import {useRoute} from 'vue-router';
-import {ArrowLeftOutlined, ShareAltOutlined} from "@ant-design/icons-vue";
+import {ShareAltOutlined, SettingOutlined, EditOutlined, EllipsisOutlined} from '@ant-design/icons-vue';
 import Header from "../components/Header.vue";
 import instance from "@/services";
-import type {IAccount} from "@/interface";
+import type {IAccount, IPost} from "@/interface";
+import {IdCardH} from "@icon-park/vue-next";
+import {sex_code_map} from "@/common/constants.js";
+import {apiUrls, get_accounts_posts, get_posts} from "@/services/api.ts";
+import Post from "@/components/Post.vue";
+import {message} from "ant-design-vue";
+import appStore from "@/stores";
 
-const route = useRoute()
+const activeKey = ref('1');
+const route = useRoute();
 const username = route.params.username;
 const follow = ref({
   follower_count: 0,
@@ -20,19 +27,55 @@ const go_back = () => {
 }
 // 是否为本人
 const is_self = computed(() => {
-  return user.value?.account_id === localStorage.getItem('account_id');
+  return user.value?.account_id === appStore.useAccountStore.account.account_id;
 })
 const desc = ref<string>('个人简介');
 
 onMounted(() => {
   //   查询用户信息
-  instance.get(`/accounts/${username}/`).then((r: any) => {
+  instance.get(apiUrls.get_account(username)).then((r: any) => {
     r.data.sex = r.data.sex + '';
     user.value = r.data as IAccount;
   });
   // 查询帐户粉丝情况
-  instance.get(`/follows/${username}/count/`).then((r: any) => follow.value = r.data);
+  instance.get(apiUrls.get_account_follow(username)).then((r: any) => follow.value = r.data);
 })
+
+const postLoaded = ref(false);
+const postLoading = ref(false);
+const posts = ref<IPost[]>([]);
+
+const handleTabChange = async (key: string) => {
+  // 切换到帖子tab，且未加载过帖子数据
+  if (key === '2' && !postLoaded.value) {
+    postLoading.value = true
+    await onLoadMore();
+    postLoaded.value = true // 标记已加载，下次切换不再请求
+    postLoading.value = false
+    }
+  // key=1 资料页无需额外请求，页面onMounted已加载
+}
+
+const onLoadMore = async()=>{
+    let post = posts.value.at(-1);
+    let r = await get_accounts_posts(10, post?.post_id ?? null, route.params.username);
+    if(r.data.total == 0){
+      message.info("没有数据可以拉取了")
+      return;
+    }
+    const combined = [...posts.value, ...r.data.items]
+
+        // Map 去重（保留最后出现的那条）
+        const map = new Map()
+        for (const item of combined) {
+            map.set(item.post_id, item)
+        }
+        // 排序：最新在前
+        posts.value = Array.from(map.values()).sort((a, b) => {
+            return new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime()
+        })
+  // .catch((e: any) => message.error(`拉取数据失败:${e}`));
+}
 
 </script>
 
@@ -41,10 +84,15 @@ onMounted(() => {
     <a-layout-header ref="headerRef" :style="{width: '100%', 'background-color': 'white'}">
       <Header selected-keys="o"/>
     </a-layout-header>
-    <a-layout-content style="padding-top: 8px">
+    <a-layout-content style="padding-top: 8px;">
       <a-row justify="center">
-        <a-col :span="12" style="text-align: start">
-          <a-button @click="go_back()" :icon="h(ArrowLeftOutlined)" type="text"></a-button>
+        <a-col :span="12" style="text-align: start; background-color: white">
+          <a-page-header
+              style="border: 1px solid rgb(235, 237, 240)"
+              title="用户中心"
+              sub-title="可以查看用户资料"
+              @back="() => go_back()"
+          />
           <a-row justify="space-between" align="bottom">
             <a-space>
               <a-avatar
@@ -57,15 +105,22 @@ onMounted(() => {
                   <a-button v-show="!is_self" type="primary">
                     关注
                   </a-button>
-                  <a-button :icon="h(ShareAltOutlined)" type="dashed"></a-button>
+                  <a-popover title="扫码分享">
+                    <template #content>
+                      <a-qrcode :value="`${apiUrls.share_account_link(user?.account_id)}`" error-level="H"
+                                :bordered="false"  style="margin: 0 auto;"/>
+                    </template>
+                    <a-button :icon="h(ShareAltOutlined)" type="dashed">分享</a-button>
+                  </a-popover>
+
                 </a-space>
                 <a-space direction="horizontal">
-                  <a-statistic :value="follow.follower_count">
+                  <a-statistic :value="follow.followee_count">
                     <template #suffix>
                       <span style="font-size: 16px;color: gray">关注</span>
                     </template>
                   </a-statistic>
-                  <a-statistic :value="follow.followee_count">
+                  <a-statistic :value="follow.follower_count">
                     <template #suffix>
                       <span style="font-size: 16px;color: gray">粉丝</span>
                     </template>
@@ -76,16 +131,78 @@ onMounted(() => {
                     </template>
                   </a-statistic>
                 </a-space>
-                <a-typography-paragraph v-model:content="desc" editable style="width: 40vw"/>
+                <a-typography-paragraph v-if="false" v-model:content="desc" editable style="width: 40vw"/>
               </a-space>
             </a-space>
             <!--            <a-space>-->
             <!--               <a-button :icon="h(EditOutlined)" type="text"></a-button>-->
             <!--            </a-space>-->
           </a-row>
-          <a-tabs>
-            <a-tab-pane key="1" tab="基本信息">{{ username }}</a-tab-pane>
-            <a-tab-pane key="2" tab="帖子"></a-tab-pane>
+          <a-tabs v-model:activeKey="activeKey" size="large" @change="handleTabChange">
+            <a-tab-pane key="1">
+              <template #tab>
+                <span>
+                <id-card-h theme="outline" fill="#333"/>
+                <a-typography-text>资料</a-typography-text>
+                  </span>
+              </template>
+              <a-card>
+                <a-descriptions title="用户信息" bordered :column="2">
+                  <a-descriptions-item label="用户名">{{ user?.username }}</a-descriptions-item>
+                  <a-descriptions-item label="电子邮箱">{{ user?.email }}</a-descriptions-item>
+                  <a-descriptions-item label="账户目前状态" :span="2">
+                    <a-badge status="processing" text="正常"/>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="出生日期">{{ user?.gmt_birth }}</a-descriptions-item>
+                  <a-descriptions-item label="性别">{{ sex_code_map[user?.sex] }}</a-descriptions-item>
+                </a-descriptions>
+              </a-card>
+            </a-tab-pane>
+            <a-tab-pane key="2" tab="帖子">
+              <a-spin :spinning="postLoading">
+                <a-card v-if="posts.length < 1">
+                  <a-empty description="暂无帖子"/>
+                </a-card>
+                <a-list :data-source="posts"  item-layout="horizontal" :loading="!postLoaded">
+                  <template #loadMore>
+                    <div
+                        :style="{ textAlign: 'center', marginTop: '12px', height: '32px', lineHeight: '32px' }"
+                    >
+                      <a-button @click="onLoadMore">加载更多</a-button>
+                    </div>
+                  </template>
+                  <template #renderItem="{ item }">
+                    <a-list-item>
+                      <Post :post="item" style="width: 100%"/>
+                    </a-list-item>
+                  </template>
+
+                </a-list>
+                <!--              <Post v-for="post in posts" style="padding-top: 2px" :post="post"/>-->
+                <!--                <a-list :grid="{ gutter: 16, column: 2 }" :data-source="posts">-->
+                <!--                  <template #renderItem="{ item }">-->
+                <!--                    <a-list-item>-->
+                <!--                      <a-card hoverable style="width: 300px">-->
+                <!--                        <template #cover>-->
+                <!--                          <img-->
+                <!--                              alt="example"-->
+                <!--                              src="https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png"-->
+                <!--                          />-->
+                <!--                        </template>-->
+                <!--                        <template #actions>-->
+                <!--                          <setting-outlined key="setting"/>-->
+                <!--                          <edit-outlined key="edit"/>-->
+                <!--                          <ellipsis-outlined key="ellipsis"/>-->
+                <!--                        </template>-->
+                <!--                        <a-card-meta :title="item.content.text">-->
+                <!--                        </a-card-meta>-->
+                <!--                      </a-card>-->
+                <!--                    </a-list-item>-->
+                <!--                  </template>-->
+                <!--                </a-list>-->
+
+              </a-spin>
+            </a-tab-pane>
           </a-tabs>
 
         </a-col>

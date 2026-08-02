@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {ref, getCurrentInstance, onBeforeMount} from 'vue';
+import {ref, getCurrentInstance, onMounted} from 'vue';
 import {useRoute} from "vue-router";
 
 import {message} from 'ant-design-vue';
@@ -7,7 +7,8 @@ import {md5} from 'js-md5';
 
 import instance from '../services/';
 import router from '../router';
-import {get_account} from "@/services/api.ts";
+import {apiUrls, update_self_account} from "@/services/api.ts";
+import appStore from "@/stores";
 
 const route = useRoute();
 const proxy = getCurrentInstance();
@@ -21,37 +22,30 @@ const rules = {
   password: [{required: true, message: '请输入密码', trigger: 'blur'}],
 };
 
-
-
 // 刷新请求令牌
 const refreshAccessToken = async (refresh_token: string) => {
-  const account_id = localStorage.getItem('account_id');
-  await instance.get(`/oauth/refresh-token/${account_id}/refresh_token/`, {
+  const account_id = appStore.useAccountStore.account.account_id;
+  await instance.get(apiUrls.update_token(account_id), {
     headers: {
       Authorization: "Bearer " + refresh_token,
     },
   }).then((r: any) => {
-    localStorage.setItem('access_token', r.data.access_token);
-    localStorage.setItem('account_id', r.data.account_id);
+    appStore.useAccountStore.update_token('access_token', r.data.access_token);
   }).catch((e: any) => {
     // 可能是刷新令牌过期,重新登录
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    message.error("登录失败!原因:" + e + "!")
+    message.error(`你的访问令牌过期了,请重新登录:${e}`);
   })
-
   // 获取帐户信息
-  await get_account(localStorage.getItem('account_id') || 'unknow');
+  await update_self_account(localStorage.getItem('account_id') || 'unknow');
   const redirect = route.query.redirect || '/';
-  router.push(redirect as string);
+  router.push(redirect);
 }
 
 
-onBeforeMount(() => {
+onMounted(() => {
   // 在此处理页面初始化逻辑
-  const refresh_token = localStorage.getItem('refresh_token');
-  if (refresh_token) {
-    refreshAccessToken(refresh_token);
+  if(appStore.useAccountStore.token.access_token) {
+    router.push({name: "home"});
   }
 })
 
@@ -61,27 +55,34 @@ const handleLogin = async () => {
     "username": formData.value.username,
     "password": md5(formData.value.password)
   }
-  await instance.post("/oauth/authorize/password/", data, {
+  let account_id;
+  await instance.post(apiUrls.login(), data, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"
     }
   }).then((r: any) => {
-    localStorage.setItem('access_token', r.data.access_token);
-    localStorage.setItem('refresh_token', r.data.refresh_token);
-    localStorage.setItem('account_id', r.data.account_id);
+    appStore.useAccountStore.update_token('access_token', r.data.access_token);
+    appStore.useAccountStore.update_token('refresh_token', r.data.refresh_token);
+    account_id = r.data.account_id;
+
     message.success("登录成功!")
   });
-
   // 获取帐户信息
-  await get_account(localStorage.getItem('account_id') || 'unknow');
+  update_self_account(account_id);
   // 登录成功后台跳转到原页面
   await router.push(proxy.proxy.$route.query.redirect || '/');
 };
 
 const handleRegister = () => {
   // 跳转到注册页面
-  router.push('/register/');
+  router.push({name: 'register'});
 };
+const goResetPwd = () => {
+  // 当前页面跳转，把当前页面地址存到redirect，重置完可跳回来
+  router.push({
+    name: "reset_password", // 你的重置密码路由，末尾带/和你路由守卫统一
+  })
+}
 </script>
 
 <template>
@@ -94,7 +95,7 @@ const handleRegister = () => {
         <a-form-item label="密码" name="password">
           <a-input-password v-model:value="formData.password" placeholder="请输入密码"/>
         </a-form-item>
-        <a-divider>更多</a-divider>
+        <a-divider><a-button type="link" @click="goResetPwd">忘记密码？点此重置</a-button></a-divider>
         <a-form-item>
           <a-flex size="large" justify="space-evenly">
             <a-button type="primary" html-type="submit">登录</a-button>

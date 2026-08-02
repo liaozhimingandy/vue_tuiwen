@@ -4,6 +4,7 @@
 export interface IPost {
     account_id: string;
     content: IContent;
+    post_type: number;
     from_device: number;
     from_ip?: string;
     gmt_created: string;
@@ -69,4 +70,21 @@ export interface IComment {
     obj_id: string;
     obj_type: number;
     gmt_created: string
+}
+
+
+// 草稿结构类型统一定义，TS 类型安全
+export interface IPostDraft {
+  /** 文本内容 */
+  text: string
+  /** 已上传的图片链接 */
+  images: string[]
+  /** 创建时间，用于过期校验 */
+  createTime: number
+}
+
+// token信息
+export interface IToken {
+  access_token: string
+  refresh_token: string
 }

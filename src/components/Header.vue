@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {h} from "vue";
-import {BellOutlined, HomeOutlined, MailOutlined} from "@ant-design/icons-vue";
+import {BellOutlined, HomeOutlined, MailOutlined, LogoutOutlined} from "@ant-design/icons-vue";
 import appStore from "@/stores";
 import router from "@/router";
 
@@ -8,15 +8,12 @@ defineProps<{
   selectedKeys: string;
 }>();
 
-const nick_name = localStorage.getItem('nick_name');
-const avatar = localStorage.getItem('avatar');
 
 // 退出登录
 const logout = () => {
-  // 清空登录信息
-  localStorage.clear();
   // 跳转到登录页面
   router.push('login');
+  appStore.useAccountStore.logout();
 }
 </script>
 
@@ -76,8 +73,8 @@ const logout = () => {
         </a-popover>
         <a-dropdown :trigger="['click']">
           <a class="ant-dropdown-link" @click.prevent>
-            <a-avatar :src="appStore.useAccountStore.account?.avatar || avatar" :size="40"/>
-            <span style="margin-left: 8px;">{{ appStore.useAccountStore.account?.nick_name || nick_name }}</span>
+            <a-avatar :src="appStore.useAccountStore.account?.avatar " :size="40"/>
+            <span style="margin-left: 8px;">{{ appStore.useAccountStore.account?.nick_name }}</span>
           </a>
           <template #overlay>
             <a-menu style="margin-top: 20px; background-color: #E9EBEE">
@@ -88,7 +85,7 @@ const logout = () => {
               </a-menu-item>
               <a-menu-divider/>
               <a-menu-item key="1">
-                <a-button href="/" :icon="h(MailOutlined)" type="text" style="width: 100%; text-align: start"
+                <a-button href="/" :icon="h(LogoutOutlined)" type="text" style="width: 100%; text-align: start"
                           @click="logout">退出登录
                 </a-button>
               </a-menu-item>

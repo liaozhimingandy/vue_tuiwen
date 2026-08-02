@@ -1,22 +1,26 @@
 <script setup lang="ts">
-import {ref} from 'vue';
-import {FileImageFilled, DownOutlined, PlusOutlined} from "@ant-design/icons-vue";
+import {onMounted, ref, watch} from 'vue';
+import {DownOutlined, PlusOutlined} from "@ant-design/icons-vue";
 import type {IPost} from "@/interface";
 import appStore from '@/stores/';
 import {storeToRefs} from 'pinia';
 import instance from '@/services/';
-
+import {message} from "ant-design-vue";
+import {AddPicture} from '@icon-park/vue-next';
+import {post_right_map} from "@/common/constants.js";
+import {apiUrls} from "@/services/api.ts";
 const {posts} = storeToRefs(appStore.usePostStore);
+const draftStore = storeToRefs(appStore.useDraftStore);
 
 // 内容
-const content = ref<string>('');
+const content = ref("");
 // 上传图片
 const fileList = ref<File[]>([]);
 const is_open_upload_image = ref<boolean>(false); //是否打开上传图片的弹窗
 // 设置图片上传的接口地址
-const url_upload = import.meta.env.VITE_APP_BASE_URL + '/upload/image/';
 const is_open = ref<boolean>(false); //输入框是否打开
 
+// 处理图片上传
 const handleOpenChange = (open: boolean) => {
   is_open.value = open;
   if (!is_open_upload_image.value) {
@@ -44,18 +48,13 @@ const handlePreview = async (file: any) => {
 };
 
 
-// 定义状态列表（可以后续拓展更多选项）
-const list_status = ref([
-  {value: "public", label: "公开"},
-  {value: "private", label: "仅自己可见"},
-  // {value: "friends", label: "仅好友可见"}, // 可以随时添加新状态
-]);
 
 // 选中的状态，默认 "public"
-const selected_status = ref<number>(list_status.value[0] as number);
+const selected_status = ref(1);
 // 处理菜单点击事件
 const handleMenuClick = ({key}: { key: string }) => {
-  selected_status.value = (list_status.value.find((item) => item.value === key) || selected_status.value) as number;
+  selected_status.value = key;
+
 };
 
 // 处理发布博客
@@ -72,32 +71,61 @@ const handlePublish = () => {
   //   status: 1
   // };
   // 判断是否有图片上传
-  let images = [];
-  if (is_open_upload_image.value) {
-    fileList.value.forEach((el) => {
-      images.push(el.response.image_url);
-    })
-  }
+  const images = fileList.value
+      .map((file) => (file as any).response?.image_url)
+      .filter(Boolean) as string[]
+
   let post: IPost = {
     post_id: crypto.randomUUID(),
-    account_id: localStorage.getItem('account_id') || "unknow",
-    right_status: 1,
+    account_id: appStore.useAccountStore.account.account_id,
+    right_status: Number(selected_status.value),
     content: {"text": content.value, "images": images},
+    post_type: 1,
     from_ip: "string",
     from_device: 9,
     status: 1
   }
+
   // 调发布接口
-  instance.post("/posts/", JSON.stringify(post)).then((r: any) => {
-    posts.value.push(r.data as IPost);
-    posts.value = posts.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
+  instance.post(apiUrls.post_posts(), JSON.stringify(post)).then((r: any) => {
+    posts.value.unshift(r.data);
+    // posts.value.push(r.data as IPost);
+    // posts.value = posts.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
   });
   0
   is_open.value = false;
   content.value = "";
+  fileList.value = [];
+  message.success("发布成功");
+  appStore.useDraftStore.clearDraft();
 };
-//token
-const access_token = 'Bearer ' + localStorage.getItem('access_token');
+
+onMounted(()=>{
+  if(draftStore.post_draft.value) {
+    content.value = draftStore.post_draft.value.text;
+  }
+})
+
+
+watch([content, fileList], () => {
+
+     window.setTimeout(() => {
+        // 空内容直接清空草稿
+        if (!content.value.trim()) {
+           appStore.useDraftStore.clearDraft();
+          return
+        }
+        // 提取已上传的图片链接
+        const images = fileList.value
+            .map((el: any) => el.response?.image_url)
+            .filter(Boolean)
+        // 更新草稿，插件会自动同步到本地存储
+        draftStore.post_draft.value = {text: content.value, images};
+
+      }, 800) // 800ms防抖，输入停顿才保存
+    },
+    {deep: true}
+)
 </script>
 
 <template>
@@ -122,32 +150,38 @@ const access_token = 'Bearer ' + localStorage.getItem('access_token');
               <a-avatar :src="appStore.useAccountStore.account?.avatar" size="large"/>
               <a-dropdown :trigger="['click']">
                 <a-button class="ant-dropdown-link" @click.prevent type="text">
-                  {{ selected_status.label }}
+                  {{ post_right_map[selected_status] }}
                   <DownOutlined/>
                 </a-button>
                 <template #overlay>
                   <a-menu>
                     <a-menu @click="handleMenuClick">
-                      <a-menu-item v-for="status in list_status" :key="status.value">
-                        {{ status.label }}
+                      <a-menu-item v-for="(lable, value) in post_right_map" :key="value">
+                        {{ lable }}
                       </a-menu-item>
                     </a-menu>
                   </a-menu>
                 </template>
               </a-dropdown>
+              <router-link
+                  :to="{ name: 'long' }"
+                  target="_blank"
+              >
+                <a-button type="link">发长文</a-button>
+              </router-link>
             </a-space>
             <!-- 输入框 -->
-            <a-textarea :rows="4" placeholder="分享一下你的生活趣事" v-model:value="content"/>
+            <a-textarea :rows="4" placeholder="分享一下你的生活趣事" v-model:value="content" show-count :maxlength="256"/>
           </a-space>
           <a-divider/>
           <!--          图片上传功能 -->
           <a-upload
               v-model:file-list="fileList"
-              :action="url_upload"
+              :action="apiUrls.upload_image_url()"
               list-type="picture-card"
               @preview="handlePreview"
               v-show="is_open_upload_image"
-              :headers="{'Authorization': access_token}"
+              :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
           >
             <div v-if="fileList.length < 9">
               <plus-outlined/>
@@ -167,7 +201,7 @@ const access_token = 'Bearer ' + localStorage.getItem('access_token');
               </template>
               <a-button type="text" size="large" @click="is_open_upload_image=!is_open_upload_image">
                 <template #icon>
-                  <FileImageFilled/>
+                  <add-picture theme="outline" size="24" fill="#333"/>
                 </template>
               </a-button>
             </a-tooltip>
@@ -200,7 +234,7 @@ const access_token = 'Bearer ' + localStorage.getItem('access_token');
           </template>
           <a-button type="text" @click="handleOpenChange(true)">
             <template #icon>
-              <FileImageFilled/>
+              <add-picture theme="outline" size="24" fill="#333"/>
             </template>
           </a-button>
         </a-tooltip>

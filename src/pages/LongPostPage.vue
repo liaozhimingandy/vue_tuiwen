@@ -1,0 +1,205 @@
+<script setup lang="ts">
+import {watch} from "vue";
+import {DownOutlined, SendOutlined} from "@ant-design/icons-vue";
+import {storeToRefs} from "pinia";
+import appStore from "@/stores";
+
+const draftStore = storeToRefs(appStore.useDraftStore);
+
+import '@wangeditor/editor/dist/css/style.css' // 引入 css
+
+import {onBeforeUnmount, ref, shallowRef} from 'vue'
+import {Editor, Toolbar} from '@wangeditor/editor-for-vue'
+import Header from "@/components/Header.vue";
+import {message} from "ant-design-vue";
+import type {IPost} from "@/interface";
+import instance from '@/services/';
+import {post_right_map} from "@/common/constants.js";
+import axios from "axios";
+import {apiUrls} from "@/services/api.ts";
+
+const selected_status = ref<number>(1);
+// 处理菜单点击事件
+const handleMenuClick = ({key}: { key: number }) => {
+  selected_status.value = key as number;
+};
+
+// 设置图片上传的接口地址
+const access_token = 'Bearer ' + appStore.useAccountStore.token.access_token;
+const mode = 'default';
+// 编辑器实例，必须用 shallowRef
+const editorRef = shallowRef()
+// 内容 HTML
+const content = ref('')
+const toolbarConfig = {}
+const editorConfig = {
+  placeholder: '静静的留下你此刻的思路...',
+  maxLength: 1280,
+  MENU_CONF: {
+    // 上传图片配置
+    uploadImage: {
+      // 1. 上传地址
+      server: apiUrls.upload_image_url(),
+
+      // 2. 上传时携带的请求头（如 token）
+      headers: {
+        Authorization: access_token
+      },
+
+      // 3. 上传额外参数
+      params: {
+        type: 'editor'
+      },
+
+      // 4. 图片大小限制
+      maxSize: 5 * 1024 * 1024, // 5M
+
+      // 5. 上传成功后，后端返回格式必须如下：
+      // { errno: 0, data: { url: 'https://xxx.png' } }
+      // 如果后端格式不一样，用 customUpload 自己处理
+
+      // 6. 自定义上传（最常用，完全自己控制）
+      customUpload: async (file: any, insertFn: any) => {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        try {
+          const res = await axios.post(apiUrls.upload_image_url(), formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              Authorization: access_token
+            }
+          })
+
+          // 假设后端返回 { code:0, data: { url } }
+          const url = res.data.image_url
+          // 插入图片到编辑器
+          insertFn(url)
+        } catch (err) {
+          console.error('上传失败', err)
+        }
+      }
+    },
+    // 上传视频
+    uploadVideo: {
+      // 置空上传地址，阻断本地文件上传逻辑
+      server: '',
+      // 拦截所有本地文件上传
+      customUpload(file) {
+        alert('暂不支持上传本地视频，请粘贴视频链接')
+        return Promise.reject()
+      }
+    },
+  }
+
+}
+
+// 组件销毁时，也及时销毁编辑器
+onBeforeUnmount(() => {
+  const editor = editorRef.value
+  if (editor == null) return
+  editor.destroy()
+})
+
+const handleCreated = (editor: Editor) => {
+  editorRef.value = editor;
+
+  const draft = draftStore.post_draft.value;
+  if (draft) {
+    // 文本内容自动填充
+    content.value = draft.text;
+    // 草稿里的图片自动插入到编辑器
+
+  }
+}
+
+watch(content, () => {
+  if (content.value.trim()) {
+    let tmp_draft = draftStore.post_draft.value;
+    draftStore.post_draft.value = {...tmp_draft, text: content.value.trim()}
+  }
+}, {deep: true})
+
+// 处理发布博客
+const onPublish = () => {
+
+  if (editorRef.value.getText().trim() == '') {
+    message.info("内容不能为空!");
+    return
+  }
+
+  let post: IPost = {
+    post_id: crypto.randomUUID(),
+    account_id: appStore.useAccountStore.account.account_id,
+    right_status: Number(selected_status.value),
+    content: {"text": content.value, "images": []},
+    post_type: 2,
+    from_ip: "localhost",
+    from_device: 9,
+    status: 1
+  }
+
+  // 调发布接口
+  instance.post(apiUrls.post_posts(), JSON.stringify(post)).then((r: any) => {
+    message.success("发布成功!");
+    editorRef.value.clear();
+    appStore.useDraftStore.clearDraft();
+  }).catch((e: any) => message.error(e));
+
+}
+</script>
+
+<template>
+  <a-layout style="min-height: 100vh;">
+    <a-layout-header ref="headerRef" :style="{width: '100%','background-color': 'white'}">
+      <Header/>
+    </a-layout-header>
+    <a-layout-content :style="{ padding: '0 50px', marginTop: '4px' }">
+      <Toolbar
+          style="border-bottom: 1px solid #ccc"
+          :editor="editorRef"
+          :defaultConfig="toolbarConfig"
+          :mode="mode"
+      />
+      <Editor
+          style="height: 500px; overflow-y: hidden;"
+          v-model="content"
+          :defaultConfig="editorConfig"
+          :mode="mode"
+          @onCreated="handleCreated"
+      />
+    </a-layout-content>
+    <a-layout-footer>
+      <a-flex justify="space-between">
+        <span/>
+        <a-space direction="horizontal">
+          <a-button type="primary" @click="onPublish">
+            <template #icon>
+              <SendOutlined/>
+            </template>
+            发布
+          </a-button>
+          <a-dropdown :trigger="['click']">
+            <a-button class="ant-dropdown-link" @click.prevent type="text">
+              {{ post_right_map[selected_status] }}
+              <DownOutlined/>
+            </a-button>
+            <template #overlay>
+              <a-menu>
+                <a-menu @click="handleMenuClick">
+                  <a-menu-item v-for="(lable, value) in post_right_map" :key="value">
+                    {{ lable }}
+                  </a-menu-item>
+                </a-menu>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
+      </a-flex>
+    </a-layout-footer>
+  </a-layout>
+</template>
+
+<style scoped>
+
+</style>

@@ -5,7 +5,8 @@ import cloneDeep from "lodash/cloneDeep";
 import instance from '@/services'
 import {message} from "ant-design-vue";
 import router from "@/router";
-import {sex_code_list} from "../common/dataset.ts"
+import {sex_code_map} from "../common/constants.ts"
+import {apiUrls} from "@/services/api.ts";
 
 const formRef = ref(null);
 // 注册表单数据
@@ -19,7 +20,7 @@ const formData = ref({
   sex: "0",
   avatar: "https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png"
 });
-const sexListOptions = Object.entries(sex_code_list().sex_code_list).map(([k, v]) => {return {"value": k[0], "label": v}});
+const sexListOptions = Object.entries(sex_code_map).map(([k, v]) => {return {"value": k[0], "label": v}});
 const validateConfirmPassword = (rule, value) => {
   if (value !== formData.value.password) {
     return Promise.reject('两次输入的密码不一致');
@@ -33,11 +34,11 @@ const rules = {
   ],
   password: [
     {required: true, message: '请输入密码', trigger: 'blur'},
-    {min: 6, max: 16, message: '长度必须介于1和32之间', trigger: ['blur', 'change']}
+    {min: 6, max: 16, message: '长度必须介于6和16之间', trigger: ['blur', 'change']}
   ],
   confirmPassword: [
     {required: true, message: '请确认密码', trigger: 'blur'},
-    {min: 1, max: 32, message: '长度必须介于1和32之间', trigger: ['blur', 'change']},
+    {min: 1, max: 32, message: '长度必须介于6和16之间', trigger: ['blur', 'change']},
     {validator: validateConfirmPassword, trigger: 'blur'},
   ],
   nick_name: [
@@ -58,7 +59,7 @@ const handleRegister = () => {
   data.sex = parseInt(data.sex);
 
   // 调用注册接口
-  instance.post('/accounts/register/', JSON.stringify(data)).then(() => {
+  instance.post(apiUrls.register(), JSON.stringify(data)).then(() => {
     message.success("注册成功,请登录!")
     router.push({name: "login"});
   })
@@ -79,7 +80,7 @@ const handleLogin = () => window.location.replace('/login/');
           <a-input-password v-model:value="formData.password" placeholder="请输入密码"/>
         </a-form-item>
         <a-form-item label="确认密码" name="confirmPassword">
-          <a-input-password v-model:value="formData.confirmPassword" placeholder="请确认密码"/>
+          <a-input-c v-model:value="formData.confirmPassword" placeholder="请确认密码"/>
         </a-form-item>
         <a-divider/>
         <a-form-item name="nick_name" label="显示名称">

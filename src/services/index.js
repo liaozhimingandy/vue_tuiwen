@@ -4,10 +4,12 @@ import 'axios';
 import axios from "axios";
 import { message } from 'ant-design-vue';
 import router from "../router";
+import {config} from "@/common/config.ts";
+import appStore from "@/stores/index.js";
 
 //-------------------------1.创建axios实例-----------------------
 const instance=axios.create({
-    baseURL: import.meta.env.VITE_APP_BASE_URL, // 所有的请求地址前缀部分,
+    baseURL: config.BASE_URL, // 所有的请求地址前缀部分,
     timeout: 5000, // 请求超时时间
     withCredentials: true, // 异步请求携带cookie
     headers: {
@@ -18,10 +20,10 @@ const instance=axios.create({
 
 //-------------------------2.请求拦截-----------------------
 instance.interceptors.request.use(
-    config => {
-        let access_token = localStorage.getItem('access_token');
-        if (access_token) {
-            config.headers['Authorization'] = `Bearer ${access_token}`
+    (config) => {
+        let token = appStore.useAccountStore.token;
+        if (token.access_token) {
+            config.headers['Authorization'] = `Bearer ${token.access_token}`
         }
         //加载loading
         addLoading();
@@ -47,19 +49,18 @@ instance.interceptors.response.use(
       const status = error.response.status
       switch (status) {
         case 400:
-          message.error("请求错误");
+          // message.error("请求错误");
           break;
         case 401:
           message.error("未授权，请重新登录");
           // 跳转到登录页面
-          localStorage.removeItem('access_token');
-          router.push('/login/')
+          router.push({name: "login"})
           break;
         case 403:
           message.error("登录过期，请重新登录");
           break;
         case 404:
-          message.error("请求错误，未找到相应的资源");
+          message.error(error.response.data.detail);
           break;
         case 408:
           message.error("请求超时");
