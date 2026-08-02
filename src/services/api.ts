@@ -43,8 +43,8 @@ export const apiUrls = {
   share_account_link: (account_id: string) => `${config.APP_BASE_URL}/u/${account_id}/`,
 
   // 获取系统通知列表
-  get_notifications: () => "/notifications/",
-
+  get_system_notices: () => "/notices/system/", // 拉取公告通知
+  get_account_notices: (account_id: string) => `/notices/accounts/${account_id}/`, // 拉取用户通知
 }
 
 // 更新本帐户信息

@@ -23,7 +23,7 @@ const items = [
     description: '重置密码成功',
   },
 ];
-const current = ref<number>(2);
+const current = ref<number>(0);
 
 const formRef = ref();
 const formData = ref({
@@ -50,11 +50,11 @@ const formData2 = ref({
 const handleResetPWD = async () => {
   let data = formData2.value;
   data['username'] = formData.value.email;
-  data["password"] = md5(data.password);
-  await instance.put(apiUrls.reset_password(), {...data}).then((r: any) => {
+  let password_md5 = md5(data.password);
+  await instance.put(apiUrls.reset_password(), {...data, ...{password: password_md5}}).then((r: any) => {
     message.success(r.data.message);
     current.value++;
-  }).catch((e: any) => message.error(e.data.message))
+  }).catch((e: any) => message.error(e.data.detail))
 }
 </script>
 

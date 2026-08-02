@@ -80,7 +80,7 @@ const handleLogin = () => window.location.replace('/login/');
           <a-input-password v-model:value="formData.password" placeholder="请输入密码"/>
         </a-form-item>
         <a-form-item label="确认密码" name="confirmPassword">
-          <a-input-c v-model:value="formData.confirmPassword" placeholder="请确认密码"/>
+          <a-input-password v-model:value="formData.confirmPassword" placeholder="请确认密码"/>
         </a-form-item>
         <a-divider/>
         <a-form-item name="nick_name" label="显示名称">

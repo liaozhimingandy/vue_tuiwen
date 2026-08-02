@@ -49,7 +49,7 @@ instance.interceptors.response.use(
       const status = error.response.status
       switch (status) {
         case 400:
-          // message.error("请求错误");
+          message.error(error.response.data.detail);
           break;
         case 401:
           message.error("未授权，请重新登录");

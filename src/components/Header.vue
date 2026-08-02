@@ -1,13 +1,24 @@
 <script setup lang="ts">
-import {h} from "vue";
+import {h, onMounted, ref} from "vue";
 import {BellOutlined, HomeOutlined, MailOutlined, LogoutOutlined} from "@ant-design/icons-vue";
 import appStore from "@/stores";
 import router from "@/router";
+import instance from "@/services";
+import {apiUrls} from "@/services/api.ts";
+import {message} from "ant-design-vue";
 
 defineProps<{
   selectedKeys: string;
 }>();
 
+// 系统通知
+const notices = ref([]);
+
+onMounted(async () => {
+  await instance.get(apiUrls.get_system_notices())
+      .then((r: any) => notices.value = r.data.items)
+      .catch((e: any) => message.error(e.data.detail));
+});
 
 // 退出登录
 const logout = () => {
@@ -63,7 +74,22 @@ const logout = () => {
       <a-space>
         <a-popover>
           <template #content>
-            <a-list style="width: 300px"/>
+            <a-list style="width: 300px" :data-source="notices">
+              <template #renderItem="{ item }">
+                <a-list-item>
+                  <a-list-item-meta
+                      :description="item.content?.text"
+                  >
+                    <template #title>
+                      {{ item.title }}
+                    </template>
+                    <template #avatar>
+                      <a-avatar :src="item.extra?.avatar"/>
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
           </template>
           <a-button type="text" shape="circle" size="large">
             <template #icon>
