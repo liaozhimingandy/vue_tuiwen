@@ -21,6 +21,7 @@ export const apiUrls = {
   post_posts: () => "/posts/",
   delete_posts: (post_id: string) => `/posts/${post_id}/`,
   get_posts_latest: () => '/posts/lastest/',
+  get_s_post: (post_id: string) => `/posts/s/${post_id}/`,
 
   // 评论相关
   get_comments: (post_id: string) => `/comments/1/${post_id}/`,

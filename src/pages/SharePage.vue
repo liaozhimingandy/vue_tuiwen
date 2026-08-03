@@ -6,48 +6,68 @@ import instance from "@/services"
 import {apiUrls} from "@/services/api.ts";
 import {timestampFormat} from "@/common/utils.ts";
 import ImageGrid from "@/components/ImageGrid.vue";
+import {message} from "ant-design-vue";
 
 const route = useRoute();
 const post_id = route.params.post_id;
 const post = ref<IPost>(null);
 const account = ref<IAccount>(null);
+const loading = ref(true);
 
 onMounted(async () => {
-  let r = await instance.get(apiUrls.get_post(post_id));
-  post.value = r.data as IPost;
+  try {
+    loading.value = true;
+    // 获取帖子
+    const resPost = await instance.get(apiUrls.get_s_post(post_id));
+    post.value = resPost.data as IPost;
 
-  //拉取用户信息
-  r = await instance.get(apiUrls.get_account(post.value.account_id));
-  account.value = r.data as IAccount;
+    // 获取用户信息
+    if (post.value?.account_id) {
+      const resAccount = await instance.get(apiUrls.get_account(post.value.account_id));
+      account.value = resAccount.data as IAccount;
+    }
+  } catch (err) {
+    message.error("帖子加载失败，请稍后重试");
+  } finally {
+    loading.value = false;
+  }
 })
 </script>
 
 <template>
-  <a-empty v-if="!post">
-  </a-empty>
-  <a-layout>
-    <a-layout-header class="custom-header">
-      <a-space>
-        <a-avatar :src="account?.avatar" :size="64"></a-avatar>
-        <a-typography-title :level="4">{{ account?.nick_name }}</a-typography-title>
-        <a-typography-text>发布于{{ timestampFormat(post?.gmt_created) }}</a-typography-text>
-      </a-space>
-    </a-layout-header>
-    <a-layout-content>
-      <a-col :xs="{ span: 22, offset: 1 }" :md="{ span: 20, offset: 2 }" style="background-color: #fff">
-        <div v-html="post?.content?.text" v-if="post?.post_type==2" class="rich-wrap"/>
-        <a-typography-text v-if="post?.post_type==1">
-          {{ post?.content?.text }}
-        </a-typography-text>
-        <ImageGrid v-if="post?.post_type==1" :image-list="post.content.images" :single-max-width="160"
-                   :two-col-max-width="200"
-                   :three-col-max-width="360"/>
-      </a-col>
-    </a-layout-content>
-    <a-layout-footer style="text-align: center">
-       © {{ new Date().getFullYear() }} - {{account?.nick_name}}
-    </a-layout-footer>
-  </a-layout>
+  <a-spin :spinning="loading" tip="加载中..." style="height: 100vh">
+    <a-empty v-if="!post" description="帖子不存在或已删除!">
+    </a-empty>
+    <a-layout v-else style="min-height: 50vh">
+      <a-layout-header class="custom-header">
+        <a-row justify="center">
+          <a-col :md="12" :xs="22" :sm="22">
+            <a-space>
+              <a-avatar :src="account?.avatar" :size="64"></a-avatar>
+              <a-typography-title :level="4">{{ account?.nick_name }}</a-typography-title>
+              <a-typography-text>发布于{{ timestampFormat(post?.gmt_created) }}</a-typography-text>
+            </a-space>
+          </a-col>
+        </a-row>
+      </a-layout-header>
+      <a-layout-content>
+        <a-row justify="center">
+          <a-col :md="12" :xs="22" :sm="22">
+            <div v-html="post?.content?.text" v-if="post?.post_type==2" class="rich-wrap"/>
+            <a-typography-text v-if="post?.post_type==1">
+              {{ post?.content?.text }}
+            </a-typography-text>
+            <ImageGrid v-if="post?.post_type==1" :image-list="post.content.images" :single-max-width="160"
+                       :two-col-max-width="200"
+                       :three-col-max-width="360"/>
+          </a-col>
+        </a-row>
+      </a-layout-content>
+      <a-layout-footer style="text-align: center">
+        © {{ new Date().getFullYear() }} - {{ account?.nick_name }}
+      </a-layout-footer>
+    </a-layout>
+  </a-spin>
 </template>
 
 <style scoped>

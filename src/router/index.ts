@@ -58,7 +58,7 @@ router.beforeEach((to, _, next) => {
     }
 
     // 白名单：不需要登录的页面
-  const isWhiteList = ['/login/', '/register/', '/reset_password/'].includes(to.path)
+  const isWhiteList = ['/login/', '/register/', '/reset_password/'].includes(to.path) || to.path.startsWith('/s/')
   const hasToken = !!appStore.useAccountStore.token.access_token; //access_token可能为 '' / null / undefined
 
   // 已登录，访问登录/注册页 → 跳首页
