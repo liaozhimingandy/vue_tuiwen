@@ -134,7 +134,7 @@ const goResetPwd = () => {
 .circle-purple {
   width: 32vw;
   height: 32vw;
-  background: #4D96E8;
+  background: #027AFF;
   left: -12vw;
   bottom: -10vw;
 }
@@ -142,7 +142,7 @@ const goResetPwd = () => {
 .circle-teal {
   width: 30vw;
   height: 30vw;
-  background: #2979C9;
+  background: #8c6cd9;
   right: -10vw;
   top: -8vw;
 }
