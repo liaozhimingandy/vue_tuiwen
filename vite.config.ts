@@ -30,7 +30,6 @@ export default defineConfig({
             resolvers: [
                 AntDesignVueResolver({
                     importStyle: false, // css in js
-                    resolveLocale: 'zh_CN',
                 }),
             ],
         }),

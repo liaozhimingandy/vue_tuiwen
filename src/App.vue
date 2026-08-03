@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import {ref, onMounted} from 'vue';
-import zhCN from "ant-design-vue/lib/locale/zh_CN";
-import dayjs from "dayjs";
-import "dayjs/locale/zh-cn";
-
-dayjs.locale("zh-cn");
-const locale = ref(zhCN);
+import zhCN from "ant-design-vue/es/locale/zh_CN";
 
 const is_loading = ref<boolean>(true);
 
@@ -17,15 +12,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <a-config-provider :locale="locale">
+  <a-config-provider :locale="zhCN">
     <a-spin
         :spinning="is_loading"
         delay="300"
         tip="加载中..."
         size="large"
     >
-      <router-view/>
+    <router-view/>
     </a-spin>
+
   </a-config-provider>
 </template>
 
