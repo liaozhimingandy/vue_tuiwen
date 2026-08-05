@@ -16,7 +16,7 @@ let isRedirectLogin = false;
 //-------------------------1.创建axios实例-----------------------
 const instance = axios.create({
     baseURL: config.API_BASE_URL, // 所有的请求地址前缀部分,
-    timeout: 1000, // 请求超时时间
+    timeout: 10000, // 请求超时时间
     withCredentials: true, // 异步请求携带cookie
     headers: {
         "Content-Type": "application/json;charset=UTF-8",
