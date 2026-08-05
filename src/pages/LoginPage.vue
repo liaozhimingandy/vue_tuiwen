@@ -1,17 +1,18 @@
 <script lang="ts" setup>
 import {ref, getCurrentInstance, onMounted, h} from 'vue';
-import { useRoute } from "vue-router";
+import {useRoute} from "vue-router";
 
-import { message, Modal} from 'ant-design-vue';
-import { md5 } from 'js-md5';
+import {message, Modal} from 'ant-design-vue';
+import {md5} from 'js-md5';
 
 import instance from '../services/';
 import router from '../router';
-import { apiUrls, update_self_account } from "@/services/api.ts";
+import {apiUrls, update_self_account} from "@/services/api.ts";
 import appStore from "@/stores";
 import {SettingOutlined} from "@ant-design/icons-vue";
+import {config} from "../common/config.ts";
+import axios from "axios";
 
-const route = useRoute();
 const proxy = getCurrentInstance();
 const formRef = ref(null);
 const formData = ref({
@@ -19,13 +20,13 @@ const formData = ref({
   password: '',
 });
 const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  username: [{required: true, message: '请输入用户名', trigger: 'blur'}],
+  password: [{required: true, message: '请输入密码', trigger: 'blur'}],
 };
 
 onMounted(() => {
   if (appStore.useAccountStore.token.access_token) {
-    router.push({ name: "home" });
+    router.push({name: "home"});
   }
 })
 
@@ -50,42 +51,66 @@ const handleLogin = async () => {
 };
 
 const handleRegister = () => {
-  router.push({ name: 'register' });
+  router.push({name: 'register'});
 };
 
 const goResetPwd = () => {
-  router.push({ name: "reset_password" })
+  router.push({name: "reset_password"})
 }
 
-// 点击设置调用
+// 弹窗显示状态
+const apiModalVisible = ref(false);
+// 输入的API地址
+const customApiUrl = ref('');
+// 打开设置
 const setApiConfig = () => {
-  const current = localStorage.getItem('CUSTOM_API_BASE_URL') || '';
-  let inputValue = current;
-  Modal.confirm({
-    title: '设置后端 API 地址',
-    icon: h(SettingOutlined),
-    content: h('div', [h('a-input', {
-      value: inputValue,
-      placeholder: '请输入API地址，例如 https://api.tuiwen.alsoapp.com',
-      style: 'margin-top: 10px',
-      'onUpdate:value': (val: string) => {
-        inputValue = val;
-      }
-    })]),
-    okText: '确认保存',
-    cancelText: '取消',
-    onOk() {
-      const val = inputValue.trim();
-      if (val) {
-        localStorage.setItem('CUSTOM_API_BASE_URL', val);
-        message.success('API 地址已保存，刷新后生效');
-      } else {
-        localStorage.removeItem('CUSTOM_API_BASE_URL');
-        message.success('已恢复默认地址');
-      }
-    },
-    onCancel() {}
-  });
+  customApiUrl.value = localStorage.getItem('CUSTOM_API_BASE_URL') || '';
+  apiModalVisible.value = true;
+};
+
+// 保存API地址
+const handleOk = () => {
+  const val = customApiUrl.value.trim();
+
+  if (val && !val.startsWith('http')) {
+    message.error('请输入以 http:// 或 https:// 开头的有效地址');
+    return;
+  }
+
+  if (val) {
+    localStorage.setItem('CUSTOM_API_BASE_URL', val);
+    message.success('保存成功，请刷新页面生效');
+  } else {
+    localStorage.removeItem('CUSTOM_API_BASE_URL');
+    message.success('已恢复默认接口地址');
+  }
+
+  apiModalVisible.value = false;
+};
+
+
+// 测试连接
+const onSearch = async (val: string) => {
+  val = val.trim();
+  if (!val) {
+    message.warning('请输入 API 地址');
+    return;
+  }
+  if (!val.startsWith('http')) {
+    message.error('请输入以 http:// 或 https:// 开头的有效地址');
+    return;
+  }
+
+  try {
+    // 轻量测试连通性
+    const testUrl = val.replace(/\/$/, '') + apiUrls.check_health();
+    console.info(testUrl)
+    await axios.get(testUrl, {timeout: 5000});
+    message.success('连接成功！接口地址可用');
+  } catch (err) {
+    message.error('连接失败，请检查地址或网络');
+    console.error(err);
+  }
 };
 </script>
 
@@ -99,8 +124,13 @@ const setApiConfig = () => {
     <!-- 登录卡片居中 -->
     <a-flex class="login-center" justify="center" align="center">
       <a-card :hoverable="true" style="width: 400px" title="请登录">
-        <template #extra><a-button type="text" @click="setApiConfig">
-          <SettingOutlined />设置</a-button>
+        <template #extra>
+          <a-tooltip>
+            <template #title>如果默认后端地址不可用时,可以自行修改可用地址</template>
+            <a-button type="text" @click="setApiConfig">
+              <SettingOutlined/>
+            </a-button>
+          </a-tooltip>
         </template>
         <a-form :model="formData" :rules="rules" ref="formRef" @finish="handleLogin">
           <a-form-item label="用户名" name="username">
@@ -122,6 +152,28 @@ const setApiConfig = () => {
       </a-card>
     </a-flex>
   </div>
+  <!-- API 设置弹窗 -->
+  <a-modal
+      v-model:open="apiModalVisible"
+      title="设置后端 API 接口地址"
+      ok-text="保存"
+      cancel-text="取消"
+      @ok="handleOk"
+  >
+    <a-input-search
+        v-model:value="customApiUrl"
+        :placeholder="`例如:${config.API_BASE_URL}`"
+        loading
+        @search="onSearch"
+    >
+      <template #enterButton>
+        <a-button type="primary">测试连接</a-button>
+      </template>
+    </a-input-search>
+    <div style="margin-top: 8px; font-size: 12px; color: #999;">
+      留空并保存可恢复默认接口地址:{{ config.API_BASE_URL_ORI }}
+    </div>
+  </a-modal>
 </template>
 
 <style scoped>

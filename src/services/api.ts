@@ -46,6 +46,9 @@ export const apiUrls = {
   // 获取系统通知列表
   get_system_notices: () => "/notices/system/", // 拉取公告通知
   get_account_notices: (account_id: string) => `/notices/accounts/${account_id}/`, // 拉取用户通知
+
+  // 其它
+  check_health: () => "/health-check/" //检查服务健康状态
 }
 
 // 更新本帐户信息

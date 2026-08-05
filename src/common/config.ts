@@ -4,5 +4,6 @@ export const config = {
     isDebug: import.meta.env.VITE_APP_IS_DEBUG  || false ,// 是否为开发环境
     NAME: "推文",
     THEME_COLOR: "#027AFF",
-    BG_COLOR: "#E9EBEE"
+    BG_COLOR: "#E9EBEE",
+    API_BASE_URL_ORI: import.meta.env.VITE_APP_API_BASE_URL ||  "https://api.tuiwen.alsoapp.com"
 };
