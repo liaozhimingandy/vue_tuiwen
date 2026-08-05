@@ -1,14 +1,15 @@
 <script lang="ts" setup>
-import { ref, getCurrentInstance, onMounted } from 'vue';
+import {ref, getCurrentInstance, onMounted, h} from 'vue';
 import { useRoute } from "vue-router";
 
-import { message } from 'ant-design-vue';
+import { message, Modal} from 'ant-design-vue';
 import { md5 } from 'js-md5';
 
 import instance from '../services/';
 import router from '../router';
 import { apiUrls, update_self_account } from "@/services/api.ts";
 import appStore from "@/stores";
+import {SettingOutlined} from "@ant-design/icons-vue";
 
 const route = useRoute();
 const proxy = getCurrentInstance();
@@ -21,23 +22,6 @@ const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 };
-
-// 刷新请求令牌
-const refreshAccessToken = async (refresh_token: string) => {
-  const account_id = appStore.useAccountStore.account.account_id;
-  await instance.get(apiUrls.update_token(account_id), {
-    headers: {
-      Authorization: "Bearer " + refresh_token,
-    },
-  }).then((r: any) => {
-    appStore.useAccountStore.update_token('access_token', r.data.access_token);
-  }).catch((e: any) => {
-    message.error(`你的访问令牌过期了,请重新登录:${e}`);
-  })
-  await update_self_account(localStorage.getItem('account_id') || 'unknow');
-  const redirect = route.query.redirect || '/';
-  router.push(redirect);
-}
 
 onMounted(() => {
   if (appStore.useAccountStore.token.access_token) {
@@ -72,6 +56,37 @@ const handleRegister = () => {
 const goResetPwd = () => {
   router.push({ name: "reset_password" })
 }
+
+// 点击设置调用
+const setApiConfig = () => {
+  const current = localStorage.getItem('CUSTOM_API_BASE_URL') || '';
+  let inputValue = current;
+  Modal.confirm({
+    title: '设置后端 API 地址',
+    icon: h(SettingOutlined),
+    content: h('div', [h('a-input', {
+      value: inputValue,
+      placeholder: '请输入API地址，例如 https://api.tuiwen.alsoapp.com',
+      style: 'margin-top: 10px',
+      'onUpdate:value': (val: string) => {
+        inputValue = val;
+      }
+    })]),
+    okText: '确认保存',
+    cancelText: '取消',
+    onOk() {
+      const val = inputValue.trim();
+      if (val) {
+        localStorage.setItem('CUSTOM_API_BASE_URL', val);
+        message.success('API 地址已保存，刷新后生效');
+      } else {
+        localStorage.removeItem('CUSTOM_API_BASE_URL');
+        message.success('已恢复默认地址');
+      }
+    },
+    onCancel() {}
+  });
+};
 </script>
 
 <template>
@@ -84,6 +99,9 @@ const goResetPwd = () => {
     <!-- 登录卡片居中 -->
     <a-flex class="login-center" justify="center" align="center">
       <a-card :hoverable="true" style="width: 400px" title="请登录">
+        <template #extra><a-button type="text" @click="setApiConfig">
+          <SettingOutlined />设置</a-button>
+        </template>
         <a-form :model="formData" :rules="rules" ref="formRef" @finish="handleLogin">
           <a-form-item label="用户名" name="username">
             <a-input v-model:value="formData.username" placeholder="请输入用户名"/>

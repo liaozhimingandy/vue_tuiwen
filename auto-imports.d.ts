@@ -6,5 +6,5 @@
 // biome-ignore lint: disable
 export {}
 declare global {
-
+  const AInput: typeof import('ant-design-vue/es')['Input']
 }
