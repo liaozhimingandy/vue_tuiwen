@@ -46,7 +46,7 @@ const routes: RouteRecordRaw[] = [
 
 const router = createRouter({
     // 内部提供了 history 模式的实现。为了简单起见，我们在这里使用 hash 模式
-    history: createWebHistory(config.APP_BASE_URL),
+    history: createWebHistory('/'),
     routes: routes, // `routes: routes` 的缩写
 });
 
@@ -59,19 +59,19 @@ router.beforeEach((to, _, next) => {
     }
 
     // 白名单：不需要登录的页面
-  const isWhiteList = ['/login/', '/register/', '/reset_password/'].includes(to.path) || to.path.startsWith('/s/')
-  const hasToken = !!appStore.useAccountStore.token.access_token; //access_token可能为 '' / null / undefined
-  console.info(isWhiteList, hasToken)
-  // 已登录，访问登录/注册页 → 跳首页
+  const whiteList = ['login', 'register', 'reset_password', 'post'];
+  const isWhiteList = whiteList.includes(to.name as string);
+  const hasToken = !!appStore.useAccountStore.token?.access_token; // 已登录，访问登录/注册页 → 跳首页
   if (isWhiteList && hasToken) {
-    return next('/')
+    return next({ name: 'home', replace: true });
   }
   // 未登录，访问需要权限的页 → 跳登录
   if (!isWhiteList && !hasToken) {
     message.warn("需要重新登录!");
     return next({
-      path: '/login/',
-      query: { redirect: to.fullPath }
+      name: 'login',
+      query: { redirect: to.fullPath },
+        replace: true
     })
   }
   next();
