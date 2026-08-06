@@ -20,7 +20,8 @@ const instance = axios.create({
     withCredentials: true, // 异步请求携带cookie
     headers: {
         "Content-Type": "application/json;charset=UTF-8",
-        "accept": "application/json"
+        "accept": "application/json",
+        
     }
 });
 

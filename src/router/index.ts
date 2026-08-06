@@ -15,6 +15,7 @@ import LoginPage from "../pages/LoginPage.vue";
 import RegisterPage from "../pages/RegisterPage.vue";
 import appStore from "../stores";
 import {message} from "ant-design-vue";
+import {config} from "../common/config.ts";
 
 NProgress.inc(0.2)
 // 进度条配置（可选）
@@ -40,12 +41,12 @@ const routes: RouteRecordRaw[] = [
     {path: '/u/:username/', name: 'user', component: UserPage, meta: {title: "用户中心"}},
     {path: '/reset_password/', name: 'reset_password', component:()=>import("@/pages/ResetPasswordPage.vue"),
         meta: {title: "密码重置"}},
-    {path: '/:catchALL(.*)/', component: NotFoundPage, name: 'not-fond', meta: {title: "Not Found"}},
+    {path: '/:pathMatch(.*)*', component: NotFoundPage, name: 'not-fond', meta: {title: "Not Found"}},
 ]
 
 const router = createRouter({
     // 内部提供了 history 模式的实现。为了简单起见，我们在这里使用 hash 模式
-    history: createWebHistory(import.meta.env.BASE_URL),
+    history: createWebHistory(config.APP_BASE_URL),
     routes: routes, // `routes: routes` 的缩写
 });
 
@@ -60,7 +61,7 @@ router.beforeEach((to, _, next) => {
     // 白名单：不需要登录的页面
   const isWhiteList = ['/login/', '/register/', '/reset_password/'].includes(to.path) || to.path.startsWith('/s/')
   const hasToken = !!appStore.useAccountStore.token.access_token; //access_token可能为 '' / null / undefined
-
+  console.info(isWhiteList, hasToken)
   // 已登录，访问登录/注册页 → 跳首页
   if (isWhiteList && hasToken) {
     return next('/')
