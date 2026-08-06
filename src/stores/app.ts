@@ -4,6 +4,8 @@ import type {IAccount, IPost, IToken} from "@/interface";
 import type {IPostDraft} from "../interface";
 import instance from "../services";
 import {apiUrls} from "../services/api.ts";
+import {message} from "ant-design-vue";
+import appStore from "./index.ts";
 
 // 帖子信息
 export const usePostStore = defineStore("posts", () => {
@@ -127,13 +129,11 @@ export const useDraftStore = defineStore("draft", () => {
 export const useCacheStore = defineStore("cache", () => {
         // 缓存所有用户信息 { userId: userInfo }
         const account_map = ref<Record<string, IAccount>>({});
-        // 缓存关注状态 { userId: boolean }
-        const follow_map = ref<Record<string, boolean>>({});
         // 缓存正在请求中的 Promise
         const pending_map = ref<Record<string, Promise<IAccount>>>({})
 
         // 获取用户信息
-        const fetech_account = async (account_id: string) => {
+        const fetch_account = async (account_id: string) => {
             //已有缓存直接返回
             if (account_map.value[account_id]) {
                 return Promise.resolve(account_map.value[account_id]);
@@ -152,7 +152,7 @@ export const useCacheStore = defineStore("cache", () => {
                 // 合并成一个完整对象
                 const account = {
                     ...r1.data,
-                 ...{follow: r2.data}
+                    ...{follow: r2.data}
                 };
 
                 account_map.value[account_id] = account;
@@ -165,28 +165,41 @@ export const useCacheStore = defineStore("cache", () => {
             return promise;
         };
 
-        // 关注 / 取消关注（全局同步）
-        const follow_account = async (account_id: string) => {
-            // await instance.post('/follow', { userId })
-            follow_map.value[account_id] = true;
-        };
+        const toggleFollow = async (follower_id: string, followee_id: string) => {
+            //follower_id: 关注者 followee_id:被关注者
+            const account = account_map.value[followee_id];
 
-        const unfollow_account = async (account_id: string) => {
-            // await instance.post('/unfollow', { userId })
-            follow_map.value[account_id] = false;
-        };
+            // 登录用户
+            const user = account_map.value[appStore.useAccountStore.account?.account_id];
 
-        // 获取关注状态
-        const get_follow_status = (account_id: string) => {
-            return follow_map.value[account_id];
-        };
+            if (!account) return;
+            if (!account.is_following) {
+                let data = {
+                    follower_id: follower_id,
+                    followee_id: followee_id
+                };
+                await instance.post(apiUrls.post_follow(), {...data});
+                account.is_following = true;
+                message.success('关注成功');
+                account.follower_count = (account.follower_count ?? 0) + 1;
+                user.followee_count =  ( user.followee_count ?? 0) + 1;
+
+            } else {
+                instance.delete(apiUrls.delete_follow(follower_id, followee_id)).then(() => {
+                    message.success('取消关注成功');
+                    account.is_following = false;
+                    account.follower_count = (account.follower_count ?? 0) - 1
+                    user.followee_count =  ( user.followee_count ?? 0) - 1;
+                });
+            }
+
+        }
+
 
         return {
             account_map,
-            fetech_account,
-            follow_account,
-            unfollow_account,
-            get_follow_status
+            fetch_account,
+            toggleFollow
         }
     }
 )

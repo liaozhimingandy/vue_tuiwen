@@ -1,6 +1,6 @@
 <!--这是推文组件,用于展示一条推文-->
 <script setup lang="ts">
-import {h, onBeforeMount, ref} from 'vue';
+import {computed, h, onBeforeMount, ref} from 'vue';
 import {
   HeartOutlined,
   ShareAltOutlined,
@@ -27,6 +27,10 @@ import {apiUrls, update_self_account} from "@/services/api.ts";
 const props = defineProps<{
   post: IPost;
 }>();
+
+
+// const handleFollow = () => appStore.useCacheStore.toggleFollow(account_id, props.post.account_id);
+
 
 const handleFollow = () => {
   if (!follow.value?.is_following) {
@@ -82,20 +86,22 @@ const comment_data = ref<string>('');
 const account_id = appStore.useAccountStore.account.account_id;
 const select_item = ref<string>('');
 const account = ref<IAccount>();
-const follow = ref();
 const like = ref();
+
+
+const follow = ref();
 
 onBeforeMount(async () => {
   // 查询帖子对应的帐户信息
-  // instance.get(apiUrls.get_account(props.post.account_id)).then((r: any) => {
-  //   account.value = r.data as IAccount;
-  // });
-  await appStore.useCacheStore.fetech_account(props.post.account_id).then(r=> {
+   instance.get(apiUrls.get_account(props.post.account_id)).then((r: any) => {
+     account.value = r.data as IAccount;
+   });
+  await instance.get(props.post.account_id).then(r=> {
     account.value = r;
     follow.value = r.follow;
   });
   // 查询帐户粉丝情况
-  //instance.get(apiUrls.get_account_follow(props.post.account_id)).then((r: any) => follow.value = r.data);
+  instance.get(apiUrls.get_account_follow(props.post.account_id)).then((r: any) => follow.value = r.data);
   // 查询点赞数
   instance.get(apiUrls.get_likes(props.post.post_id)).then((r: any) => like.value = r.data);
 })
@@ -239,7 +245,7 @@ const user_map = ref<Record<string, IAccount>>({});
                 <a-avatar :src="account?.avatar" :size="64"/>
                 <a-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</a-typography-text>
                 <a-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
-                  {{ follow.follower_count }}
+                  {{ follow.follower_count }}-{{follow}}
                 </a-typography-text>
                 <a-divider/>
                 <a-flex justify="space-between">

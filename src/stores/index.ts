@@ -16,7 +16,7 @@ export const registerStore = () => {
     appStore.usePostStore = usePostStore();
     appStore.useAccountStore = useAccountStore();
     appStore.useDraftStore = useDraftStore();
-    appStore.useCacheStore = useCacheStore()
+    appStore.useCacheStore = useCacheStore();
 }
 
 export default appStore;
