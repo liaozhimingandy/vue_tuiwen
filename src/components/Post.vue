@@ -85,13 +85,17 @@ const account = ref<IAccount>();
 const follow = ref();
 const like = ref();
 
-onBeforeMount(() => {
+onBeforeMount(async () => {
   // 查询帖子对应的帐户信息
-  instance.get(apiUrls.get_account(props.post.account_id)).then((r: any) => {
-    account.value = r.data as IAccount;
+  // instance.get(apiUrls.get_account(props.post.account_id)).then((r: any) => {
+  //   account.value = r.data as IAccount;
+  // });
+  await appStore.useCacheStore.fetech_account(props.post.account_id).then(r=> {
+    account.value = r;
+    follow.value = r.follow;
   });
   // 查询帐户粉丝情况
-  instance.get(apiUrls.get_account_follow(props.post.account_id)).then((r: any) => follow.value = r.data);
+  //instance.get(apiUrls.get_account_follow(props.post.account_id)).then((r: any) => follow.value = r.data);
   // 查询点赞数
   instance.get(apiUrls.get_likes(props.post.post_id)).then((r: any) => like.value = r.data);
 })
@@ -283,7 +287,7 @@ const user_map = ref<Record<string, IAccount>>({});
           <!--        />-->
 
           <!--          图片展示 -->
-          <ImageGrid :image-list="post.content.images" :single-max-width="160" :two-col-max-width="200"
+          <ImageGrid :image-list="props.post.content.images" :single-max-width="160" :two-col-max-width="200"
                      :three-col-max-width="360"/>
         </a-space>
       </div>
@@ -308,7 +312,7 @@ const user_map = ref<Record<string, IAccount>>({});
                 </template>
                 <ShareNetwork
                     network="Weibo"
-                    :url="`https://localhost/posts/${props.post.post_id}`"
+                    :url="`${apiUrls.share_post_link(post?.post_id)}`"
                     :title="`来自${account?.nick_name}的分享`"
                     :description="$props.post.content.text"
                     quote="-"
