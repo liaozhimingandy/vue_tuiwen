@@ -39,7 +39,7 @@ onMounted(async () => {
     <a-empty v-if="!post" description="帖子不存在或已删除!">
     </a-empty>
     <a-layout v-else style="min-height: 50vh">
-      <a-layout-header class="custom-header">
+      <a-layout-content>
         <a-row justify="center">
           <a-col :md="12" :xs="22" :sm="22">
             <a-space>
@@ -49,8 +49,6 @@ onMounted(async () => {
             </a-space>
           </a-col>
         </a-row>
-      </a-layout-header>
-      <a-layout-content>
         <a-row justify="center">
           <a-col :md="12" :xs="22" :sm="22">
             <div v-html="post?.content?.text" v-if="post?.post_type==2" class="rich-wrap"/>

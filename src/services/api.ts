@@ -39,7 +39,7 @@ export const apiUrls = {
   get_account_follow: (account_id: string) => `/follows/${account_id}/count/`,
 
   // 上传 & 分享
-  upload_image_url: () => import.meta.env.VITE_APP_BASE_URL + '/upload/image/',
+  upload_image_url: () =>  `${config.API_BASE_URL}/upload/image/`,
   share_post_link: (post_id: string) => `${config.APP_BASE_URL}/s/${post_id}/`,
   share_account_link: (account_id: string) => `${config.APP_BASE_URL}/u/${account_id}/`,
 
