@@ -41,7 +41,7 @@ const routes: RouteRecordRaw[] = [
     {path: '/u/:username/', name: 'user', component: UserPage, meta: {title: "用户中心"}},
     {path: '/reset_password/', name: 'reset_password', component:()=>import("@/pages/ResetPasswordPage.vue"),
         meta: {title: "密码重置"}},
-    {path: '/:pathMatch(.*)*', component: NotFoundPage, name: 'not-fond', meta: {title: "Not Found"}},
+    {path: '/:catchALL(.*)/', component: NotFoundPage, name: 'not-fond', meta: {title: "Not Found"}},
 ]
 
 const router = createRouter({
@@ -59,7 +59,8 @@ router.beforeEach((to, _, next) => {
     }
 
     // 白名单：不需要登录的页面
-  const isWhiteList = ['/login/', '/register/', '/reset_password/'].includes(to.path) || to.path.startsWith('/s/')
+  const whiteNames = ['login', 'register', 'reset_password', 'post'];
+  const isWhiteList = whiteNames.includes(to.name as string);
   const hasToken = !!appStore.useAccountStore.token.access_token; //access_token可能为 '' / null / undefined
   console.info(isWhiteList, hasToken)
   // 已登录，访问登录/注册页 → 跳首页
