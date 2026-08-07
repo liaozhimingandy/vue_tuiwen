@@ -96,7 +96,7 @@ onMounted(async () => {
    instance.get(apiUrls.get_account(props.post.account_id)).then((r: any) => {
      account.value = r.data as IAccount;
    });
-
+   await appStore.useCacheStore.fetch_account(props.post.account_id);
   await instance.get(apiUrls.get_account_follow(props.post.account_id)).then(r=> {
     follow.value = r.data;
   });
