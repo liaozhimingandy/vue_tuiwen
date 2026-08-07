@@ -29,29 +29,30 @@ const props = defineProps<{
 }>();
 
 
-// const handleFollow = () => appStore.useCacheStore.toggleFollow(account_id, props.post.account_id);
+const handleFollow = () => cacheStore.toggleFollow(account_id, props.post.account_id);
 
-
-const handleFollow = () => {
-  if (!follow.value?.is_following) {
-    // 处理加关注逻辑
-    let data = {
-      follower_id: account_id,
-      followee_id: props.post.account_id
-    };
-    instance.post(apiUrls.post_follow(), JSON.stringify(data)).then(() => {
-      message.success('关注成功');
-      follow.value.is_following = !follow.value.is_following;
-    });
-  } else {
-    //   取消点赞
-    instance.delete(apiUrls.delete_follow(account_id, props.post.account_id)).then(() => {
-      message.success('取消关注成功');
-      follow.value.is_following = !follow.value.is_following;
-    });
-
-  }
-};
+//
+// const handleFollow = () => {
+//
+//   if (!follow.value?.is_following) {
+//     // 处理加关注逻辑
+//     let data = {
+//       follower_id: account_id,
+//       followee_id: props.post.account_id
+//     };
+//     instance.post(apiUrls.post_follow(), JSON.stringify(data)).then(() => {
+//       message.success('关注成功');
+//       follow.value.is_following = !follow.value.is_following;
+//     });
+//   } else {
+//     //   取消点赞
+//     instance.delete(apiUrls.delete_follow(account_id, props.post.account_id)).then(() => {
+//       message.success('取消关注成功');
+//       follow.value.is_following = !follow.value.is_following;
+//     });
+//
+//   }
+// };
 
 const handleLike = (post_id: string) => {
   if (!like?.value.is_liked) {
@@ -255,8 +256,7 @@ const follow = computed(()=>{
               <a-space direction="vertical" style="width: 300px">
                 <a-avatar :src="account?.avatar" :size="64"/>
                 <a-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</a-typography-text>
-                <a-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
-                  {{ follow.follower_count }}
+                <a-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数: {{ follow.follower_count }}
                 </a-typography-text>
                 <a-divider/>
                 <a-flex justify="space-between">
@@ -296,6 +296,7 @@ const follow = computed(()=>{
 
           <!--                <div v-html="post.content.text"  class="rich-text-content" ></div>-->
           <TextCollapse>
+            {{ account }}
             <div v-html="post.content.text"></div>
           </TextCollapse>
           <!--        <Editor-->
