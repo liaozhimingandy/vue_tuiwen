@@ -85,23 +85,24 @@ const submitting = ref<boolean>(false);
 const comment_data = ref<string>('');
 const account_id = appStore.useAccountStore.account.account_id;
 const select_item = ref<string>('');
-const account = ref<IAccount>();
+// const account = ref<IAccount>();
 const like = ref();
 
 
-const follow = ref();
+//const follow = ref();
 
 onMounted(async () => {
+  // 获取帖子和该账户粉丝等信息
+  await appStore.useCacheStore.fetch_account(props.post.account_id);
   // 查询帖子对应的帐户信息
-   instance.get(apiUrls.get_account(props.post.account_id)).then((r: any) => {
-     account.value = r.data as IAccount;
-   });
-   await appStore.useCacheStore.fetch_account(props.post.account_id);
-  await instance.get(apiUrls.get_account_follow(props.post.account_id)).then(r=> {
-    follow.value = r.data;
-  });
+  //  instance.get(apiUrls.get_account(props.post.account_id)).then((r: any) => {
+  //    account.value = r.data as IAccount;
+  //  });
+  // await instance.get(apiUrls.get_account_follow(props.post.account_id)).then(r=> {
+  //   follow.value = r.data;
+  // });
   // 查询帐户粉丝情况
-  instance.get(apiUrls.get_account_follow(props.post.account_id)).then((r: any) => follow.value = r.data);
+  //instance.get(apiUrls.get_account_follow(props.post.account_id)).then((r: any) => follow.value = r.data);
   // 查询点赞数
   instance.get(apiUrls.get_likes(props.post.post_id)).then((r: any) => like.value = r.data);
 })
@@ -215,8 +216,11 @@ const user_map = ref<Record<string, IAccount>>({});
 const cacheStore = useCacheStore();
 // 关键：用 storeToRefs 保持响应式
 const { account_map } = storeToRefs(cacheStore)
-const test = computed(()=>{
-  return account_map.value;
+const account = computed(()=>{
+  return account_map.value[props.post.account_id] || {};
+})
+const follow = computed(()=>{
+  return account_map.value[props.post.account_id]?.follow || {};
 })
 </script>
 
@@ -292,7 +296,6 @@ const test = computed(()=>{
 
           <!--                <div v-html="post.content.text"  class="rich-text-content" ></div>-->
           <TextCollapse>
-            {{test}}
             <div v-html="post.content.text"></div>
           </TextCollapse>
           <!--        <Editor-->
