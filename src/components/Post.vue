@@ -96,9 +96,9 @@ onMounted(async () => {
    instance.get(apiUrls.get_account(props.post.account_id)).then((r: any) => {
      account.value = r.data as IAccount;
    });
-  await instance.get(props.post.account_id).then(r=> {
-    account.value = r;
-    follow.value = r.follow;
+
+  await instance.get(apiUrls.get_account_follow(props.post.account_id)).then(r=> {
+    follow.value = r.data;
   });
   // 查询帐户粉丝情况
   instance.get(apiUrls.get_account_follow(props.post.account_id)).then((r: any) => follow.value = r.data);
@@ -252,7 +252,7 @@ const test = computed(()=>{
                 <a-avatar :src="account?.avatar" :size="64"/>
                 <a-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</a-typography-text>
                 <a-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
-                  {{ follow.follower_count }}-{{test}}
+                  {{ follow.follower_count }}
                 </a-typography-text>
                 <a-divider/>
                 <a-flex justify="space-between">
@@ -292,6 +292,7 @@ const test = computed(()=>{
 
           <!--                <div v-html="post.content.text"  class="rich-text-content" ></div>-->
           <TextCollapse>
+            {{test}}
             <div v-html="post.content.text"></div>
           </TextCollapse>
           <!--        <Editor-->
