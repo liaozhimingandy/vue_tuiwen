@@ -1,6 +1,6 @@
 <!--这是推文组件,用于展示一条推文-->
 <script setup lang="ts">
-import {h, onMounted, ref} from 'vue';
+import {h, onMounted, ref, computed} from 'vue';
 import {
   HeartOutlined,
   ShareAltOutlined,
