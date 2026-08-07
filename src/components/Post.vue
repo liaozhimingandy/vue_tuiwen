@@ -215,8 +215,8 @@ const user_map = ref<Record<string, IAccount>>({});
 const cacheStore = useCacheStore();
 // 关键：用 storeToRefs 保持响应式
 const { account_map } = storeToRefs(cacheStore)
-computed(()=>{
-  console.info(account_map);
+const test = computed(()=>{
+  return account_map.value;
 })
 </script>
 
@@ -252,7 +252,7 @@ computed(()=>{
                 <a-avatar :src="account?.avatar" :size="64"/>
                 <a-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</a-typography-text>
                 <a-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
-                  {{ follow.follower_count }}-{{follow}}
+                  {{ follow.follower_count }}-{{test}}
                 </a-typography-text>
                 <a-divider/>
                 <a-flex justify="space-between">
