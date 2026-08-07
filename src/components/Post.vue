@@ -1,6 +1,6 @@
 <!--这是推文组件,用于展示一条推文-->
 <script setup lang="ts">
-import {computed, h, onBeforeMount, ref} from 'vue';
+import {h, onMounted, ref} from 'vue';
 import {
   HeartOutlined,
   ShareAltOutlined,
@@ -91,11 +91,12 @@ const like = ref();
 
 const follow = ref();
 
-onBeforeMount(async () => {
+onMounted(async () => {
   // 查询帖子对应的帐户信息
    instance.get(apiUrls.get_account(props.post.account_id)).then((r: any) => {
      account.value = r.data as IAccount;
    });
+   console.info(appStore.useCacheStore.account_map);
   await instance.get(props.post.account_id).then(r=> {
     account.value = r;
     follow.value = r.follow;
