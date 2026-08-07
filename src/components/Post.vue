@@ -96,7 +96,7 @@ onMounted(async () => {
    instance.get(apiUrls.get_account(props.post.account_id)).then((r: any) => {
      account.value = r.data as IAccount;
    });
-   console.info(appStore.useCacheStore.account_map);
+   console.info(account_map);
   await instance.get(props.post.account_id).then(r=> {
     account.value = r;
     follow.value = r.follow;
@@ -171,6 +171,7 @@ const copyLink = async (url: string) => {
 };
 
 import {Modal} from 'ant-design-vue';
+import {useCacheStore} from "@/stores/app.ts";
 
 const handleClick: MenuProps['onClick'] = e => {
   switch (e.key) {
@@ -210,8 +211,11 @@ const handleClick: MenuProps['onClick'] = e => {
   }
 };
 
-
+import storeToRefs from "pinia";
 const user_map = ref<Record<string, IAccount>>({});
+const cacheStore = useCacheStore();
+// 关键：用 storeToRefs 保持响应式
+const { account_map } = storeToRefs(cacheStore)
 </script>
 
 <template>
