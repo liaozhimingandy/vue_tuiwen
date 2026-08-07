@@ -211,7 +211,7 @@ const handleClick: MenuProps['onClick'] = e => {
   }
 };
 
-import storeToRefs from "pinia";
+import {storeToRefs} from "pinia";
 const user_map = ref<Record<string, IAccount>>({});
 const cacheStore = useCacheStore();
 // 关键：用 storeToRefs 保持响应式

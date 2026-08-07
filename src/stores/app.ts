@@ -152,13 +152,13 @@ export const useCacheStore = defineStore("cache", () => {
                 // 合并成一个完整对象
                 const account = {
                     ...r1.data,
-                    ...{follow: r2.data}
+                    follow: r2.data
                 };
 
                 account_map.value[account_id] = account;
                 return account;
             }).finally(() => {
-                account_map.value[account_id] = null;
+               delete pending_map.value[account_id];
             });
 
             account_map.value[account_id] = promise;
