@@ -123,7 +123,14 @@ const onSearch = async (val: string) => {
 
     <!-- 登录卡片居中 -->
     <a-flex class="login-center" justify="center" align="center">
-      <a-card :hoverable="true" style="width: 400px" title="请登录">
+      <a-card :hoverable="true" style="width: 400px">
+        <!-- Logo区域 -->
+        <template #title>
+          <a-flex align="center">
+            <img src="@/assets/vue.svg" alt="logo" width="32"/>
+            <a-typography-title :level="4" style="margin:0; line-height:16px;">请登录</a-typography-title>
+          </a-flex>
+        </template>
         <template #extra>
           <a-tooltip>
             <template #title>如果默认后端地址不可用时,可以自行修改可用地址</template>

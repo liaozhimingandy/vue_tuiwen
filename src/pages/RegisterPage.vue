@@ -20,7 +20,9 @@ const formData = ref({
   sex: "0",
   avatar: "https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png"
 });
-const sexListOptions = Object.entries(sex_code_map).map(([k, v]) => {return {"value": k[0], "label": v}});
+const sexListOptions = Object.entries(sex_code_map).map(([k, v]) => {
+  return {"value": k[0], "label": v}
+});
 const validateConfirmPassword = (rule, value) => {
   if (value !== formData.value.password) {
     return Promise.reject('两次输入的密码不一致');
@@ -71,7 +73,14 @@ const handleLogin = () => window.location.replace('/login/');
 
 <template>
   <a-flex style="height: 100vh; background-color: #E9EBEE" justify="center" align="center">
-    <a-card :hoverable="true" style="width: 400px" title="注册">
+    <a-card :hoverable="true" style="width: 400px">
+      <!-- Logo区域 -->
+      <template #title>
+        <a-space align="center">
+          <img src="@/assets/vue.svg" alt="logo" width="32"/>
+          <a-typography-title :level="4" style="margin:0; line-height:16px;">注册</a-typography-title>
+        </a-space>
+      </template>
       <a-form :model="formData" :rules="rules" ref="formRef" @finish="handleRegister">
         <a-form-item label="电子邮箱" name="email">
           <a-input v-model:value="formData.email" placeholder="电子邮箱"/>
@@ -86,8 +95,8 @@ const handleLogin = () => window.location.replace('/login/');
         <a-form-item name="nick_name" label="显示名称">
           <a-input v-model:value="formData.nick_name"></a-input>
         </a-form-item>
-        <a-form-item label="出生日期"  name="gmt_birth">
-           <a-date-picker v-model:value="formData.gmt_birth" value-format="YYYY-MM-DD" style="width: 100%" />
+        <a-form-item label="出生日期" name="gmt_birth">
+          <a-date-picker v-model:value="formData.gmt_birth" value-format="YYYY-MM-DD" style="width: 100%"/>
         </a-form-item>
         <a-form-item name="sex" label="性别">
           <a-select v-model:value="formData.sex" :options='sexListOptions'/>

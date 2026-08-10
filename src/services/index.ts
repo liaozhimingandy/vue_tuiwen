@@ -9,6 +9,7 @@ import {config} from "@/common/config.ts";
 import appStore from "@/stores/index.js";
 import {apiUrls} from "./api.ts";
 import type {IToken} from "../interface";
+import {logger} from "../common/utils.ts";
 
 // 登录跳转锁：防止多个请求同时401重复跳转登录页
 let isRefreshing = false;
@@ -86,7 +87,6 @@ instance.interceptors.response.use(
             case 401:
                 const accountStore = appStore.useAccountStore;
                 const token: IToken = accountStore.token;
-                console.info(token)
                 // 没有 refresh_token 直接跳登录
                 if (!token?.refresh_token) {
                     const currentPath = router.currentRoute.value.fullPath;
@@ -111,12 +111,11 @@ instance.interceptors.response.use(
                 try {
                     // --------------- 刷新 token 接口 ---------------
                     // 拼接刷新接口地址
-                    const baseUrl = API_BASE_URL.replace(/\/$/, '');
+                    const baseUrl = (API_BASE_URL || '').replace(/\/$/, '');
                     const accountId = accountStore.account?.account_id ?? '';
                     const apiPath = apiUrls.update_token(accountId);
                     const refreshTokenUrl = `${baseUrl}${apiPath}`;
-                    console.info(refreshTokenUrl);
-                    const refreshRes = await axios.get(refreshTokenUrl,
+                    const refreshRes = await instance.get(refreshTokenUrl,
                         {
                             headers: {
                                 Authorization: `Bearer ${token.refresh_token}`
@@ -133,10 +132,13 @@ instance.interceptors.response.use(
                     return instance(config);
 
                 } catch (e) {
-                    // 刷新失败：清理并跳转登录
+                    // 1. 代表 refresh_token 过期/无效/被拉黑
+                    // 2. 清空队列、停止刷新
+                    // 3. 清空本地 token（必须）
+                    // 4. 跳转到登录页（带 redirect）
                     requestQueue = [];
-                    console.info(e);
-                    // accountStore.logout();
+                    logger.info(e);
+                    accountStore.logout();
                     const currentPath = router.currentRoute.value.fullPath;
                     router.push({
                         name: "login",

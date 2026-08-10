@@ -1,3 +1,5 @@
+import {config} from "./config.ts";
+
 const zeroize = (num: string) => {
         return (String(num).length == 1 ? '0' : '') + num;
     };
@@ -33,3 +35,23 @@ export const timestampFormat = (datetime: string) => {
         }
     }
 }
+
+
+// 只在开发环境打印日志
+export const logger = {
+  info: (...args: any[]) => {
+    if (config.isDebug) {
+      console.info(...args);
+    }
+  },
+  log: (...args: any[]) => {
+    if (config.isDebug) {
+      console.log(...args);
+    }
+  },
+  error: (...args: any[]) => {
+    if (config.isDebug) {
+      console.error(...args);
+    }
+  }
+};
