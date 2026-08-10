@@ -109,10 +109,10 @@ instance.interceptors.response.use(
 
                 try {
                     // --------------- 刷新 token 接口 ---------------
-                    const refreshRes = await axios.post(apiUrls.update_token(accountStore.account?.account_id), {});
+                    const refreshRes = await axios.get(apiUrls.update_token(accountStore.account?.account_id), {});
 
                     accountStore.update_token({"access_token": refreshRes.data.access_token})
-                    
+
                     // 重试队列里的所有请求
                     requestQueue.forEach(cb => cb(accountStore.token.access_token));
                     requestQueue = [];
