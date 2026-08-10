@@ -135,7 +135,8 @@ instance.interceptors.response.use(
                 } catch (e) {
                     // 刷新失败：清理并跳转登录
                     requestQueue = [];
-                    accountStore.logout();
+                    console.info(e);
+                    // accountStore.logout();
                     const currentPath = router.currentRoute.value.fullPath;
                     router.push({
                         name: "login",
