@@ -84,6 +84,7 @@ instance.interceptors.response.use(
             case 401:
                 const accountStore = appStore.useAccountStore;
                 const token: IToken = accountStore.token;
+                console.info(token)
                 // 没有 refresh_token 直接跳登录
                 if (!token?.refresh_token) {
                     const currentPath = router.currentRoute.value.fullPath;
