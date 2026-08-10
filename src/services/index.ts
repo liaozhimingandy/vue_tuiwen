@@ -109,7 +109,8 @@ instance.interceptors.response.use(
 
                 try {
                     // --------------- 刷新 token 接口 ---------------
-                    const refreshRes = await axios.get(apiUrls.update_token(accountStore.account?.account_id), {});
+                    const refresh_token_url = config.APP_BASE_URL +apiUrls.update_token(accountStore.account?.account_id)
+                    const refreshRes = await axios.get(refresh_token_url);
 
                     accountStore.update_token({"access_token": refreshRes.data.access_token})
 
