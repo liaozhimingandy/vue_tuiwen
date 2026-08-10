@@ -115,7 +115,7 @@ instance.interceptors.response.use(
                     const accountId = accountStore.account?.account_id ?? '';
                     const apiPath = apiUrls.update_token(accountId);
                     const refreshTokenUrl = `${baseUrl}${apiPath}`;
-                    const refreshRes = await instance.get(refreshTokenUrl,
+                    const refreshRes = await axios.get(refreshTokenUrl,
                         {
                             headers: {
                                 Authorization: `Bearer ${token.refresh_token}`
