@@ -15,6 +15,8 @@ let isRefreshing = false;
 // 刷新期间挂起的请求队列
 let requestQueue: ((token: string) => void)[] = [];
 
+const API_BASE_URL = config.API_BASE_URL;
+
 //-------------------------1.创建axios实例-----------------------
 const instance = axios.create({
     baseURL: config.API_BASE_URL, // 所有的请求地址前缀部分,
@@ -111,7 +113,7 @@ instance.interceptors.response.use(
                 try {
                     // --------------- 刷新 token 接口 ---------------
                     // 拼接刷新接口地址
-                    const baseUrl = config.APP_BASE_URL.replace(/\/$/, '');
+                    const baseUrl = API_BASE_URL.replace(/\/$/, '');
                     const accountId = accountStore.account?.account_id ?? '';
                     const apiPath = apiUrls.update_token(accountId);
                     const refreshTokenUrl = `${baseUrl}${apiPath}`;
