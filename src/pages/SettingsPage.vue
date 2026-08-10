@@ -31,9 +31,9 @@ onMounted(()=>{
 
 // 性别字典
 const sexListOptions = Object.entries(sex_code_map).map(([k, v]) => {
-  return {"value": k[0], "label": v}
+  return {"value": parseInt(k[0]), "label": v}
 });
-
+console.info(sexListOptions)
 // 查询用户信息
 update_self_account(account.value.account_id);
 
@@ -119,7 +119,7 @@ const update_account = () => {
     avatar: account.value.avatar
   }
 
-  instance.put(apiUrls.update_account(account.value.account_id), JSON.stringify(data))
+  instance.put(apiUrls.update_account(account.value.account_id), data)
       .then((r: IAccount) => {
         message.success("更新成功");
         account.value = r.data as IAccount;

@@ -16,7 +16,7 @@ import type {IPost} from "@/interface";
 import instance from '@/services/';
 import {post_right_map} from "@/common/constants.js";
 import axios from "axios";
-import {apiUrls} from "@/services/api.ts";
+import {apiUrls, publish_post} from "@/services/api.ts";
 
 const selected_status = ref<number>(1);
 // 处理菜单点击事件
@@ -121,7 +121,7 @@ watch(content, () => {
 }, {deep: true})
 
 // 处理发布博客
-const onPublish = () => {
+const onPublish = async () => {
 
   if (editorRef.value.getText().trim() == '') {
     message.info("内容不能为空!");
@@ -140,11 +140,11 @@ const onPublish = () => {
   }
 
   // 调发布接口
-  instance.post(apiUrls.post_posts(), JSON.stringify(post)).then((r: any) => {
-    message.success("发布成功!");
-    editorRef.value.clear();
-    appStore.useDraftStore.clearDraft();
-  }).catch((e: any) => message.error(e));
+  await publish_post(post);
+
+  message.success("发布成功!");
+  editorRef.value.clear();
+  appStore.useDraftStore.clearDraft();
 
 }
 </script>

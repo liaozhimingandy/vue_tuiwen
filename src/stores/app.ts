@@ -6,6 +6,7 @@ import instance from "../services";
 import {apiUrls} from "../services/api.ts";
 import {message} from "ant-design-vue";
 import appStore from "./index.ts";
+import {logger} from "../common/utils.ts";
 
 // 帖子信息
 export const usePostStore = defineStore("posts", () => {
@@ -171,24 +172,24 @@ export const useCacheStore = defineStore("cache", () => {
 
             // 登录用户
             const user = account_map.value[appStore.useAccountStore.account?.account_id];
-
             if (!account) return;
-            if (!account.is_following) {
+            if (!account.follow.is_following) {
+                // 如果没有正在关注
                 let data = {
                     follower_id: follower_id,
                     followee_id: followee_id
                 };
                 await instance.post(apiUrls.post_follow(), {...data});
-                account.is_following = true;
+                account.follow.is_following = true;
                 message.success('关注成功');
-                account.follower_count = (account.follower_count ?? 0) + 1;
+                account.follow.follower_count = (account.follower_count ?? 0) + 1;
                 user.followee_count =  ( user.followee_count ?? 0) + 1;
 
             } else {
                 instance.delete(apiUrls.delete_follow(follower_id, followee_id)).then(() => {
                     message.success('取消关注成功');
-                    account.is_following = false;
-                    account.follower_count = (account.follower_count ?? 0) - 1
+                    account.follow.is_following = false;
+                    account.follow.follower_count = (account.follower_count ?? 0) - 1
                     user.followee_count =  ( user.followee_count ?? 0) - 1;
                 });
             }

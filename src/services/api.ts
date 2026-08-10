@@ -70,3 +70,11 @@ export const get_posts = async (limit: number=10, cursor: string,) => {
 export const get_accounts_posts = async (limit: number=10, cursor: string, account_id: string) => {
     return await instance.get(apiUrls.get_account_posts(account_id), {params: {limit: limit, ...(cursor != null && { cursor: cursor })}})
 }
+
+// 发布帖子
+export const publish_post = async (data: any) => {
+  instance.post(apiUrls.post_posts(), data).then((r: any) => {
+   appStore.usePostStore.addPost(r.data);
+  });
+
+}

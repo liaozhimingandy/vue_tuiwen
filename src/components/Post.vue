@@ -95,15 +95,6 @@ const like = ref();
 onMounted(async () => {
   // 获取帖子和该账户粉丝等信息
   await appStore.useCacheStore.fetch_account(props.post.account_id);
-  // 查询帖子对应的帐户信息
-  //  instance.get(apiUrls.get_account(props.post.account_id)).then((r: any) => {
-  //    account.value = r.data as IAccount;
-  //  });
-  // await instance.get(apiUrls.get_account_follow(props.post.account_id)).then(r=> {
-  //   follow.value = r.data;
-  // });
-  // 查询帐户粉丝情况
-  //instance.get(apiUrls.get_account_follow(props.post.account_id)).then((r: any) => follow.value = r.data);
   // 查询点赞数
   instance.get(apiUrls.get_likes(props.post.post_id)).then((r: any) => like.value = r.data);
 })
@@ -218,10 +209,10 @@ const cacheStore = useCacheStore();
 // 关键：用 storeToRefs 保持响应式
 const { account_map } = storeToRefs(cacheStore)
 const account = computed(()=>{
-  return account_map.value[props.post.account_id] || {};
+  return account_map.value[props.post.account_id] ?? {};
 })
 const follow = computed(()=>{
-  return account_map.value[props.post.account_id]?.follow || {};
+  return account_map.value[props.post.account_id]?.follow ?? {};
 })
 </script>
 
@@ -296,7 +287,6 @@ const follow = computed(()=>{
 
           <!--                <div v-html="post.content.text"  class="rich-text-content" ></div>-->
           <TextCollapse>
-            {{ account }}
             <div v-html="post.content.text"></div>
           </TextCollapse>
           <!--        <Editor-->

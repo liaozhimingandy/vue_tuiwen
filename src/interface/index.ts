@@ -51,7 +51,7 @@ export interface IAccount {
     mobile?: null | string;
     nick_name?: string;
     password?: string;
-    sex?: string | null;
+    sex?: number | null;
     account_type?: number;
     username?: string;
     [property: string]: any;

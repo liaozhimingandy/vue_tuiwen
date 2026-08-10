@@ -21,7 +21,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # 环境变量文件（保护敏感信息）
-.env.develop
+.env.development
 !.env.production
 !.env.example # 但保留示例
 

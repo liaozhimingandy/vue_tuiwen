@@ -55,3 +55,19 @@ export const logger = {
     }
   }
 };
+
+
+/**
+ * 移除富文本 首尾多余空段落：<p><br></p> / <p></p>
+ */
+export const trimEmptyParagraph = (html: string) => {
+  if (!html) return "";
+  // 循环清除头部空段落
+  const emptyP = /^(<p>\s*(<br\s*\/?>)?\s*<\/p>)+/gi;
+  // 循环清除尾部空段落
+  const emptyPTail = /(<p>\s*(<br\s*\/?>)?\s*<\/p>)+$/gi;
+
+  let result = html.replace(emptyP, "");
+  result = result.replace(emptyPTail, "");
+  return result;
+}

@@ -8,7 +8,9 @@ import instance from '@/services/';
 import {message} from "ant-design-vue";
 import {AddPicture} from '@icon-park/vue-next';
 import {post_right_map} from "@/common/constants.js";
-import {apiUrls} from "@/services/api.ts";
+import {apiUrls, publish_post} from "@/services/api.ts";
+import {trimEmptyParagraph} from "@/common/utils.ts";
+
 const {posts} = storeToRefs(appStore.usePostStore);
 const draftStore = storeToRefs(appStore.useDraftStore);
 
@@ -46,8 +48,6 @@ const handlePreview = async (file: any) => {
   previewVisible.value = true;
   previewTitle.value = file.name || file.url.substring(file.url.lastIndexOf('/') + 1);
 };
-
-
 
 // 选中的状态，默认 "public"
 const selected_status = ref(1);
@@ -87,12 +87,8 @@ const handlePublish = () => {
   }
 
   // 调发布接口
-  instance.post(apiUrls.post_posts(), JSON.stringify(post)).then((r: any) => {
-    posts.value.unshift(r.data);
-    // posts.value.push(r.data as IPost);
-    // posts.value = posts.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
-  });
-  0
+  publish_post(post);
+
   is_open.value = false;
   content.value = "";
   fileList.value = [];
@@ -100,19 +96,21 @@ const handlePublish = () => {
   appStore.useDraftStore.clearDraft();
 };
 
-onMounted(()=>{
-  if(draftStore.post_draft.value) {
-    content.value = draftStore.post_draft.value.text;
+onMounted(() => {
+  if (draftStore.post_draft.value) {
+    const rawText = draftStore.post_draft.value.text;
+    content.value = trimEmptyParagraph(rawText);
+
   }
 })
 
 
 watch([content, fileList], () => {
 
-     window.setTimeout(() => {
+      window.setTimeout(() => {
         // 空内容直接清空草稿
         if (!content.value.trim()) {
-           appStore.useDraftStore.clearDraft();
+          appStore.useDraftStore.clearDraft();
           return
         }
         // 提取已上传的图片链接
@@ -171,7 +169,8 @@ watch([content, fileList], () => {
               </router-link>
             </a-space>
             <!-- 输入框 -->
-            <a-textarea :rows="4" placeholder="分享一下你的生活趣事" v-model:value="content" show-count :maxlength="256"/>
+            <a-textarea :rows="4" placeholder="分享一下你的生活趣事" v-model:value="content" show-count
+                        :maxlength="256"/>
           </a-space>
           <a-divider/>
           <!--          图片上传功能 -->
