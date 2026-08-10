@@ -7,11 +7,13 @@ import router from "../router";
 import {config} from "@/common/config.ts";
 // @ts-ignore
 import appStore from "@/stores/index.js";
-// @ts-ignore
-import type {IToken} from "@/interface";
+import {apiUrls} from "./api.ts";
+import type {IToken} from "../interface";
 
 // 登录跳转锁：防止多个请求同时401重复跳转登录页
-let isRedirectLogin = false;
+let isRefreshing = false;
+// 刷新期间挂起的请求队列
+let requestQueue: ((token: string) => void)[] = [];
 
 //-------------------------1.创建axios实例-----------------------
 const instance = axios.create({
@@ -21,7 +23,7 @@ const instance = axios.create({
     headers: {
         "Content-Type": "application/json;charset=UTF-8",
         "accept": "application/json",
-        
+
     }
 });
 
@@ -51,7 +53,7 @@ instance.interceptors.response.use(
         cancelLoading();
         return res;
     },
-    (error: any) => {
+    async (error: any) => {
         // 取消加载 loading
         cancelLoading();
 
@@ -80,15 +82,58 @@ instance.interceptors.response.use(
                 message.error(detail || '参数错误');
                 break;
             case 401:
-                if (!isRedirectLogin) {
-                    isRedirectLogin = true;
-                    message.error("未授权，请重新登录");
-                    // 清空登录状态
-                    // const accountStore = appStore.useAccountStore;
-                    // accountStore.logout();
-                    router.push({name: "login"}).finally(() => {
-                        isRedirectLogin = false;
+                const accountStore = appStore.useAccountStore;
+                const token: IToken = accountStore.token;
+                // 没有 refresh_token 直接跳登录
+                if (!token?.refresh_token) {
+                    const currentPath = router.currentRoute.value.fullPath;
+                    router.push({
+                        name: "login",
+                        query: {
+                            redirect: currentPath
+                        }
                     });
+                }
+
+                // 如果正在刷新，把请求加入队列
+                if (isRefreshing) {
+                    return new Promise(resolve => {
+                        requestQueue.push((newToken) => {
+                            config.headers.Authorization = `Bearer ${newToken}`;
+                            resolve(instance(config));
+                        });
+                    });
+                }
+
+                isRefreshing = true;
+
+                try {
+                    // --------------- 刷新 token 接口 ---------------
+                    const refreshRes = await axios.post(apiUrls.update_token(accountStore.account?.account_id), {});
+
+                    accountStore.update_token({"access_token": refreshRes.data.access_token})
+                    
+                    // 重试队列里的所有请求
+                    requestQueue.forEach(cb => cb(accountStore.token.access_token));
+                    requestQueue = [];
+
+                    // 重试当前请求
+                    config.headers.Authorization = `Bearer ${accountStore.token.access_token}`;
+                    return instance(config);
+
+                } catch (e) {
+                    // 刷新失败：清理并跳转登录
+                    requestQueue = [];
+                    accountStore.logout();
+                    const currentPath = router.currentRoute.value.fullPath;
+                    router.push({
+                        name: "login",
+                        query: {
+                            redirect: currentPath
+                        }
+                    });
+                } finally {
+                    isRefreshing = false;
                 }
                 break;
             case 403:
