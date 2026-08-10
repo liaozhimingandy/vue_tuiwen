@@ -107,9 +107,7 @@ instance.interceptors.response.use(
                         });
                     });
                 }
-
                 isRefreshing = true;
-
                 try {
                     // --------------- 刷新 token 接口 ---------------
                     // 拼接刷新接口地址
@@ -124,8 +122,8 @@ instance.interceptors.response.use(
                                 Authorization: `Bearer ${token.refresh_token}`
                             }
                         });
-                    accountStore.update_token({"access_token": refreshRes.data.access_token})
-
+                    // 同步到本地数据
+                    accountStore.update_token("access_token", refreshRes.data.access_token);
                     // 重试队列里的所有请求
                     requestQueue.forEach(cb => cb(accountStore.token.access_token));
                     requestQueue = [];
