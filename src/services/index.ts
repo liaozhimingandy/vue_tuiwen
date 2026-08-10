@@ -109,9 +109,18 @@ instance.interceptors.response.use(
 
                 try {
                     // --------------- 刷新 token 接口 ---------------
-                    const refresh_token_url = config.APP_BASE_URL +apiUrls.update_token(accountStore.account?.account_id)
-                    const refreshRes = await axios.get(refresh_token_url);
-
+                    // 拼接刷新接口地址
+                    const baseUrl = config.APP_BASE_URL.replace(/\/$/, '');
+                    const accountId = accountStore.account?.account_id ?? '';
+                    const apiPath = apiUrls.update_token(accountId);
+                    const refreshTokenUrl = `${baseUrl}${apiPath}`;
+                    console.info(refreshTokenUrl);
+                    const refreshRes = await axios.get(refreshTokenUrl,
+                        {
+                            headers: {
+                                Authorization: `Bearer ${token.refresh_token}`
+                            }
+                        });
                     accountStore.update_token({"access_token": refreshRes.data.access_token})
 
                     // 重试队列里的所有请求
