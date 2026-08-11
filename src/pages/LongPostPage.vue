@@ -34,7 +34,7 @@ const content = ref('')
 const toolbarConfig = {}
 const editorConfig = {
   placeholder: '静静的留下你此刻的思路...',
-  maxLength: 1280,
+  maxLength: 12800,
   MENU_CONF: {
     // 上传图片配置
     uploadImage: {

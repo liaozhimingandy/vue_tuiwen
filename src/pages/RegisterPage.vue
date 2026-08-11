@@ -77,7 +77,7 @@ const handleLogin = () => window.location.replace('/login/');
       <!-- Logo区域 -->
       <template #title>
         <a-space align="center">
-          <img src="@/assets/vue.svg" alt="logo" width="32"/>
+          <img src="../assets/logo.svg" alt="logo" width="32"/>
           <a-typography-title :level="4" style="margin:0; line-height:16px;">注册</a-typography-title>
         </a-space>
       </template>

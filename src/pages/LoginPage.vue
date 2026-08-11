@@ -127,7 +127,7 @@ const onSearch = async (val: string) => {
         <!-- Logo区域 -->
         <template #title>
           <a-flex align="center">
-            <img src="@/assets/vue.svg" alt="logo" width="32"/>
+            <img src="../assets/logo.svg" alt="logo" width="32"/>
             <a-typography-title :level="4" style="margin:0; line-height:16px;">请登录</a-typography-title>
           </a-flex>
         </template>

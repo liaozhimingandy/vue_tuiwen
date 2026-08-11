@@ -195,7 +195,7 @@ const handleClick: MenuProps['onClick'] = e => {
   <a-layout style="min-height: 100vh; text-align: center;">
     <a-layout-header ref="headerRef" :style="{width: '100%',
       'background-color': 'white'}">
-      <Header selected-keys="s"/>
+      <Header selected-keys="home"/>
     </a-layout-header>
     <a-layout-content style="padding-top: 8px">
       <a-row style="background-color: #E9EBEE">
