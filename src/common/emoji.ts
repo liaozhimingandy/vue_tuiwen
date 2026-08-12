@@ -1,3 +1,5 @@
+import face01 from '@/assets/emoji/default/face01.svg'
+
 // 本地表情包映射
 export interface FaceItem {
   code: string; // 文本标记 [code]
@@ -7,7 +9,7 @@ export interface FaceItem {
 
 // 默认表情分组
 export const DEFAULT_FACE_GROUP: FaceItem[] = [
-  { code: "face01", src: "/src/assets/emoji/default/face01.svg", name: "微笑" },
+  { code: "face01", src: face01, name: "微笑" },
 ];
 
 // 多分组扩展（可做标签栏切换，和微信一致）
