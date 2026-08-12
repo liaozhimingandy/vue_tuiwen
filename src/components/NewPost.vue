@@ -11,7 +11,6 @@ import {apiUrls, publish_post} from "@/services/api.ts";
 import {trimEmptyParagraph} from "@/common/utils.ts";
 import FacePicker from "@/components/FacePicker.vue";
 
-const {posts} = storeToRefs(appStore.usePostStore);
 const draftStore = storeToRefs(appStore.useDraftStore);
 
 // 内容
@@ -127,10 +126,36 @@ watch([content, fileList], () => {
 
 const showFacePanel = ref(false);
 // 选中表情包回调
-const onSelectFace = (tag: string) => {
-  content.value += tag
-  showFacePanel.value = false
+// const onSelectFace = (tag: string) => {
+//   content.value += tag
+//   showFacePanel.value = false
+// }
+
+// 缓存最后一次光标位置
+const lastCursorPos = ref(0);
+
+// 保存光标位置
+const saveCursor = () => {
+  const comp = inputRef.value;
+  if (!comp) return;
+  const ta = comp.$el.querySelector('textarea') as HTMLTextAreaElement;
+  lastCursorPos.value = ta.selectionStart;
+};
+
+const inputRef = ref();
+const onSelectFace = (face: string) => {
+  // 如果从未聚焦过，默认插到文本末尾
+  const start = lastCursorPos.value < 0
+    ? content.value.length
+    : lastCursorPos.value;
+
+  // 1. 先更新响应式数据，由 v-model 同步 DOM
+  content.value = content.value.slice(0, start) + face + content.value.slice(start);
+
+  showFacePanel.value = false;
 }
+
+
 </script>
 
 <template>
@@ -142,105 +167,6 @@ const onSelectFace = (tag: string) => {
         <!-- 用户头像 -->
         <a-avatar :src="appStore.useAccountStore.account?.avatar" size="large"/>
         <!-- 输入框 -->
-        <a-modal
-            v-model:open="is_open"
-            title="发贴"
-            :closable="true"
-            :maskClosable="false"
-            :footer="null"
-        >
-          <a-space direction="vertical" style="width: 100%">
-            <!-- 用户头像 -->
-            <a-space direction="horizontal">
-              <a-avatar :src="appStore.useAccountStore.account?.avatar" size="large"/>
-              <a-dropdown :trigger="['click']">
-                <a-button class="ant-dropdown-link" @click.prevent type="text">
-                  {{ post_right_map[selected_status] }}
-                  <DownOutlined/>
-                </a-button>
-                <template #overlay>
-                  <a-menu>
-                    <a-menu @click="handleMenuClick">
-                      <a-menu-item v-for="(lable, value) in post_right_map" :key="value">
-                        {{ lable }}
-                      </a-menu-item>
-                    </a-menu>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-              <router-link
-                  :to="{ name: 'long' }"
-                  target="_blank"
-              >
-                <a-button type="link">发长文</a-button>
-              </router-link>
-            </a-space>
-            <!-- 输入框 -->
-            <a-textarea :rows="4" placeholder="分享一下你的生活趣事" v-model:value="content" show-count
-                        :maxlength="256"/>
-          </a-space>
-          <a-divider/>
-          <!--          图片上传功能 -->
-          <a-upload
-              v-model:file-list="fileList"
-              :action="apiUrls.upload_image_url()"
-              list-type="picture-card"
-              @preview="handlePreview"
-              v-show="is_open_upload_image"
-              :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
-          >
-            <div v-if="fileList.length < 9">
-              <plus-outlined/>
-              <div style="margin-top: 8px">上传</div>
-            </div>
-          </a-upload>
-          <a-modal :open="previewVisible" :title="previewTitle" :footer="null" @cancel="handleCancel">
-            <img alt="example" style="width: 100%" :src="previewImage"/>
-          </a-modal>
-          <a-divider v-if="is_open_upload_image"/>
-          <!-- 第二段：上传图片按钮 + 发布按钮 -->
-          <a-flex justify="space-between">
-            <a-space>
-              <!-- 上传图片按钮 -->
-              <a-tooltip>
-                <template #title>
-                  上传图片
-                </template>
-                <a-button type="text" size="large" @click="is_open_upload_image=!is_open_upload_image">
-                  <template #icon>
-                    <add-picture theme="outline" size="24" fill="#333"/>
-                  </template>
-                </a-button>
-              </a-tooltip>
-              <!-- 表情弹窗 -->
-              <a-popover
-                  v-model:open="showFacePanel"
-                  trigger="click"
-                  placement="topLeft"
-                  :z-index="10000"
-              >
-                <template #content>
-                  <FacePicker @select="onSelectFace"/>
-                </template>
-                <a-tooltip title="表情包">
-                  <a-button type="text" size="large">
-                    <template #icon>
-                      <SmileOutlined />
-                    </template>
-                  </a-button>
-                </a-tooltip>
-              </a-popover>
-            </a-space>
-            <!-- 发布按钮 -->
-            <a-button
-                type="primary"
-                @click="handlePublish"
-                :disabled="!content.trim()"
-            >
-              发布
-            </a-button>
-          </a-flex>
-        </a-modal>
         <a-input
             v-model:value="content"
             style="margin-left: 12px; flex-grow: 1;"
@@ -266,19 +192,14 @@ const onSelectFace = (tag: string) => {
             </a-button>
           </a-tooltip>
           <!-- 表情弹窗 -->
-          <a-popover
-              v-model:open="showFacePanel"
-              trigger="click"
-              placement="topLeft"
-              :z-index="10000"
-          >
+          <a-popover>
             <template #content>
               <FacePicker @select="onSelectFace"/>
             </template>
             <a-tooltip title="表情包">
               <a-button type="text" size="large">
                 <template #icon>
-                  <SmileOutlined />
+                  <SmileOutlined/>
                 </template>
               </a-button>
             </a-tooltip>
@@ -295,6 +216,108 @@ const onSelectFace = (tag: string) => {
       </a-flex>
     </a-card>
   </div>
+  <a-modal
+      v-model:open="is_open"
+      title="发贴"
+      :closable="true"
+      :maskClosable="false"
+      :footer="null"
+  >
+    <a-space direction="vertical" style="width: 100%">
+      <!-- 用户头像 -->
+      <a-space direction="horizontal">
+        <a-avatar :src="appStore.useAccountStore.account?.avatar" size="large"/>
+        <a-dropdown :trigger="['click']">
+          <a-button class="ant-dropdown-link" @click.prevent type="text">
+            {{ post_right_map[selected_status] }}
+            <DownOutlined/>
+          </a-button>
+          <template #overlay>
+            <a-menu>
+              <a-menu @click="handleMenuClick">
+                <a-menu-item v-for="(lable, value) in post_right_map" :key="value">
+                  {{ lable }}
+                </a-menu-item>
+              </a-menu>
+            </a-menu>
+          </template>
+        </a-dropdown>
+        <router-link
+            :to="{ name: 'long' }"
+            target="_blank"
+        >
+          <a-button type="link">发长文</a-button>
+        </router-link>
+      </a-space>
+      <!-- 输入框 -->
+      <a-textarea ref="inputRef" :rows="4" placeholder="分享一下你的生活趣事" v-model:value="content" show-count
+                  :maxlength="256"
+                  @focus="saveCursor"
+                  @blur="saveCursor"/>
+    </a-space>
+    <a-divider/>
+    <!--          图片上传功能 -->
+    <a-upload
+        v-model:file-list="fileList"
+        :action="apiUrls.upload_image_url()"
+        list-type="picture-card"
+        @preview="handlePreview"
+        v-show="is_open_upload_image"
+        :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
+    >
+      <div v-if="fileList.length < 9">
+        <plus-outlined/>
+        <div style="margin-top: 8px">上传</div>
+      </div>
+    </a-upload>
+    <a-modal :open="previewVisible" :title="previewTitle" :footer="null" @cancel="handleCancel">
+      <img alt="example" style="width: 100%" :src="previewImage"/>
+    </a-modal>
+    <a-divider v-if="is_open_upload_image"/>
+    <!-- 第二段：上传图片按钮 + 发布按钮 -->
+    <a-flex justify="space-between">
+      <a-space>
+        <!-- 上传图片按钮 -->
+        <a-tooltip>
+          <template #title>
+            上传图片
+          </template>
+          <a-button type="text" size="large" @click="is_open_upload_image=!is_open_upload_image">
+            <template #icon>
+              <add-picture theme="outline" size="24" fill="#333"/>
+            </template>
+          </a-button>
+        </a-tooltip>
+        <!-- 表情弹窗 -->
+        <a-popover
+            v-model:open="showFacePanel"
+            trigger="click"
+            placement="topLeft"
+            :z-index="10000"
+        >
+          <template #content>
+            <FacePicker @select="onSelectFace"/>
+          </template>
+          <a-tooltip title="表情包">
+            <a-button type="text" size="large">
+              <template #icon>
+                <SmileOutlined/>
+              </template>
+            </a-button>
+          </a-tooltip>
+        </a-popover>
+      </a-space>
+      <!-- 发布按钮 -->
+      <a-button
+          type="primary"
+          @click="handlePublish"
+          :disabled="!content.trim()"
+          @mousedown.prevent="showFacePanel = true"
+      >
+        发布
+      </a-button>
+    </a-flex>
+  </a-modal>
 </template>
 
 <style scoped>

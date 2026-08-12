@@ -1,50 +1,62 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { FACE_GROUPS } from '@/common/emoji.ts'
-import type { FaceItem } from '@/common/emoji.ts'
+import {ref} from "vue";
+import {FACE_GROUPS} from "@/common/emoji.ts";
+import type {FaceItem} from "@/common/emoji.ts";
 
-const emit = defineEmits(['select'])
-// 当前激活分组索引
-const activeTabIndex = ref(0)
+const emit = defineEmits(["select"]);
+const activeKey = ref("0");
 
 const selectFace = (item: FaceItem) => {
-  emit('select', `[${item.code}]`)
-}
-
-// 切换分组
-const changeTab = (idx: number) => {
-  activeTabIndex.value = idx
-}
+  if (item.type === "unicode") {
+    // 原生表情：直接抛出 Unicode 字符
+    emit("select", item.unicode);
+  } else {
+    // 自定义图片表情：抛出标准化标记 [face:编码]
+    emit("select", `[face:${item.code}]`);
+  }
+};
 </script>
 
 <template>
-  <div class="face-panel">
-    <!-- 表情内容区域 -->
-    <div class="face-content">
-      <div class="face-grid">
-        <div
-          v-for="item in FACE_GROUPS[activeTabIndex].list"
-          :key="item.code"
-          class="face-item"
-          @click="selectFace(item)"
-        >
-          <img :src="item.src" :alt="item.name" />
-        </div>
-      </div>
-    </div>
-
-    <!-- 底部分类Tab（修复Tab过宽问题） -->
-    <div class="face-tabs">
-      <div
-        v-for="(group, idx) in FACE_GROUPS"
-        :key="group.label"
-        class="tab-item"
-        :class="{ active: activeTabIndex === idx }"
-        @click="changeTab(idx)"
+  <div class="face-panel" @mousedown.prevent>
+    <a-tabs
+        v-model:activeKey="activeKey"
+        tab-position="bottom"
+        animated
+        size="small"
+    >
+      <a-tab-pane
+          v-for="(group, idx) in FACE_GROUPS"
+          :key="String(idx)"
       >
-        <span class="tab-icon">{{ group.label }}</span>
-      </div>
-    </div>
+        <template #tab>
+          <a-tooltip :title="group.label">
+            <span>{{ group.icon }}</span>
+          </a-tooltip>
+        </template>
+        <div class="face-content">
+          <div class="face-grid">
+            <div
+                v-for="item in group.list"
+                :key="item.code"
+                class="face-item"
+                @click="selectFace(item)"
+            >
+              <a-tooltip :title="item.name">
+                <!-- 自动区分渲染原生字符 / 自定义图片 -->
+                <span v-if="item.type === 'unicode'">{{ item.unicode }}</span>
+                <img
+                    v-else
+                    :src="item.src"
+                    alt=""
+                    class="custom-face-img"
+                />
+              </a-tooltip>
+            </div>
+          </div>
+        </div>
+      </a-tab-pane>
+    </a-tabs>
   </div>
 </template>
 
@@ -53,58 +65,51 @@ const changeTab = (idx: number) => {
   width: 360px;
   background: #fff;
   border-radius: 8px;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
 }
-/* 上方表情滚动区域 */
+
 .face-content {
   padding: 12px;
   max-height: 320px;
   overflow-y: auto;
 }
+
 .face-grid {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 6px;
 }
+
 .face-item {
-  padding: 4px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
   cursor: pointer;
   border-radius: 4px;
 }
+
 .face-item:hover {
   background: #f0f0f0;
 }
-.face-item img {
-  width: 32px;
-  height: 32px;
+
+.custom-face-img {
+  width: 28px;
+  height: 28px;
   object-fit: contain;
 }
 
-/* 底部Tab导航栏【重点改动】 */
-.face-tabs {
-  display: flex;
-  align-items: center;
-  border-top: 1px solid #eee;
-  /* 让tab靠左紧凑排列；想居中就加上 justify-content: center */
-  justify-content: flex-start;
-}
-.tab-item {
-  /* 删除 flex:1，不再均分宽度 */
-  min-width: 48px;
-  padding: 10px 4px;
-  text-align: center;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.tab-item:hover {
-  background-color: #f7f7f7;
-}
-.tab-item.active {
-  background-color: #eeeeee;
-}
-.tab-icon {
+/* 优化Antd底部Tab样式 */
+:deep(.ant-tabs-tab) {
+  padding: 10px 6px !important;
+  margin: 0 !important;
+  min-width: 44px;
+  justify-content: center;
   font-size: 22px;
+}
+
+:deep(.ant-tabs-nav-wrap) {
+  justify-content: flex-start;
 }
 </style>

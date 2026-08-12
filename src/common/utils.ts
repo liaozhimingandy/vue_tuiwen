@@ -1,5 +1,5 @@
 import {config} from "./config.ts";
-import {FACE_REG, getFaceByCode} from "./emoji.ts";
+import {CUSTOM_FACE_MAP, CUSTOM_FACE_REG} from "./emoji.ts";
 
 const zeroize = (num: string) => {
         return (String(num).length == 1 ? '0' : '') + num;
@@ -73,10 +73,15 @@ export const trimEmptyParagraph = (html: string) => {
   return result;
 }
 
-export function renderFaceText(rawText: string): string {
-  return rawText.replace(FACE_REG, (_, code) => {
-    const face = getFaceByCode(code);
-    if (!face) return `[${code}]`;
-    return `<img src="${face.src}" style="width:28px;height:28px;vertical-align:middle;margin:0 2px;">`;
-  })
+/**
+ * 渲染正文HTML
+ * 原生emoji自动保留，仅把 [face:xxx] 替换为图片
+ */
+export function formatMessageToHtml(rawText: string): string {
+  return rawText.replace(CUSTOM_FACE_REG, (match, code) => {
+    const faceInfo = CUSTOM_FACE_MAP[code];
+    // 找不到对应表情，原样返回文本，防止恶意构造文本报错
+    if (!faceInfo) return match;
+    return `<img src="${faceInfo.src}" style="width:26px;height:26px;vertical-align:middle;margin:0 2px;" />`;
+  });
 }
