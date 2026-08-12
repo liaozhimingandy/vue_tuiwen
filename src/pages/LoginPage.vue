@@ -1,8 +1,7 @@
 <script lang="ts" setup>
-import {ref, getCurrentInstance, onMounted, h} from 'vue';
-import {useRoute} from "vue-router";
+import {ref, getCurrentInstance, onMounted} from 'vue';
 
-import {message, Modal} from 'ant-design-vue';
+import {message} from 'ant-design-vue';
 import {md5} from 'js-md5';
 
 import instance from '../services/';

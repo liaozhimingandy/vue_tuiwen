@@ -1,4 +1,5 @@
 import {config} from "./config.ts";
+import {FACE_REG, getFaceByCode} from "./emoji.ts";
 
 const zeroize = (num: string) => {
         return (String(num).length == 1 ? '0' : '') + num;
@@ -70,4 +71,12 @@ export const trimEmptyParagraph = (html: string) => {
   let result = html.replace(emptyP, "");
   result = result.replace(emptyPTail, "");
   return result;
+}
+
+export function renderFaceText(rawText: string): string {
+  return rawText.replace(FACE_REG, (_, code) => {
+    const face = getFaceByCode(code);
+    if (!face) return `[${code}]`;
+    return `<img src="${face.src}" style="width:28px;height:28px;vertical-align:middle;margin:0 2px;">`;
+  })
 }

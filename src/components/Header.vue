@@ -6,6 +6,8 @@ import router from "@/router";
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
 import {message} from "ant-design-vue";
+import { useDeviceWatcher } from '@/common/device.ts';
+const { isMobile } = useDeviceWatcher();
 
 const props = defineProps<{
   selectedKeys: string;
@@ -60,6 +62,7 @@ const onSearch = () => {
           v-model:value="value"
           placeholder="搜索用户"
           @click="onSearch"
+          v-if="!isMobile"
       >
         <template #prefix>
           <SearchOutlined />
@@ -97,7 +100,7 @@ const onSearch = () => {
       <a-dropdown :trigger="['click']">
         <a class="ant-dropdown-link" @click.prevent>
           <a-avatar :src="appStore.useAccountStore.account?.avatar " :size="40"/>
-          <span style="margin-left: 8px;">{{ appStore.useAccountStore.account?.nick_name }}</span>
+          <span v-if="!isMobile" style="margin-left: 8px;">{{ appStore.useAccountStore.account?.nick_name }}</span>
         </a>
         <template #overlay>
           <a-menu style="margin-top: 20px; background-color: #E9EBEE">

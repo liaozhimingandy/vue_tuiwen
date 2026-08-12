@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import {onMounted, ref, watch} from 'vue';
-import {DownOutlined, PlusOutlined} from "@ant-design/icons-vue";
+import {DownOutlined, PlusOutlined, SmileOutlined} from "@ant-design/icons-vue";
 import type {IPost} from "@/interface";
 import appStore from '@/stores/';
 import {storeToRefs} from 'pinia';
-import instance from '@/services/';
 import {message} from "ant-design-vue";
 import {AddPicture} from '@icon-park/vue-next';
 import {post_right_map} from "@/common/constants.js";
 import {apiUrls, publish_post} from "@/services/api.ts";
 import {trimEmptyParagraph} from "@/common/utils.ts";
+import FacePicker from "@/components/FacePicker.vue";
 
 const {posts} = storeToRefs(appStore.usePostStore);
 const draftStore = storeToRefs(appStore.useDraftStore);
@@ -124,6 +124,13 @@ watch([content, fileList], () => {
     },
     {deep: true}
 )
+
+const showFacePanel = ref(false);
+// 选中表情包回调
+const onSelectFace = (tag: string) => {
+  content.value += tag
+  showFacePanel.value = false
+}
 </script>
 
 <template>
@@ -193,17 +200,37 @@ watch([content, fileList], () => {
           <a-divider v-if="is_open_upload_image"/>
           <!-- 第二段：上传图片按钮 + 发布按钮 -->
           <a-flex justify="space-between">
-            <!-- 上传图片按钮 -->
-            <a-tooltip>
-              <template #title>
-                上传图片
-              </template>
-              <a-button type="text" size="large" @click="is_open_upload_image=!is_open_upload_image">
-                <template #icon>
-                  <add-picture theme="outline" size="24" fill="#333"/>
+            <a-space>
+              <!-- 上传图片按钮 -->
+              <a-tooltip>
+                <template #title>
+                  上传图片
                 </template>
-              </a-button>
-            </a-tooltip>
+                <a-button type="text" size="large" @click="is_open_upload_image=!is_open_upload_image">
+                  <template #icon>
+                    <add-picture theme="outline" size="24" fill="#333"/>
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <!-- 表情弹窗 -->
+              <a-popover
+                  v-model:open="showFacePanel"
+                  trigger="click"
+                  placement="topLeft"
+                  :z-index="10000"
+              >
+                <template #content>
+                  <FacePicker @select="onSelectFace"/>
+                </template>
+                <a-tooltip title="表情包">
+                  <a-button type="text" size="large">
+                    <template #icon>
+                      <SmileOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+              </a-popover>
+            </a-space>
             <!-- 发布按钮 -->
             <a-button
                 type="primary"
@@ -226,17 +253,37 @@ watch([content, fileList], () => {
       </div>
       <!-- 第二段：上传图片按钮 + 发布按钮 -->
       <a-flex justify="space-between">
-        <!-- 上传图片按钮 -->
-        <a-tooltip>
-          <template #title>
-            上传图片
-          </template>
-          <a-button type="text" @click="handleOpenChange(true)">
-            <template #icon>
-              <add-picture theme="outline" size="24" fill="#333"/>
+        <a-space>
+          <!-- 上传图片按钮 -->
+          <a-tooltip>
+            <template #title>
+              上传图片
             </template>
-          </a-button>
-        </a-tooltip>
+            <a-button type="text" @click="handleOpenChange(true)">
+              <template #icon>
+                <add-picture theme="outline" size="24" fill="#333"/>
+              </template>
+            </a-button>
+          </a-tooltip>
+          <!-- 表情弹窗 -->
+          <a-popover
+              v-model:open="showFacePanel"
+              trigger="click"
+              placement="topLeft"
+              :z-index="10000"
+          >
+            <template #content>
+              <FacePicker @select="onSelectFace"/>
+            </template>
+            <a-tooltip title="表情包">
+              <a-button type="text" size="large">
+                <template #icon>
+                  <SmileOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+          </a-popover>
+        </a-space>
         <!-- 发布按钮 -->
         <a-button
             type="primary"

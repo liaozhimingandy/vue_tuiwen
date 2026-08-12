@@ -17,7 +17,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 import type {IAccount, IComment, IPost} from "../interface";
-import {timestampFormat} from "@/common/utils.ts";
+import {renderFaceText, timestampFormat} from "@/common/utils.ts";
 import instance from '../services/';
 import appStore from "../stores";
 import ImageGrid from "@/components/ImageGrid.vue";
@@ -287,7 +287,7 @@ const follow = computed(()=>{
 
           <!--                <div v-html="post.content.text"  class="rich-text-content" ></div>-->
           <TextCollapse>
-            <div v-html="post.content.text"></div>
+            <div v-html="renderFaceText(post.content.text)"></div>
           </TextCollapse>
           <!--        <Editor-->
           <!--            v-model="post.content.text"-->
