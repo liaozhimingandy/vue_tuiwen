@@ -7,6 +7,12 @@ import './style.css'
 import App from './App.vue'
 import {registerStore} from "./stores";
 import VueSocialSharing  from 'vue-social-sharing'
+import { initEndpoints} from "./common/endpoint-detector.ts";
+import {logger} from "./common/utils.ts";
+
+// 1. 先探测服务节点
+const endpoints = await initEndpoints(true);
+logger.log('最新可用地址：', endpoints);
 
 const app = createApp(App);
 

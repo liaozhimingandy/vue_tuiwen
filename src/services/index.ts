@@ -10,17 +10,16 @@ import appStore from "@/stores/index.js";
 import {apiUrls} from "./api.ts";
 import type {IToken} from "../interface";
 import {logger} from "../common/utils.ts";
+import {getApiBaseUrl} from "../common/endpoint-detector.ts";
 
 // 登录跳转锁：防止多个请求同时401重复跳转登录页
 let isRefreshing = false;
 // 刷新期间挂起的请求队列
 let requestQueue: ((token: string) => void)[] = [];
 
-const API_BASE_URL = config.API_BASE_URL;
-
 //-------------------------1.创建axios实例-----------------------
 const instance = axios.create({
-    baseURL: config.API_BASE_URL, // 所有的请求地址前缀部分,
+    baseURL: getApiBaseUrl(), // 所有的请求地址前缀部分,
     timeout: 10000, // 请求超时时间
     withCredentials: true, // 异步请求携带cookie
     headers: {
@@ -111,7 +110,7 @@ instance.interceptors.response.use(
                 try {
                     // --------------- 刷新 token 接口 ---------------
                     // 拼接刷新接口地址
-                    const baseUrl = (API_BASE_URL || '').replace(/\/$/, '');
+                    const baseUrl = (getApiBaseUrl() || '').replace(/\/$/, '');
                     const accountId = accountStore.account?.account_id ?? '';
                     const apiPath = apiUrls.update_token(accountId);
                     const refreshTokenUrl = `${baseUrl}${apiPath}`;
