@@ -10,12 +10,16 @@ import appStore from "@/stores/index.js";
 import {apiUrls} from "./api.ts";
 import type {IToken} from "../interface";
 import {logger} from "../common/utils.ts";
-import {getApiBaseUrl} from "../common/endpoint-detector.ts";
+import {getApiBaseUrl, runtimeRedetectApi} from "../common/endpoint-detector.ts";
 
 // 登录跳转锁：防止多个请求同时401重复跳转登录页
 let isRefreshing = false;
 // 刷新期间挂起的请求队列
 let requestQueue: ((token: string) => void)[] = [];
+
+
+let consecutiveFailCount = 0;
+const FAIL_THRESHOLD = 3; // 连续失败3次触发重测
 
 //-------------------------1.创建axios实例-----------------------
 const instance = axios.create({
@@ -53,6 +57,8 @@ instance.interceptors.response.use(
     (res: any) => {
         // 取消加载 loading
         cancelLoading();
+        // 请求成功：重置失败计数
+        consecutiveFailCount = 0;
         return res;
     },
     async (error: any) => {
@@ -60,6 +66,22 @@ instance.interceptors.response.use(
         cancelLoading();
 
         const {response, code, config} = error || {};
+
+        // 只对业务接口计数，排除刷新token等特殊接口
+        const isRefreshRequest = config?.url?.includes(apiUrls.update_token);
+        if (!isRefreshRequest) {
+            consecutiveFailCount++;
+        }
+        // 达到失败阈值：触发运行时自动重测
+        if (consecutiveFailCount >= FAIL_THRESHOLD) {
+            consecutiveFailCount = 0; // 先重置，避免死循环
+            runtimeRedetectApi().then((changed) => {
+                if (changed) {
+                    message.info('网络线路已自动切换');
+                }
+            });
+        }
+
         // 方案：单个接口可传入 customOptions:{ hideError: true } 关闭全局弹窗
         const hideGlobalError = config?.customOptions?.hideError;
         if (hideGlobalError) return Promise.reject(error);

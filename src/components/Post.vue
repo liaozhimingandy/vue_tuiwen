@@ -14,15 +14,17 @@ import {
 import dayjs from 'dayjs';
 import {type MenuProps, message} from "ant-design-vue";
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { ShareNetwork } from 'vue-social-sharing'
+
 
 dayjs.extend(relativeTime);
-import type {IAccount, IComment, IPost} from "../interface";
+import type {IAccount, IComment, IPost} from "@/interface";
 import {formatMessageToHtml, timestampFormat} from "@/common/utils.ts";
 import instance from '../services/';
 import appStore from "../stores";
 import ImageGrid from "@/components/ImageGrid.vue";
 import TextCollapse from "@/components/TextCollapse.vue";
-import {apiUrls, update_self_account} from "@/services/api.ts";
+import {apiUrls} from "@/services/api.ts";
 
 const props = defineProps<{
   post: IPost;

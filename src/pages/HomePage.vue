@@ -254,17 +254,17 @@ const handleClick: MenuProps['onClick'] = e => {
             <a-alert message="禁止非法及不良言论" type="warning"/>
             <a-card title="推荐内容" v-show="false">
               <!-- 推荐内容 -->
-              <a-list
-                  item-layout="horizontal"
-                  :data-source="recommendations"
-                  render-item="item">
-                <a-list-item v-for="item in recommendations" :key="item.title">
-                  <a-list-item-meta
-                      :title="item.title"
-                      description="推荐的文章或者内容"
-                  />
-                </a-list-item>
-              </a-list>
+<!--              <a-list-->
+<!--                  item-layout="horizontal"-->
+<!--                  :data-source="recommendations"-->
+<!--                  render-item="item">-->
+<!--                <a-list-item v-for="item in recommendations" :key="item.title">-->
+<!--                  <a-list-item-meta-->
+<!--                      :title="item.title"-->
+<!--                      description="推荐的文章或者内容"-->
+<!--                  />-->
+<!--                </a-list-item>-->
+<!--              </a-list>-->
             </a-card>
           </c-scrollbar>
         </a-col>

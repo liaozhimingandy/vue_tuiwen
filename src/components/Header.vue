@@ -51,6 +51,8 @@ watch(
 
 const value = ref('');
 const onSearch = () => {
+  if(value.value.trim() === "") return;
+  router.push({name: "search", query: {q: value.value}})
 };
 </script>
 
@@ -61,7 +63,7 @@ const onSearch = () => {
       <a-input
           v-model:value="value"
           placeholder="搜索用户"
-          @click="onSearch"
+          @keydown.enter="onSearch"
           v-if="!isMobile"
       >
         <template #prefix>

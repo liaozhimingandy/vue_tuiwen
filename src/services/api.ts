@@ -13,6 +13,7 @@ export const apiUrls = {
   send_code: () => "/accounts/send/code/",
   login: () => '/oauth/authorize/password/',
   update_token: (account_id: string) => `/oauth/refresh-token/${account_id}/refresh_token/`,
+  search_account: (keyword: string) => `/accounts/search/${keyword}/`,
 
   // 帖子相关
   get_posts: () => '/posts/',

@@ -16,7 +16,7 @@ import {storeToRefs} from "pinia";
 import type {IAccount} from "@/interface";
 import router from "@/router";
 
-const activeKey = ref<string>('1');
+const activeKey = ref('1');
 const {account} = storeToRefs(appStore.useAccountStore);
 const saving = ref<boolean>(false);
 const contentHeight = ref<number | undefined>(undefined);
@@ -33,7 +33,6 @@ onMounted(()=>{
 const sexListOptions = Object.entries(sex_code_map).map(([k, v]) => {
   return {"value": parseInt(k[0]), "label": v}
 });
-console.info(sexListOptions)
 // 查询用户信息
 update_self_account(account.value.account_id);
 
@@ -138,6 +137,7 @@ const uploadChange = (info: any) => {
   }
 }
 
+const allow_beep = ref<boolean>(true);
 </script>
 
 <template>
@@ -160,7 +160,7 @@ const uploadChange = (info: any) => {
                   <a-space direction="vertical">
                     <a-form-item>
                       <a-upload-dragger v-model:file-list="files" :action="apiUrls.upload_image_url()" :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
-                                        maxCount="1" @change="uploadChange">
+                                        :maxCount="1" @change="uploadChange">
                         <a-avatar :src="account.avatar" :size="120"></a-avatar>
                       </a-upload-dragger>
                     </a-form-item>
@@ -217,7 +217,7 @@ const uploadChange = (info: any) => {
                 <a-typography-title :level="4">通用设置</a-typography-title>
                 <a-form >
                   <a-form-item label="是否接收系统通知">
-                    <a-switch value="true">推送</a-switch>
+                    <a-switch v-model:checked="allow_beep" >推送</a-switch>
                   </a-form-item>
                 </a-form>
               </a-tab-pane>

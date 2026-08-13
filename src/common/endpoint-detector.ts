@@ -7,8 +7,8 @@
 import { config } from "./config.ts";
 
 const CUSTOM_URL_KEY = 'CUSTOM_API_BASE_URL';
-const CACHE_KEY_PREFIX = 'app_endpoint_';
-const CACHE_MAX_AGE = 24 * 60 * 60 * 1000; // 缓存有效期1天
+const CACHE_KEY_PREFIX = 'tw_endpoint_';
+const CACHE_MAX_AGE = 8 * 60 * 60 * 1000; // 缓存有效期8小时
 const CONFIG_URL = config.ENDPOINT_URL;
 
 // ========== 类型定义 ==========
@@ -187,9 +187,11 @@ export function getApiBaseUrl(): string {
   if (customUrl && customUrl.trim() !== '') {
     return customUrl;
   }
+
   // 2. 缓存
   const cached = getCachedEndpoint('api');
   if (cached) return cached.url;
+
   // 3. 兜底
   return getFallbackUrl('api');
 }
@@ -283,4 +285,47 @@ export async function initEndpoints(force = false): Promise<Record<string, strin
   }
 
   return result;
+}
+
+
+
+
+/**
+ * 运行时触发重新探测（节点故障时调用）
+ * @returns 是否切换了新地址
+ */
+// 新增：运行时探测锁，防止频繁重复触发
+let isRuntimeDetecting = false;
+let lastDetectTime = 0;
+const RUNTIME_DETECT_COOLDOWN = 60 * 1000; // 运行时重测冷却：60秒
+export async function runtimeRedetectApi(): Promise<boolean> {
+  // 冷却期内不重复探测
+  if (isRuntimeDetecting || Date.now() - lastDetectTime < RUNTIME_DETECT_COOLDOWN) {
+    return false;
+  }
+
+  // 用户自定义地址：默认不自动切换，尊重用户手动设置
+  const customUrl = localStorage.getItem(CUSTOM_URL_KEY);
+  if (customUrl && customUrl.trim() !== '') {
+    // 如果希望自定义地址也自动降级，注释掉下面的 return 即可
+    return false;
+  }
+
+  isRuntimeDetecting = true;
+  try {
+    const oldUrl = getApiBaseUrl();
+    // 强制重新探测 api 服务
+    const config = await loadConfig();
+    if (!config?.services?.api) {
+      return false;
+    }
+
+    const newUrl = await detectService('api', config.services.api, true);
+    lastDetectTime = Date.now();
+    return newUrl !== oldUrl;
+  } catch {
+    return false;
+  } finally {
+    isRuntimeDetecting = false;
+  }
 }
