@@ -2,8 +2,8 @@ import {config} from "./config.ts";
 import {CUSTOM_FACE_MAP, CUSTOM_FACE_REG} from "./emoji.ts";
 
 const zeroize = (num: string) => {
-        return (String(num).length == 1 ? '0' : '') + num;
-    };
+    return (String(num).length == 1 ? '0' : '') + num;
+};
 
 
 export const timestampFormat = (datetime: string) => {
@@ -40,21 +40,26 @@ export const timestampFormat = (datetime: string) => {
 
 // 只在开发环境打印日志
 export const logger = {
-  info: (...args: any[]) => {
-    if (config.isDebug) {
-      console.info(...args);
+    info: (...args: any[]) => {
+        if (config.isDebug) {
+            console.info(...args);
+        }
+    },
+    log: (...args: any[]) => {
+        if (config.isDebug) {
+            console.log(...args);
+        }
+    },
+    error: (...args: any[]) => {
+        if (config.isDebug) {
+            console.error(...args);
+        }
+    },
+    warn: (...args: any[]) => {
+        if (config.isDebug) {
+            console.error(...args);
+        }
     }
-  },
-  log: (...args: any[]) => {
-    if (config.isDebug) {
-      console.log(...args);
-    }
-  },
-  error: (...args: any[]) => {
-    if (config.isDebug) {
-      console.error(...args);
-    }
-  }
 };
 
 
@@ -62,15 +67,15 @@ export const logger = {
  * 移除富文本 首尾多余空段落：<p><br></p> / <p></p>
  */
 export const trimEmptyParagraph = (html: string) => {
-  if (!html) return "";
-  // 循环清除头部空段落
-  const emptyP = /^(<p>\s*(<br\s*\/?>)?\s*<\/p>)+/gi;
-  // 循环清除尾部空段落
-  const emptyPTail = /(<p>\s*(<br\s*\/?>)?\s*<\/p>)+$/gi;
+    if (!html) return "";
+    // 循环清除头部空段落
+    const emptyP = /^(<p>\s*(<br\s*\/?>)?\s*<\/p>)+/gi;
+    // 循环清除尾部空段落
+    const emptyPTail = /(<p>\s*(<br\s*\/?>)?\s*<\/p>)+$/gi;
 
-  let result = html.replace(emptyP, "");
-  result = result.replace(emptyPTail, "");
-  return result;
+    let result = html.replace(emptyP, "");
+    result = result.replace(emptyPTail, "");
+    return result;
 }
 
 /**
@@ -78,10 +83,10 @@ export const trimEmptyParagraph = (html: string) => {
  * 原生emoji自动保留，仅把 [face:xxx] 替换为图片
  */
 export function formatMessageToHtml(rawText: string): string {
-  return rawText.replace(CUSTOM_FACE_REG, (match, code) => {
-    const faceInfo = CUSTOM_FACE_MAP[code];
-    // 找不到对应表情，原样返回文本，防止恶意构造文本报错
-    if (!faceInfo) return match;
-    return `<img src="${faceInfo.src}" style="width:26px;height:26px;vertical-align:middle;margin:0 2px;" />`;
-  });
+    return rawText.replace(CUSTOM_FACE_REG, (match, code) => {
+        const faceInfo = CUSTOM_FACE_MAP[code];
+        // 找不到对应表情，原样返回文本，防止恶意构造文本报错
+        if (!faceInfo) return match;
+        return `<img src="${faceInfo.src}" style="width:26px;height:26px;vertical-align:middle;margin:0 2px;" />`;
+    });
 }

@@ -112,7 +112,7 @@ const goLogin = () => {
       />
 
       <a-row justify="center">
-        <a-col :xs="24" :sm="24" :md="14" :lg="14" :xl="12">
+        <a-col :md="{ span: 12, offset: 6 }" :xs="24">
           <a-steps :items="steps" :current="current" style="width: 100%"/>
         </a-col>
       </a-row>

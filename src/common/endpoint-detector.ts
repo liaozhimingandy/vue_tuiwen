@@ -58,7 +58,7 @@ function getFallbackUrl(serviceName: string): string {
  * 健康检查：探测单个地址是否可用
  * 注意：WebSocket 服务也用 HTTP 接口探测，浏览器无法直接探测 ws 连接
  */
-function checkHealth(url: string, timeout: number): Promise<boolean> {
+export function checkHealth(url: string, timeout: number): Promise<boolean> {
   return new Promise((resolve) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
@@ -114,11 +114,13 @@ function getCachedEndpoint(serviceName: string): { url: string; time: number } |
 function setCachedEndpoint(serviceName: string, url: string) {
   if (!url || url.trim() === '') return;
   localStorage.setItem(
-    `${CACHE_KEY_PREFIX}${serviceName}`,
-    JSON.stringify({ url, time: Date.now() })
+      `${CACHE_KEY_PREFIX}${serviceName}`,
+      JSON.stringify({url, time: Date.now()})
   );
+  // if(serviceName === 'api'){
+  //   config.API_BASE_URL = url;
+  // }
 }
-
 /**
  * 对单个服务执行节点探测
  */

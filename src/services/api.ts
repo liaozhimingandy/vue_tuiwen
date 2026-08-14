@@ -2,6 +2,7 @@ import appStore from "@/stores";
 import instance from '@/services';
 import type {IAccount} from "@/interface";
 import {config} from "../common/config.ts";
+import {getApiBaseUrl} from "../common/endpoint-detector.ts";
 
 export const apiUrls = {
   // 用户账号相关
