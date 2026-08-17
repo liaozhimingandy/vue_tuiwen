@@ -43,12 +43,14 @@ const onError = (errCode:string)=>{
 
 <template>
   <a-flex style="min-height: 100vh" align="center" justify="center">
-    {{config.TURNSTILE_SITE_KEY}}
     <VueTurnstile
         ref="turnstileRef"
         :site-key="config.TURNSTILE_SITE_KEY"
         @success="onSuccess"
         @error="onError"
+        @expired="()=>{
+    console.log('token expired')
+  }"
     />
   </a-flex>
 </template>
