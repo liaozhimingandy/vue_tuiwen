@@ -24,6 +24,7 @@
     "pinia-plugin-persistedstate": "^4.7.1",
     "three": "^0.172.0",
     "vue": "^3.5.40",
+    "vue-cloudflare-turnstile": "^1.0.3",
     "vue-router": "^5.2.0",
     "vue-social-sharing": "^4.0.0-alpha4"
   },
