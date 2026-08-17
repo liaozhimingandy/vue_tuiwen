@@ -12,6 +12,23 @@ import {SettingOutlined} from "@ant-design/icons-vue";
 import {config} from "../common/config.ts";
 import axios from "axios";
 
+import TurnstileWidget from '@/components/TurnstileWidget.vue'
+
+const SITE_KEY = config.TURNSTILE_SITE_KEY;
+const captchaRef = ref<InstanceType<typeof TurnstileWidget>>()
+const captchaToken = ref('')
+
+function onCaptchaSuccess(token: string) {
+  captchaToken.value = token
+}
+
+function onCaptchaError() {
+  captchaToken.value = ''
+}
+function onCaptchaExpired() {
+  captchaToken.value = ''
+  message.warning('安全验证已过期，请等待重新校验')
+}
 const proxy = getCurrentInstance();
 const formRef = ref(null);
 const formData = ref({
@@ -30,6 +47,7 @@ onMounted(() => {
 })
 
 const handleLogin = async () => {
+  if (!captchaToken.value) return;
   let data = {
     "username": formData.value.username,
     "password": md5(formData.value.password)
@@ -139,6 +157,17 @@ const onSearch = async (val: string) => {
           </a-tooltip>
         </template>
         <a-form :model="formData" :rules="rules" ref="formRef" @finish="handleLogin">
+          <div class="captcha-wrap">
+            <TurnstileWidget
+                ref="captchaRef"
+                :site-key="SITE_KEY"
+                action="login"
+                mode="normal"
+                @success="onCaptchaSuccess"
+                @error="onCaptchaError"
+                @expired="onCaptchaExpired"
+            />
+          </div>
           <a-form-item label="用户名" name="username">
             <a-input v-model:value="formData.username" placeholder="请输入用户名"/>
           </a-form-item>
@@ -221,5 +250,10 @@ const onSearch = async (val: string) => {
   background: #8c6cd9;
   right: -10vw;
   top: -8vw;
+}
+
+/* 给人机验证上下间距，防止弹窗被卡片截断 */
+.captcha-wrap {
+  margin: 10px 0 16px;
 }
 </style>
