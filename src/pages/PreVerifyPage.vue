@@ -4,6 +4,8 @@ import {useRoute, useRouter} from "vue-router";
 import {config} from "@/common/config.ts";
 import {VueTurnstile} from "vue-cloudflare-turnstile";
 import instance from "@/services";
+import TurnstileWidget from "@/components/TurnstileWidget.vue";
+import {message} from "ant-design-vue";
 
 
 // docs: https://www.npmjs.com/package/vue-cloudflare-turnstile
@@ -35,22 +37,39 @@ const onSuccess = async (cfToken: string) => {
   }
 };
 
-const onError = (errCode:string)=>{
-  console.error("turnstile故障错误码：",errCode)
+const onError = (errCode: string) => {
+  console.error("turnstile故障错误码：", errCode)
   // 110200 = 域名不在授权名单（90%线上域名故障是这个）
+}
+
+const SITE_KEY = config.TURNSTILE_SITE_KEY;
+const captchaRef = ref<InstanceType<typeof TurnstileWidget>>()
+const captchaToken = ref('')
+
+function onCaptchaSuccess(token: string) {
+  captchaToken.value = token
+}
+
+function onCaptchaError(e) {
+  captchaToken.value = ''
+  console.info(e)
+}
+function onCaptchaExpired() {
+  captchaToken.value = ''
+  message.warning('安全验证已过期，请等待重新校验')
 }
 </script>
 
 <template>
   <a-flex style="min-height: 100vh" align="center" justify="center">
-    <VueTurnstile
-        ref="turnstileRef"
-        :site-key="config.TURNSTILE_SITE_KEY"
-        @success="onSuccess"
-        @error="onError"
-        @expired="()=>{
-    console.log('token expired')
-  }"
+    <TurnstileWidget
+        ref="captchaRef"
+        :site-key="SITE_KEY"
+        action="login"
+        mode="normal"
+        @success="onCaptchaSuccess"
+        @error="onCaptchaError"
+        @expired="onCaptchaExpired"
     />
   </a-flex>
 </template>
