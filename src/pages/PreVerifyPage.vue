@@ -34,14 +34,21 @@ const onSuccess = async (cfToken: string) => {
     // turnstileRef.value?.reset();
   }
 };
+
+const onError = (errCode:string)=>{
+  console.error("turnstile故障错误码：",errCode)
+  // 110200 = 域名不在授权名单（90%线上域名故障是这个）
+}
 </script>
 
 <template>
   <a-flex style="min-height: 100vh" align="center" justify="center">
+    {{config.TURNSTILE_SITE_KEY}}
     <VueTurnstile
         ref="turnstileRef"
         :site-key="config.TURNSTILE_SITE_KEY"
         @success="onSuccess"
+        @error="onError"
     />
   </a-flex>
 </template>

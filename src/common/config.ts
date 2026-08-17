@@ -29,6 +29,6 @@ export const config = {
     BG_COLOR: "#E9EBEE",
     API_BASE_URL_ORI: import.meta.env.VITE_APP_API_BASE_URL ||  "https://api.tuiwen.alsoapp.com",
     ENDPOINT_URL: import.meta.env.VITE_APP_ENDPOINT_URL || "https://www.alsoapp.com/static/tuiwen/endpoints.json",
-    TURNSTILE_SITE_KEY: import.meta.env.VITE_APP_TURNSTILE_SITE_KEY
+    TURNSTILE_SITE_KEY: import.meta.env.VITE_APP_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'
 
 };
