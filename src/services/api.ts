@@ -52,6 +52,7 @@ export const apiUrls = {
   // 其它
   check_health: () => "/health-check/", //检查服务健康状态
   static_links: (link: string) => `${config.API_BASE_URL}${link}`//获取文件链接地址
+
 }
 
 // 更新本帐户信息
