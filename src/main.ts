@@ -46,9 +46,12 @@ function createBlockingMask() {
     font-size:15px;
   `
     mask.innerHTML = `
-    <div style="width:42px;height:42px;border:3px solid #e8e8e8;border-top:3px solid #027AFF;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-    <div>正在自动寻找可用服务节点，请稍候...</div>
-    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    <div style="position:relative;width:42px;height:42px;">
+    <div style="position:absolute;inset:0;border:3px solid #e8e8e8;border-top:3px solid #027AFF;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+    <img src="/src/assets/logo.svg" style="position:absolute;inset:0;width:24px;height:24px;margin:auto;border-radius:50%;" alt="logo" />
+  </div>
+  <div style="margin-top:8px;">正在自动寻找可用服务节点，请稍候...</div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
   `
     document.body.appendChild(mask)
 }
@@ -67,7 +70,7 @@ async function backgroundDetectTask() {
         const st = getDetectState()
         logger.log(`自动探测未到时间：连续失败${st.failCount}次，下次探测：${new Date(st.nextDetectTimestamp).toLocaleString()}`)
         // ⚠️即使未到探测时间，也要判断：是否已经达到3次失败，需要释放页面
-        if (st.failCount >= 3) {
+        if (st.failCount === 3) {
             message.error(`已尝试3次连接服务均失败，请检查网络，系统将后台继续重试`)
         }
         return
@@ -148,7 +151,7 @@ async function bootstrap() {
             resetDetectState()
             logger.log('探测到可用服务地址：', endpoints);
             message.info('已自动切换可用服务节点，页面即将重载');
-            setTimeout(() => location.reload(), 1000);
+            setTimeout(() => location.reload(), 3*1000);
         } catch (err) {
             logger.error('未找到任何可用服务地址', err);
             recordDetectFail()
