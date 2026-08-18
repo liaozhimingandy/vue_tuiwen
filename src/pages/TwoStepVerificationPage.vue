@@ -62,14 +62,18 @@ function onCaptchaExpired() {
 
 <template>
   <a-flex style="min-height: 100vh" align="center" justify="center">
-    <TurnstileWidget
-        ref="captchaRef"
-        :site-key="SITE_KEY"
-        action="login"
-        mode="normal"
-        @success="onCaptchaSuccess"
-        @error="onCaptchaError"
-        @expired="onCaptchaExpired"
+<!--    <TurnstileWidget-->
+<!--        ref="captchaRef"-->
+<!--        :site-key="SITE_KEY"-->
+<!--        action="login"-->
+<!--        mode="normal"-->
+<!--        @success="onCaptchaSuccess"-->
+<!--        @error="onCaptchaError"-->
+<!--        @expired="onCaptchaExpired"-->
+<!--    />-->
+    <VueTurnstile
+      :site-key="SITE_KEY"
+      @success="onSuccess"
     />
   </a-flex>
 </template>

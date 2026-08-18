@@ -1,7 +1,7 @@
 import {defineStore} from "pinia";
 import {ref} from "vue";
 import type {IAccount, IPost, IToken} from "@/interface";
-import type {IPostDraft} from "../interface";
+import type {EndpointDetectState, IPostDraft} from "../interface";
 import instance from "../services";
 import {apiUrls} from "../services/api.ts";
 import {message} from "ant-design-vue";
@@ -159,7 +159,7 @@ export const useCacheStore = defineStore("cache", () => {
                 account_map.value[account_id] = account;
                 return account;
             }).finally(() => {
-               delete pending_map.value[account_id];
+                delete pending_map.value[account_id];
             });
 
             account_map.value[account_id] = promise;
@@ -183,19 +183,18 @@ export const useCacheStore = defineStore("cache", () => {
                 account.follow.is_following = true;
                 message.success('关注成功');
                 account.follow.follower_count = (account.follower_count ?? 0) + 1;
-                user.followee_count =  ( user.followee_count ?? 0) + 1;
+                user.followee_count = (user.followee_count ?? 0) + 1;
 
             } else {
                 instance.delete(apiUrls.delete_follow(follower_id, followee_id)).then(() => {
                     message.success('取消关注成功');
                     account.follow.is_following = false;
                     account.follow.follower_count = (account.follower_count ?? 0) - 1
-                    user.followee_count =  ( user.followee_count ?? 0) - 1;
+                    user.followee_count = (user.followee_count ?? 0) - 1;
                 });
             }
 
         }
-
 
         return {
             account_map,
@@ -204,3 +203,4 @@ export const useCacheStore = defineStore("cache", () => {
         }
     }
 )
+

@@ -248,9 +248,9 @@ export async function initEndpoints(force = false): Promise<Record<string, strin
   // 开发环境：直接返回代理/默认地址，跳过探测
   if (import.meta.env.DEV && !force) {
     return {
-      api: '/api',
-      file: '/file',
-      socket: ''
+      api: 'http://api.tuiwen.alsoapp.com',
+      file: 'http://file.tuiwen.alsoapp.com',
+      socket: 'http://wss.tuiwen.alsoapp.com'
     };
   }
 

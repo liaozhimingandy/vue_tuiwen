@@ -16,7 +16,7 @@ import RegisterPage from "../pages/RegisterPage.vue";
 import appStore from "../stores";
 import {message} from "ant-design-vue";
 import SearchResultPage from "../pages/SearchResultPage.vue";
-import PreVerifyPage from "../pages/PreVerifyPage.vue";
+import TwoStepVerificationPage from "../pages/TwoStepVerificationPage.vue";
 
 NProgress.inc(0.2)
 // 进度条配置（可选）
@@ -31,20 +31,20 @@ NProgress.configure({
 
 const routes: RouteRecordRaw[] = [
     {path: '/', name: 'home', component: HomePage, meta: {title: "首页"}},
-    {path: '/pre-check/', name: 'pre_check', component: PreVerifyPage, meta: {title: "预检查"}},
-    {path: '/login/', name: 'login', component: LoginPage, meta: {title: "登录", need_pre_check: true}},
-    {path: '/register/', name: 'register', component: RegisterPage, meta: {title: "注册", need_pre_check: true}},
+    {path: '/two_step_verification/authentication/', name: 'two_step_verification', component: TwoStepVerificationPage},
+    {path: '/login/', name: 'login', component: LoginPage, meta: {title: "登录"}},
+    {path: '/register/', name: 'register', component: RegisterPage, meta: {title: "注册"}},
     {path: '/settings/', name: 'settings', component: SettingsPage, meta: {title: "设置"}},
     {path: '/search/result/', name: 'search', component: SearchResultPage, meta: {title: "搜索结果"}},
     {path: '/friends/', name: 'friends', component: FriendsPage, meta: {title: "朋友"}},
     {path: '/hot/', name: 'hot', component: HotPage, meta: {title: "热点"}},
-    {path: '/test/', name: 'test', component: TestPage, meta: {title: "测试"}},
+    {path: '/test/', name: 'test', component: TestPage, meta: {title: "测试", need_two_step_verification: true}},
     {path: '/l/', name: 'long', component: () => import("@/pages/LongPostPage.vue"), meta: {title: "发长文"}},
     {path: '/s/:post_id/', name: 'post', component: () => import("@/pages/SharePage.vue"), meta: {title: "分享帖子"}},
     {path: '/u/:username/', name: 'user', component: UserPage, meta: {title: "用户中心"}},
     {
         path: '/reset_password/', name: 'reset_password', component: () => import("@/pages/ResetPasswordPage.vue"),
-        meta: {title: "密码重置", need_pre_check: true}
+        meta: {title: "密码重置"}
     },
     {path: '/:catchALL(.*)/', component: NotFoundPage, name: 'not-fond', meta: {title: "Not Found"}},
 ]
@@ -75,12 +75,12 @@ router.beforeEach((to, _) => {
 
     // ==========【新增：人机预检拦截逻辑】==========
     // 访问需要预检的页面，检查本地凭证
-    if (to.meta.need_pre_check) {
+    if (to.meta.need_two_step_verification) {
         const preToken = sessionStorage.getItem('pre_verify_token')
         if (!preToken) {
             // 没有凭证，跳转到预检页，并记录跳转回来的地址
             return {
-                name: 'pre_check',
+                name: 'two_step_verification',
                 query: {redirect: to.fullPath},
                 replace: true
             }
@@ -88,7 +88,7 @@ router.beforeEach((to, _) => {
     }
     // ==========================================
 
-    const whiteList = ['login', 'register', 'reset_password', 'post', 'pre_check'];
+    const whiteList = ['login', 'register', 'reset_password', 'post', 'two_step_verification', "test"];
     const isWhiteList = whiteList.includes(to.name as string);
     const hasToken = !!appStore.useAccountStore.token?.access_token;
 
