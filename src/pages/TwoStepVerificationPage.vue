@@ -19,8 +19,10 @@ const onSuccess = async (cfToken: string) => {
   try {
     // 1. 请求后端预检接口
     const res = await instance.post(apiUrls.two_step_verification(), {
-      "cf-turnstile-token": cfToken,
-    });
+      "cf_turnstile_token": cfToken,
+    }, { headers: {
+      "Content-Type": "application/json"
+    }});
     // 2. 保存凭证到sessionStorage，路由守卫识别这个key
     sessionStorage.setItem("two_step_verification_token", res.data.two_step_verification_token);
 
