@@ -32,19 +32,19 @@ NProgress.configure({
 const routes: RouteRecordRaw[] = [
     {path: '/', name: 'home', component: HomePage, meta: {title: "首页"}},
     {path: '/two_step_verification/authentication/', name: 'two_step_verification', component: TwoStepVerificationPage},
-    {path: '/login/', name: 'login', component: LoginPage, meta: {title: "登录"}},
-    {path: '/register/', name: 'register', component: RegisterPage, meta: {title: "注册"}},
+    {path: '/login/', name: 'login', component: LoginPage, meta: {title: "登录", need_two_step_verification: true}},
+    {path: '/register/', name: 'register', component: RegisterPage, meta: {title: "注册", need_two_step_verification: true}},
     {path: '/settings/', name: 'settings', component: SettingsPage, meta: {title: "设置"}},
     {path: '/search/result/', name: 'search', component: SearchResultPage, meta: {title: "搜索结果"}},
     {path: '/friends/', name: 'friends', component: FriendsPage, meta: {title: "朋友"}},
     {path: '/hot/', name: 'hot', component: HotPage, meta: {title: "热点"}},
-    {path: '/test/', name: 'test', component: TestPage, meta: {title: "测试", need_two_step_verification: true}},
+    {path: '/test/', name: 'test', component: TestPage, meta: {title: "测试"}},
     {path: '/l/', name: 'long', component: () => import("@/pages/LongPostPage.vue"), meta: {title: "发长文"}},
     {path: '/s/:post_id/', name: 'post', component: () => import("@/pages/SharePage.vue"), meta: {title: "分享帖子"}},
     {path: '/u/:username/', name: 'user', component: UserPage, meta: {title: "用户中心"}},
     {
         path: '/reset_password/', name: 'reset_password', component: () => import("@/pages/ResetPasswordPage.vue"),
-        meta: {title: "密码重置"}
+        meta: {title: "密码重置", need_two_step_verification: true}
     },
     {path: '/:catchALL(.*)/', component: NotFoundPage, name: 'not-fond', meta: {title: "Not Found"}},
 ]
