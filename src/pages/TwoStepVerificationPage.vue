@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import {ref} from "vue";
-import {useRoute, useRouter} from "vue-router";
+import {getCurrentInstance, ref} from "vue";
+import {useRouter} from "vue-router";
 import {config} from "@/common/config.ts";
 import {VueTurnstile} from "vue-cloudflare-turnstile";
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
 import {logger} from "@/common/utils.ts";
-import {message} from "ant-design-vue";
+
 
 
 // docs: https://www.npmjs.com/package/vue-cloudflare-turnstile
 
-const route = useRoute();
+const proxy = getCurrentInstance();
 const router = useRouter();
 const turnstileRef = ref();
 
@@ -24,11 +24,10 @@ const onSuccess = async (cfToken: string) => {
       "Content-Type": "application/json"
     }});
     // 2. 保存凭证到sessionStorage，路由守卫识别这个key
-    sessionStorage.setItem("two_step_verification_token", res.data.two_step_verification_token);
+    sessionStorage.setItem("two_step_verification_success", res.data.success);
 
     // 3. 跳回原来要访问的页面
-    const redirectUrl = (route.query.redirect as string) || "/login/";
-    router.replace(redirectUrl);
+    await router.push(proxy.proxy.$route.query.redirect || '/');
   } catch (err) {
     logger.error("预检接口失败", err);
     // 失败重置验证码，让用户重新验证

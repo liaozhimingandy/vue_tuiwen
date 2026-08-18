@@ -1,6 +1,6 @@
 
 <template>
-  <div ref="threeDom"></div>
+  <h1>测试页面</h1>
 </template>
 
 <script lang="ts" setup>
