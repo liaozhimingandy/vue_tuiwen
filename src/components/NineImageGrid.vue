@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { apiUrls } from '@/services/api.ts'
 // 引入assets下的logo作为占位&兜底图
 import logoImg from '@/assets/logo.svg'
@@ -19,11 +19,11 @@ export type ImageGridProps = {
   borderRadius?: number
   /** 是否开启预览 */
   previewable?: boolean
-  /** 预览分组ID */
+  /** 预览分组ID（兼容旧入参，tdesign不再使用） */
   previewGroupId?: string
-  /** 加载失败兜底图，不传默认使用assets/logo.png */
+  /** 加载失败兜底图 */
   fallback?: string
-  /** 加载中占位图片，不传默认使用assets/logo.png */
+  /** 加载中占位图片 */
   placeholderImg?: string
 }
 
@@ -40,6 +40,10 @@ const props = withDefaults(defineProps<ImageGridProps>(), {
 
 const emit = defineEmits(['click'])
 
+// t-image-viewer 需要控制打开索引
+const viewerVisible = ref(false)
+const viewerIndex = ref(0)
+
 let internalGroupId = ''
 onMounted(() => {
   internalGroupId = `img-grid-${Math.random().toString(36).slice(2, 8)}`
@@ -48,6 +52,8 @@ const groupId = computed(() => props.previewGroupId || internalGroupId)
 
 const safeImageList = computed(() => Array.isArray(props.imageList) ? props.imageList : [])
 const validImages = computed(() => safeImageList.value.slice(0, props.maxCount))
+// 预览用完整图片地址数组
+const fullPreviewImages = computed(() => validImages.value.map(img => getFullSrc(img)))
 const imageCount = computed(() => validImages.value.length)
 const remainCount = computed(() => Math.max(safeImageList.value.length - props.maxCount, 0))
 const gridClass = computed(() => `grid-count-${Math.min(imageCount.value, 9)}`)
@@ -59,12 +65,18 @@ const gridStyle = computed(() => ({
   '--multi-max-width': `${props.multiMaxWidth}px`,
 }))
 
-const getFullSrc = (path: string) => {
+function getFullSrc(path: string) {
   try {
     return apiUrls.static_links(path)
   } catch {
     return path
   }
+}
+
+// 打开预览，指定当前索引
+function openPreview(index: number) {
+  viewerIndex.value = index
+  viewerVisible.value = true
 }
 </script>
 
@@ -83,26 +95,36 @@ const getFullSrc = (path: string) => {
     >
       <!-- 单张图片：灰色容器 + 居中logo占位 -->
       <div v-if="imageCount === 1" class="single-placeholder-wrap">
-        <!-- 加载中居中logo占位（固定大小，不会拉伸模糊） -->
         <img class="img-placeholder" :src="props.placeholderImg" alt="placeholder" />
 
-        <a-image
+        <t-image
           :src="getFullSrc(img)"
-          :fallback="props.fallback"
-          :preview="previewable ? { groupId: groupId } : false"
           class="grid-image"
-        />
+          @click="previewable && openPreview(index)"
+        >
+          <!-- 加载失败兜底图 替代 fallback 属性 -->
+          <template #error>
+            <img class="img-error-fallback" :src="props.fallback" alt="fallback" />
+          </template>
+          <!-- 加载中自定义占位（可选，和原有逻辑对齐） -->
+          <template #loading>
+            <img class="img-loading-placeholder" :src="props.placeholderImg" alt="loading" />
+          </template>
+        </t-image>
       </div>
 
       <!-- 多张图片：原有正方形网格布局 -->
-      <a-image
+      <t-image
         v-else
         :src="getFullSrc(img)"
-        :fallback="props.fallback"
-        :preview="previewable ? { groupId: groupId } : false"
         class="grid-image"
         placeholder
-      />
+        @click="previewable && openPreview(index)"
+      >
+        <template #error>
+          <img class="img-error-fallback" :src="props.fallback" alt="fallback" />
+        </template>
+      </t-image>
 
       <div
         v-if="index === validImages.length - 1 && remainCount > 0"
@@ -111,6 +133,15 @@ const getFullSrc = (path: string) => {
         +{{ remainCount }}
       </div>
     </div>
+
+    <!-- 全局预览弹窗（统一图集预览，等价 antd previewGroup） -->
+    <t-image-viewer
+      v-if="previewable"
+      :visible="viewerVisible"
+      :images="fullPreviewImages"
+      :index="viewerIndex"
+      @close="viewerVisible = false"
+    />
   </div>
 </template>
 
@@ -145,7 +176,6 @@ const getFullSrc = (path: string) => {
   align-items: center;
   justify-content: center;
 }
-/* 居中占位Logo：固定尺寸，禁止拉伸 */
 .img-placeholder {
   position: absolute;
   width: 64px;
@@ -155,15 +185,14 @@ const getFullSrc = (path: string) => {
   pointer-events: none;
   z-index: 1;
 }
-/* 真实图片 */
-.single-placeholder-wrap :deep(.ant-image) {
+.single-placeholder-wrap :deep(.t-image) {
   width: 100%;
   height: auto;
   display: block;
   position: relative;
   z-index: 2;
 }
-.single-placeholder-wrap :deep(.ant-image-img) {
+.single-placeholder-wrap :deep(.t-image__img) {
   width: 100%;
   height: auto;
   object-fit: contain;
@@ -172,15 +201,14 @@ const getFullSrc = (path: string) => {
   opacity: 0;
   animation: fadeIn 0.3s ease forwards;
 }
-/* 加载失败兜底图样式 */
-.single-placeholder-wrap :deep(.ant-image-fallback) {
+.img-error-fallback {
   width: 100%;
   height: auto;
   object-fit: contain;
   background-color: #f2f3f5;
+  border-radius: var(--radius);
 }
 
-/* 淡入动画 */
 @keyframes fadeIn {
   to {
     opacity: 1;
@@ -203,8 +231,6 @@ const getFullSrc = (path: string) => {
 .grid-count-4 {
   grid-template-columns: repeat(2, 1fr);
   max-width: var(--multi-max-width);
-  margin-left: auto;
-  margin-right: auto;
 }
 .grid-count-5,
 .grid-count-6,
@@ -228,11 +254,11 @@ const getFullSrc = (path: string) => {
   width: 100%;
   height: 100%;
 }
-:is(.grid-count-2, .grid-count-3, .grid-count-4, .grid-count-5, .grid-count-6, .grid-count-7, .grid-count-8, .grid-count-9) :deep(.ant-image) {
+:is(.grid-count-2, .grid-count-3, .grid-count-4, .grid-count-5, .grid-count-6, .grid-count-7, .grid-count-8, .grid-count-9) :deep(.t-image) {
   width:100%;
   height:100%;
 }
-:is(.grid-count-2, .grid-count-3, .grid-count-4, .grid-count-5, .grid-count-6, .grid-count-7, .grid-count-8, .grid-count-9) :deep(.ant-image-img) {
+:is(.grid-count-2, .grid-count-3, .grid-count-4, .grid-count-5, .grid-count-6, .grid-count-7, .grid-count-8, .grid-count-9) :deep(.t-image__img) {
   width: 100%;
   height: 100%;
   object-fit: cover;

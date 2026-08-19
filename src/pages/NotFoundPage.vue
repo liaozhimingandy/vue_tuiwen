@@ -2,23 +2,32 @@
 </script>
 
 <template>
-  <a-flex style="min-height: 100vh; " align="center" justify="center">
-    <a-result sub-title="非常抱歉,你请求的页面不存在.">
-      <template #icon>
-        <div class="emoji-icon">
-          <span class="emoji">❓</span>
-        </div>
-      </template>
-      <template #extra>
+  <div style="min-height: 100vh; display: flex; justify-content: center; align-items: center;">
+    <div class="result-wrap">
+      <div class="emoji-icon">
+        <span class="emoji">❓</span>
+      </div>
+      <!-- 副标题 -->
+      <div class="sub-title">非常抱歉,你请求的页面不存在.</div>
+      <!-- 操作按钮区域，等价 #extra 插槽 -->
+      <div class="extra-wrap">
         <router-link :to="{name: 'home'}">
-          <a-button type="primary">返回到首页</a-button>
+          <t-button type="primary">返回到首页</t-button>
         </router-link>
-      </template>
-    </a-result>
-  </a-flex>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
+.result-wrap {
+  text-align: center;
+}
+.sub-title {
+  margin: 24px 0 32px;
+  color: #666;
+  font-size: 14px;
+}
 .emoji-icon {
   width: 96px;
   height: 96px;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import {onMounted, ref, watch} from "vue";
+import {onMounted, ref, watch, computed} from "vue";
 import {useRoute} from 'vue-router';
+import type { ListProps, ListItemMetaProps } from 'tdesign-vue-next';
 
 import Header from "@/components/Header.vue";
 import instance from "@/services";
@@ -78,17 +79,17 @@ const onMore = async () => {
 
 // 监听搜索关键词变化 → 重新第一页搜索
 watch(
-  () => route.query.q,
-  (newQ) => {
-    const q = (newQ as string ?? '').trim();
-    if (q) {
-      doSearch(q);
-    } else {
-      items.value = [];
-      hasMore.value = false;
-    }
-  },
-  {immediate: true}
+    () => route.query.q,
+    (newQ) => {
+      const q = (newQ as string ?? '').trim();
+      if (q) {
+        doSearch(q);
+      } else {
+        items.value = [];
+        hasMore.value = false;
+      }
+    },
+    {immediate: true}
 )
 
 onMounted(async () => {
@@ -97,61 +98,41 @@ onMounted(async () => {
   if (!q) return;
   await doSearch(q)
 })
+
+const asyncLoading = computed<ListProps['asyncLoading']>(() => {
+ if (loading.value) {
+    return 'loading';
+  }
+  if (hasMore.value) {
+    return 'load-more';
+  }
+  // 全部加载完成，自定义提示文字
+  return '没有更多数据了';
+})
 </script>
 
 <template>
-  <a-layout style="min-height: 100vh;">
-    <a-layout-header :style="{width: '100%', 'background-color': 'white'}">
+  <t-layout>
+    <t-header>
       <Header selected-keys="none"/>
-    </a-layout-header>
-    <a-layout-content style="padding-top: 8px">
-      <a-row>
-        <a-col :md="{ span: 12, offset: 6 }" :xs="24" style="padding:0 8px">
-          <a-list
-            :loading="initLoading"
-            item-layout="horizontal"
-            :data-source="items"
-          >
-            <template #loadMore>
-              <div
-                v-if="!initLoading"
-                :style="{ textAlign: 'center', marginTop: '12px', height: '32px', lineHeight: '32px' }"
-              >
-                <a-button
-                  v-if="hasMore"
-                  :loading="loading"
-                  @click="onMore"
-                >
-                  加载更多
-                </a-button>
-                <span v-else style="color:#999">没有更多数据了</span>
-              </div>
-            </template>
-            <template #renderItem="{ item }">
-              <a-list-item>
-                <template #actions>
-                  <a key="link" :href="`${apiUrls.share_account_link(item.account_id)}`">查看更多</a>
-                </template>
-                <a-skeleton avatar :title="false" :loading="!!item.loading" active>
-                  <a-list-item-meta
-                    :description="item.username"
-                  >
-                    <template #title>
-                      <a>{{ item.nick_name }}</a>
-                    </template>
-                    <template #avatar>
-                      <a-avatar :src="item.avatar"/>
-                    </template>
-                  </a-list-item-meta>
-                  <div>{{ item.bio }}</div>
-                </a-skeleton>
-              </a-list-item>
-            </template>
-          </a-list>
-        </a-col>
-      </a-row>
-    </a-layout-content>
-  </a-layout>
+    </t-header>
+    <t-content>
+      <t-row justify="center">
+        <t-col :span="8">
+          <t-list split @load-more="onMore" :async-loading="asyncLoading">
+            <t-list-item v-for="item in items" :key="item.key">
+              <t-list-item-meta :image="item.avatar" :title="item.username" :description="item.username"/>
+              <template #action>
+                <t-link theme="primary" :href="`${apiUrls.share_account_link(item.account_id)}`" hover="color" style="margin-left: 16px">查看更多</t-link>
+              </template>
+            </t-list-item>
+            <t-empty v-if="items.length == 0"/>
+          </t-list>
+        </t-col>
+      </t-row>
+    </t-content>
+    <t-footer> Copyright @ 2019-{{ new Date().getFullYear() }} Tencent. All Rights Reserved</t-footer>
+  </t-layout>
 </template>
 
 <style scoped>

@@ -42,17 +42,17 @@ const onError = (e: any) => {
 </script>
 
 <template>
-  <a-flex style="min-height: 100vh" align="center" justify="center">
-    <a-space direction="vertical">
-      <a-typography-text>正在人机检测,检测完成后会自动跳转...</a-typography-text>
+  <div style="min-height: 100vh; display: flex; justify-content: center; align-items: center;">
+    <t-space direction="vertical">
+      <t-typography-text>正在人机检测,检测完成后会自动跳转...</t-typography-text>
       <VueTurnstile
           ref="turnstileRef"
           :site-key="config.TURNSTILE_SITE_KEY"
           @success="onSuccess"
           @error="onError"
       />
-    </a-space>
-  </a-flex>
+    </t-space>
+  </div>
 </template>
 
 <style scoped>

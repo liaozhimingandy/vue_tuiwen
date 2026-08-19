@@ -225,7 +225,7 @@ const onSelectFace = () => {
 </script>
 
 <template>
-  <a-watermark :content="post.right_status === 0 ? '仅你自己可见' : ''"
+  <t-watermark :watermark-content="post.right_status === 0 ? '仅你自己可见' : ''"
                style="background-color: white; margin-bottom: 4px">
     <a-card style="text-align: left" size="small">
       <template #extra>
@@ -403,7 +403,7 @@ const onSelectFace = () => {
         </a-list-item>
       </template>
     </a-list>
-  </a-watermark>
+  </t-watermark>
 </template>
 
 <style scoped>

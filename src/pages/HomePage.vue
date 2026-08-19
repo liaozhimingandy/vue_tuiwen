@@ -192,12 +192,12 @@ const handleClick: MenuProps['onClick'] = e => {
 </script>
 
 <template>
-  <a-layout style="min-height: 100vh; text-align: center;">
-    <a-layout-header ref="headerRef" :style="{width: '100%',
+  <t-layout style="min-height: 100vh; text-align: center;">
+    <t-header ref="headerRef" :style="{width: '100%',
       'background-color': 'white'}">
       <Header selected-keys="home"/>
-    </a-layout-header>
-    <a-layout-content style="padding-top: 8px">
+    </t-header>
+    <t-content style="padding-top: 8px">
       <a-row style="background-color: #E9EBEE">
         <!-- 功能列表 (第一列) -->
         <a-col :md="5" v-if="!isMobile">
@@ -269,8 +269,8 @@ const handleClick: MenuProps['onClick'] = e => {
           </c-scrollbar>
         </a-col>
       </a-row>
-    </a-layout-content>
-  </a-layout>
+    </t-content>
+  </t-layout>
   <a-float-button-group>
     <a-float-button>
       <template #icon>

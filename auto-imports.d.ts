@@ -7,4 +7,5 @@
 export {}
 declare global {
   const AInput: typeof import('ant-design-vue/es')['Input']
+  const MessagePlugin: typeof import('tdesign-vue-next')['MessagePlugin']
 }
