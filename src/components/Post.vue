@@ -17,12 +17,13 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { ShareNetwork } from 'vue-social-sharing'
 
 
+
 dayjs.extend(relativeTime);
 import type {IAccount, IComment, IPost} from "@/interface";
 import {formatMessageToHtml, timestampFormat} from "@/common/utils.ts";
 import instance from '../services/';
 import appStore from "../stores";
-import ImageGrid from "@/components/ImageGrid.vue";
+import NineImageGrid from "@/components/NineImageGrid.vue";
 import TextCollapse from "@/components/TextCollapse.vue";
 import {apiUrls} from "@/services/api.ts";
 
@@ -216,6 +217,10 @@ const account = computed(()=>{
 const follow = computed(()=>{
   return account_map.value[props.post.account_id]?.follow ?? {};
 })
+
+const images = computed(()=>{
+  return props.post.content.images.map((img) => apiUrls.static_links(img))
+})
 </script>
 
 <template>
@@ -297,8 +302,10 @@ const follow = computed(()=>{
           <!--        />-->
 
           <!--          图片展示 -->
-          <ImageGrid :image-list="props.post.content.images" :single-max-width="160" :two-col-max-width="200"
+          <NineImageGrid :image-list="props.post.content.images" :single-max-width="160" :two-col-max-width="200"
                      :three-col-max-width="360"/>
+
+
         </a-space>
       </div>
       <template #actions>

@@ -5,7 +5,7 @@ import type {IPost, IAccount} from "@/interface";
 import instance from "@/services"
 import {apiUrls} from "@/services/api.ts";
 import {timestampFormat} from "@/common/utils.ts";
-import ImageGrid from "@/components/ImageGrid.vue";
+import NineImageGrid from "@/components/NineImageGrid.vue";
 import {message} from "ant-design-vue";
 
 const route = useRoute();
@@ -55,7 +55,7 @@ onMounted(async () => {
             <a-typography-text v-if="post?.post_type==1">
               {{ post?.content?.text }}
             </a-typography-text>
-            <ImageGrid v-if="post?.post_type==1" :image-list="post.content.images" :single-max-width="160"
+            <NineImageGrid v-if="post?.post_type==1" :image-list="post.content.images" :single-max-width="160"
                        :two-col-max-width="200"
                        :three-col-max-width="360"/>
           </a-col>
