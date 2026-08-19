@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { apiUrls } from '@/services/api.ts'
+// 引入assets下的logo作为占位&兜底图
+import logoImg from '@/assets/logo.svg'
 
 export type ImageGridProps = {
   /** 图片地址列表 */
@@ -19,8 +21,10 @@ export type ImageGridProps = {
   previewable?: boolean
   /** 预览分组ID */
   previewGroupId?: string
-  /** 加载失败兜底图 */
+  /** 加载失败兜底图，不传默认使用assets/logo.png */
   fallback?: string
+  /** 加载中占位图片，不传默认使用assets/logo.png */
+  placeholderImg?: string
 }
 
 const props = withDefaults(defineProps<ImageGridProps>(), {
@@ -30,7 +34,8 @@ const props = withDefaults(defineProps<ImageGridProps>(), {
   multiMaxWidth: 420,
   borderRadius: 6,
   previewable: true,
-  fallback: 'data:image/png;base64,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',
+  fallback: logoImg,
+  placeholderImg: logoImg,
 })
 
 const emit = defineEmits(['click'])
@@ -76,13 +81,29 @@ const getFullSrc = (path: string) => {
       class="grid-item"
       @click="emit('click', index, validImages)"
     >
+      <!-- 单张图片：灰色容器 + 居中logo占位 -->
+      <div v-if="imageCount === 1" class="single-placeholder-wrap">
+        <!-- 加载中居中logo占位（固定大小，不会拉伸模糊） -->
+        <img class="img-placeholder" :src="props.placeholderImg" alt="placeholder" />
+
+        <a-image
+          :src="getFullSrc(img)"
+          :fallback="props.fallback"
+          :preview="previewable ? { groupId: groupId } : false"
+          class="grid-image"
+        />
+      </div>
+
+      <!-- 多张图片：原有正方形网格布局 -->
       <a-image
+        v-else
         :src="getFullSrc(img)"
         :fallback="props.fallback"
         :preview="previewable ? { groupId: groupId } : false"
         class="grid-image"
         placeholder
       />
+
       <div
         v-if="index === validImages.length - 1 && remainCount > 0"
         class="remain-mask"
@@ -101,60 +122,90 @@ const getFullSrc = (path: string) => {
   width: 100%;
 }
 
-/* ========== 单张图：100%占满卡片宽度，高度跟随图片原始尺寸，不变形 ========== */
+/* ========== 单图容器 ========== */
 .grid-count-1 {
   grid-template-columns: 1fr;
   width: 100%;
 }
 .grid-count-1 .grid-item {
   width: 100%;
-  height: auto;
   max-height: var(--single-max-height);
   border-radius: var(--radius);
   overflow: hidden;
   position: relative;
-  /* 如果需要竖图时灰色背景打开下面这行 */
-  /* background-color:#f2f3f5; */
 }
-.grid-count-1 .grid-image {
+.single-placeholder-wrap {
+  width: 100%;
+  min-height: 200px;
+  background-color: #f2f3f5;
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* 居中占位Logo：固定尺寸，禁止拉伸 */
+.img-placeholder {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 1;
+}
+/* 真实图片 */
+.single-placeholder-wrap :deep(.ant-image) {
   width: 100%;
   height: auto;
+  display: block;
+  position: relative;
+  z-index: 2;
 }
-/* 深度覆盖antd内部image dom，核心！！ */
-.grid-count-1 :deep(.ant-image) {
-  width:100%;
-  height:auto;
-}
-.grid-count-1 :deep(.ant-image-img) {
-  width:100%;
-  height:auto;
+.single-placeholder-wrap :deep(.ant-image-img) {
+  width: 100%;
+  height: auto;
   object-fit: contain;
   border-radius: var(--radius);
-  display:block;
+  display: block;
+  opacity: 0;
+  animation: fadeIn 0.3s ease forwards;
+}
+/* 加载失败兜底图样式 */
+.single-placeholder-wrap :deep(.ant-image-fallback) {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  background-color: #f2f3f5;
 }
 
-/* ========== 2张：两列等分并排（微博标准） ========== */
+/* 淡入动画 */
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+/* ========== 多图网格布局 2~9张 ========== */
 .grid-count-2 {
   grid-template-columns: repeat(2, 1fr);
   max-width: var(--multi-max-width);
   margin-left: auto;
   margin-right: auto;
 }
-/* ========== 3张：3列 ========== */
 .grid-count-3 {
   grid-template-columns: repeat(3, 1fr);
   max-width: var(--multi-max-width);
   margin-left: auto;
   margin-right: auto;
 }
-/* ========== 4张：2×2 ========== */
 .grid-count-4 {
   grid-template-columns: repeat(2, 1fr);
   max-width: var(--multi-max-width);
   margin-left: auto;
   margin-right: auto;
 }
-/* ========== 5~9张：固定3列 ========== */
 .grid-count-5,
 .grid-count-6,
 .grid-count-7,
@@ -166,7 +217,6 @@ const getFullSrc = (path: string) => {
   margin-right: auto;
 }
 
-/* ========== 多图统一正方形裁切 ========== */
 :is(.grid-count-2, .grid-count-3, .grid-count-4, .grid-count-5, .grid-count-6, .grid-count-7, .grid-count-8, .grid-count-9) .grid-item {
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -204,7 +254,6 @@ const getFullSrc = (path: string) => {
   pointer-events: none;
 }
 
-/* 移动端适配 */
 @media (max-width: 768px) {
   :is(.grid-count-2, .grid-count-3, .grid-count-4, .grid-count-5, .grid-count-6, .grid-count-7, .grid-count-8, .grid-count-9) {
     max-width: 100% !important;

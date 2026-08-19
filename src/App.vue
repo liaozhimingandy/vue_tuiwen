@@ -3,6 +3,8 @@ import {ref, onMounted} from 'vue';
 import zhCN from "ant-design-vue/es/locale/zh_CN";
 import {useRouter} from "vue-router";
 
+import 'tdesign-vue-next/es/style/index.css';
+
 const is_loading = ref<boolean>(true);
 const router = useRouter();
 

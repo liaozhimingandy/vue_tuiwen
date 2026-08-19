@@ -30,9 +30,9 @@ const selectFace = (item: FaceItem) => {
           :key="String(idx)"
       >
         <template #tab>
-          <a-tooltip :title="group.label">
+          <t-tooltip :content="group.label" show-arrow>
             <span>{{ group.icon }}</span>
-          </a-tooltip>
+          </t-tooltip>
         </template>
         <div class="face-content">
           <div class="face-grid">
@@ -42,7 +42,7 @@ const selectFace = (item: FaceItem) => {
                 class="face-item"
                 @click="selectFace(item)"
             >
-              <a-tooltip :title="item.name">
+              <t-tooltip :content="item.name" show-arrow>
                 <!-- 自动区分渲染原生字符 / 自定义图片 -->
                 <span v-if="item.type === 'unicode'">{{ item.unicode }}</span>
                 <img
@@ -51,7 +51,7 @@ const selectFace = (item: FaceItem) => {
                     alt=""
                     class="custom-face-img"
                 />
-              </a-tooltip>
+              </t-tooltip>
             </div>
           </div>
         </div>

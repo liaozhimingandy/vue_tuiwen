@@ -73,5 +73,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TextCollapse: typeof import('./src/components/TextCollapse.vue')['default']
+    TQrcode: typeof import('tdesign-vue-next')['QRCode']
+    TTooltip: typeof import('tdesign-vue-next')['Tooltip']
   }
 }

@@ -9,13 +9,12 @@ import {
   WeiboOutlined,
   EllipsisOutlined,
   DeleteOutlined,
-  StopOutlined
+  StopOutlined, SmileOutlined
 } from "@ant-design/icons-vue";
 import dayjs from 'dayjs';
 import {type MenuProps, message} from "ant-design-vue";
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { ShareNetwork } from 'vue-social-sharing'
-
+import {ShareNetwork} from 'vue-social-sharing'
 
 
 dayjs.extend(relativeTime);
@@ -129,7 +128,7 @@ const handleSubmit = () => {
 // 当点击评论按钮时
 const handleComment = async () => {
   select_item.value = select_item.value === 'c' ? '' : 'c';
-   // 1.加载评论
+  // 1.加载评论
   await instance.get(apiUrls.get_comments(props.post.post_id)).then(async (r: any) => {
     let items = comments.value.concat(r.data.items);
     let map = new Map();
@@ -142,7 +141,7 @@ const handleComment = async () => {
 
     // 3. 批量获取用户信息
     await Promise.all(accountIds.map(async id => {
-      if(user_map.value[id]) return;
+      if (user_map.value[id]) return;
       instance.get(apiUrls.get_account(id)).then((r: IAccount) => user_map.value[id] = r.data);
     }))
   });
@@ -207,20 +206,22 @@ const handleClick: MenuProps['onClick'] = e => {
 };
 
 import {storeToRefs} from "pinia";
+import FacePicker from "@/components/FacePicker.vue";
+
 const user_map = ref<Record<string, IAccount>>({});
 const cacheStore = useCacheStore();
 // 关键：用 storeToRefs 保持响应式
-const { account_map } = storeToRefs(cacheStore)
-const account = computed(()=>{
+const {account_map} = storeToRefs(cacheStore)
+const account = computed(() => {
   return account_map.value[props.post.account_id] ?? {};
 })
-const follow = computed(()=>{
+const follow = computed(() => {
   return account_map.value[props.post.account_id]?.follow ?? {};
 })
 
-const images = computed(()=>{
-  return props.post.content.images.map((img) => apiUrls.static_links(img))
-})
+const onSelectFace = () => {
+
+}
 </script>
 
 <template>
@@ -254,7 +255,8 @@ const images = computed(()=>{
               <a-space direction="vertical" style="width: 300px">
                 <a-avatar :src="account?.avatar" :size="64"/>
                 <a-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</a-typography-text>
-                <a-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数: {{ follow.follower_count }}
+                <a-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
+                  {{ follow.follower_count }}
                 </a-typography-text>
                 <a-divider/>
                 <a-flex justify="space-between">
@@ -303,7 +305,7 @@ const images = computed(()=>{
 
           <!--          图片展示 -->
           <NineImageGrid :image-list="props.post.content.images" :single-max-width="160" :two-col-max-width="200"
-                     :three-col-max-width="360"/>
+                         :three-col-max-width="360"/>
 
 
         </a-space>
@@ -313,8 +315,8 @@ const images = computed(()=>{
         <!-- 分享按钮 -->
         <a-popover title="分享给好友" trigger="click">
           <template #content>
-             <a-qrcode :value="`${apiUrls.share_post_link(post?.post_id)}`" error-level="H"
-                       :bordered="false" style="margin: 0 auto;"/>
+            <t-qrcode :value="`${apiUrls.share_post_link(post?.post_id)}`" level="H"
+                      type="svg" style="margin: 0 auto;"/>
             <a-space>
               <a-button type="primary" @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`)"
               >
@@ -364,9 +366,23 @@ const images = computed(()=>{
           <a-textarea v-model:value="comment_data" :rows="4"/>
         </a-form-item>
         <a-form-item>
-          <a-button html-type="submit" :loading="submitting" type="primary" @click="handleSubmit">
-            提交评论
-          </a-button>
+          <a-flex justify="space-between">
+            <a-popover>
+              <template #content>
+                <FacePicker @select="onSelectFace"/>
+              </template>
+              <a-tooltip title="表情包">
+                <a-button type="text" size="large">
+                  <template #icon>
+                    <SmileOutlined/>
+                  </template>
+                </a-button>
+              </a-tooltip>
+            </a-popover>
+            <a-button html-type="submit" :loading="submitting" type="primary" @click="handleSubmit">
+              提交评论
+            </a-button>
+          </a-flex>
         </a-form-item>
       </template>
     </a-comment>

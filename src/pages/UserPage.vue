@@ -107,8 +107,8 @@ const onLoadMore = async()=>{
                   </a-button>
                   <a-popover title="扫码分享">
                     <template #content>
-                      <a-qrcode :value="`${apiUrls.share_account_link(user?.account_id)}`" error-level="H"
-                                :bordered="false"  style="margin: 0 auto;"/>
+                      <t-qrcode :value="`${apiUrls.share_account_link(user?.account_id)}`" level="H"
+                                style="margin: 0 auto;" type="svg"/>
                     </template>
                     <a-button :icon="h(ShareAltOutlined)" type="dashed">分享</a-button>
                   </a-popover>
