@@ -19,17 +19,16 @@ const selectFace = (item: FaceItem) => {
 
 <template>
   <div class="face-panel" @mousedown.prevent>
-    <a-tabs
-        v-model:activeKey="activeKey"
-        tab-position="bottom"
+    <t-tabs
+        :value="activeKey"
+        placement="bottom"
         animated
-        size="small"
     >
-      <a-tab-pane
+      <t-tab-pane
           v-for="(group, idx) in FACE_GROUPS"
-          :key="String(idx)"
+          :value="String(idx)"
       >
-        <template #tab>
+        <template #label>
           <t-tooltip :content="group.label" show-arrow>
             <span>{{ group.icon }}</span>
           </t-tooltip>
@@ -55,8 +54,8 @@ const selectFace = (item: FaceItem) => {
             </div>
           </div>
         </div>
-      </a-tab-pane>
-    </a-tabs>
+      </t-tab-pane>
+    </t-tabs>
   </div>
 </template>
 
