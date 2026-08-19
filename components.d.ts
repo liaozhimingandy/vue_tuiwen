@@ -73,6 +73,5 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TextCollapse: typeof import('./src/components/TextCollapse.vue')['default']
-    TurnstileWidget: typeof import('./src/components/TurnstileWidget.vue')['default']
   }
 }

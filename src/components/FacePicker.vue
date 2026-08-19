@@ -62,7 +62,7 @@ const selectFace = (item: FaceItem) => {
 
 <style scoped>
 .face-panel {
-  width: 360px;
+  width: 420px;
   background: #fff;
   border-radius: 8px;
   overflow: hidden;
@@ -70,13 +70,13 @@ const selectFace = (item: FaceItem) => {
 
 .face-content {
   padding: 12px;
-  max-height: 320px;
+  max-height: 240px;
   overflow-y: auto;
 }
 
 .face-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(10, 1fr);
   gap: 6px;
 }
 

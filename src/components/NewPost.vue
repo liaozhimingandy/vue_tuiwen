@@ -292,8 +292,6 @@ const onSelectFace = (face: string) => {
         <a-popover
             v-model:open="showFacePanel"
             trigger="click"
-            placement="topLeft"
-            :z-index="10000"
         >
           <template #content>
             <FacePicker @select="onSelectFace"/>
