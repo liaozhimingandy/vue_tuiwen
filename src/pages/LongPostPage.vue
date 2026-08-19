@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import {watch} from "vue";
-import {DownOutlined, SendOutlined} from "@ant-design/icons-vue";
+import {watch, computed} from "vue";
+import {SendIcon, ChevronDownIcon} from 'tdesign-icons-vue-next';
 import {storeToRefs} from "pinia";
 import appStore from "@/stores";
-
+import type { DropdownProps } from 'tdesign-vue-next';
 const draftStore = storeToRefs(appStore.useDraftStore);
 
 import '@wangeditor/editor/dist/css/style.css' // 引入 css
@@ -11,17 +11,16 @@ import '@wangeditor/editor/dist/css/style.css' // 引入 css
 import {onBeforeUnmount, ref, shallowRef} from 'vue'
 import {Editor, Toolbar} from '@wangeditor/editor-for-vue'
 import Header from "@/components/Header.vue";
-import {message} from "ant-design-vue";
+import {MessagePlugin} from 'tdesign-vue-next';
 import type {IPost} from "@/interface";
-import instance from '@/services/';
 import {post_right_map} from "@/common/constants.js";
 import axios from "axios";
 import {apiUrls, publish_post} from "@/services/api.ts";
 
 const selected_status = ref<number>(1);
-// 处理菜单点击事件
-const handleMenuClick = ({key}: { key: number }) => {
-  selected_status.value = key as number;
+// 下拉菜单点击
+const handleMenuClick: DropdownProps['onClick'] = (data) => {
+  selected_status.value = data.value as number;
 };
 
 // 设置图片上传的接口地址
@@ -124,7 +123,7 @@ watch(content, () => {
 const onPublish = async () => {
 
   if (editorRef.value.getText().trim() == '') {
-    message.info("内容不能为空!");
+    MessagePlugin.info("内容不能为空!");
     return
   }
 
@@ -142,19 +141,27 @@ const onPublish = async () => {
   // 调发布接口
   await publish_post(post);
 
-  message.success("发布成功!");
+  MessagePlugin.success("发布成功!");
   editorRef.value.clear();
   appStore.useDraftStore.clearDraft();
-
 }
+
+// 组装下拉选项
+const dropdownOptions = computed<DropdownProps['options']>(() => {
+  return Object.entries(post_right_map).map(([value, content]) => ({
+    value,
+    content,
+  }));
+});
+
 </script>
 
 <template>
-  <a-layout style="min-height: 100vh;">
-    <a-layout-header ref="headerRef" :style="{width: '100%','background-color': 'white'}">
-      <Header/>
-    </a-layout-header>
-    <a-layout-content :style="{ padding: '0 50px', marginTop: '4px' }">
+  <t-layout style="min-height: 100vh;">
+    <t-header ref="headerRef" :style="{width: '100%','background-color': 'white'}">
+      <Header selected-keys="none"/>
+    </t-header>
+    <t-content :style="{ padding: '0 50px', marginTop: '4px' }">
       <Toolbar
           style="border-bottom: 1px solid #ccc"
           :editor="editorRef"
@@ -168,36 +175,30 @@ const onPublish = async () => {
           :mode="mode"
           @onCreated="handleCreated"
       />
-    </a-layout-content>
-    <a-layout-footer>
-      <a-flex justify="space-between">
+    </t-content>
+    <t-footer>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
         <span/>
-        <a-space direction="horizontal">
-          <a-button type="primary" @click="onPublish">
+        <t-space direction="horizontal">
+          <t-button @click="onPublish">
             <template #icon>
-              <SendOutlined/>
+              <send-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]'
+                         :stroke-width="2.5"/>
             </template>
             发布
-          </a-button>
-          <a-dropdown :trigger="['click']">
-            <a-button class="ant-dropdown-link" @click.prevent type="text">
+          </t-button>
+          <t-dropdown :options="dropdownOptions" @click="handleMenuClick">
+            <t-button variant="text">
               {{ post_right_map[selected_status] }}
-              <DownOutlined/>
-            </a-button>
-            <template #overlay>
-              <a-menu>
-                <a-menu @click="handleMenuClick">
-                  <a-menu-item v-for="(lable, value) in post_right_map" :key="value">
-                    {{ lable }}
-                  </a-menu-item>
-                </a-menu>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </a-flex>
-    </a-layout-footer>
-  </a-layout>
+              <template #suffix>
+                <ChevronDownIcon size="14"/>
+              </template>
+            </t-button>
+          </t-dropdown>
+        </t-space>
+      </div>
+    </t-footer>
+  </t-layout>
 </template>
 
 <style scoped>

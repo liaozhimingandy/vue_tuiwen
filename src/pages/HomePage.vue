@@ -281,7 +281,13 @@ const handleClick: MenuProps['onClick'] = e => {
         <b>contact@alsoapp.com</b>
       </template>
     </a-float-button>
-    <a-back-top :visibility-height="0" @click="scrollToTop" v-if="showBackTop"/>
+    <t-back-top
+      container=".baseList-container"
+      :visible-height="0"
+      style="position: absolute"
+      :offset="['24px', '80px']"
+      @click="scrollToTop" v-if="showBackTop"
+    ></t-back-top>
   </a-float-button-group>
 </template>
 
