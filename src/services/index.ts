@@ -103,7 +103,7 @@ instance.interceptors.response.use(
 
         switch (status) {
             case 400:
-                message.error(detail || '参数错误');
+                // message.error(detail || '参数错误');
                 break;
             case 401:
                 const accountStore = appStore.useAccountStore;
@@ -175,7 +175,7 @@ instance.interceptors.response.use(
                 message.error("登录过期，权限不足，请重新登录");
                 break;
             case 404:
-                message.error(detail || '接口地址不存在');
+                // message.error(detail || '接口地址不存在');
                 break;
             case 408:
                 message.error("请求超时");

@@ -12,7 +12,7 @@ import {useDeviceWatcher} from '@/common/device.ts';
 const {isMobile} = useDeviceWatcher();
 
 const onChangeHandler: MenuProps['onChange'] = (active) => {
-  switch (active){
+  switch (active) {
     case 'home':
       router.push({name: "home"})
       break
@@ -89,9 +89,9 @@ const options: DropdownProps['options'] = [
           v-if="!isMobile"
           @enter="onSearch"
       >
-       <template #suffixIcon>
-        <search-icon :style="{ cursor: 'pointer' }" />
-      </template>
+        <template #suffixIcon>
+          <search-icon :style="{ cursor: 'pointer' }"/>
+        </template>
       </t-input>
     </template>
     <t-menu-item :value="item.key" v-for="item in items">
@@ -115,10 +115,11 @@ const options: DropdownProps['options'] = [
           </template>
         </t-button>
       </t-popup>
-
       <t-dropdown :options="options">
-        <t-avatar :image="appStore.useAccountStore.account?.avatar" :hide-on-load-failed="false"/>
-        <span v-if="!isMobile" style="margin-left: 8px;">{{ appStore.useAccountStore.account?.nick_name }}</span>
+        <a-sapce>
+          <t-avatar :image="appStore.useAccountStore.account?.avatar" :hide-on-load-failed="false"/>
+          <span v-if="!isMobile" style="margin-left: 8px;">{{ appStore.useAccountStore.account?.nick_name }}</span>
+        </a-sapce>
       </t-dropdown>
     </template>
   </t-head-menu>

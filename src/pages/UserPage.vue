@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import {h, ref, onMounted, computed} from 'vue';
 import {useRoute} from 'vue-router';
-import {ShareAltOutlined, SettingOutlined, EditOutlined, EllipsisOutlined} from '@ant-design/icons-vue';
+// TDesign 图标替换 antd icons
+import {
+  ShareIcon,
+  SettingIcon,
+  EditIcon,
+  MoreIcon
+} from 'tdesign-icons-vue-next';
 import Header from "../components/Header.vue";
 import instance from "@/services";
 import type {IAccount, IPost} from "@/interface";
@@ -9,10 +15,10 @@ import {IdCardH} from "@icon-park/vue-next";
 import {sex_code_map} from "@/common/constants.js";
 import {apiUrls, get_accounts_posts, get_posts} from "@/services/api.ts";
 import Post from "@/components/Post.vue";
-import {message} from "ant-design-vue";
+import {type ListProps, MessagePlugin} from "tdesign-vue-next";
 import appStore from "@/stores";
 
-const activeKey = ref('1');
+const activeKey = ref(1);
 const route = useRoute();
 const username = route.params.username;
 const follow = ref({
@@ -52,163 +58,146 @@ const handleTabChange = async (key: string) => {
     await onLoadMore();
     postLoaded.value = true // 标记已加载，下次切换不再请求
     postLoading.value = false
-    }
-  // key=1 资料页无需额外请求，页面onMounted已加载
+  }
 }
 
-const onLoadMore = async()=>{
-    let post = posts.value.at(-1);
-    let r = await get_accounts_posts(10, post?.post_id ?? null, route.params.username);
-    if(r.data.total == 0){
-      message.info("没有数据可以拉取了")
-      return;
-    }
-    const combined = [...posts.value, ...r.data.items]
+const onLoadMore = async () => {
+  loading.value = true;
+  let post = posts.value.at(-1);
+  let r = await get_accounts_posts(10, post?.post_id ?? null, route.params.username);
+  if (r.data.total == 0) {
+    loading.value = false;
+    hasMore.value = false;
+    await MessagePlugin.info("没有数据可以拉取了")
+    return;
+  }
+  const combined = [...posts.value, ...r.data.items]
 
-        // Map 去重（保留最后出现的那条）
-        const map = new Map()
-        for (const item of combined) {
-            map.set(item.post_id, item)
-        }
-        // 排序：最新在前
-        posts.value = Array.from(map.values()).sort((a, b) => {
-            return new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime()
-        })
-  // .catch((e: any) => message.error(`拉取数据失败:${e}`));
+  // Map 去重（保留最后出现的那条）
+  const map = new Map()
+  for (const item of combined) {
+    map.set(item.post_id, item)
+  }
+  // 排序：最新在前
+  posts.value = Array.from(map.values()).sort((a, b) => {
+    return new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime()
+  })
+  loading.value = false;
 }
 
+
+const onTabChange = async (val: number) => {
+
+  // 切换到帖子面板，并且还没加载过数据
+  if (val === 2 && posts.value.length == 0) {
+    await onLoadMore();
+  }
+};
+
+const loading = ref(false);
+const hasMore = ref(true);
+const asyncLoading = computed<ListProps['asyncLoading']>(() => {
+ if (loading.value) {
+    return 'loading';
+  }
+  if (hasMore.value) {
+    return 'load-more';
+  }
+  // 全部加载完成，自定义提示文字
+  return '没有更多数据了';
+})
 </script>
 
 <template>
-  <a-layout style="min-height: 100vh; text-align: center;">
-    <a-layout-header ref="headerRef" :style="{width: '100%', 'background-color': 'white'}">
+  <t-layout style="min-height: 100vh; text-align: center;">
+    <t-header ref="headerRef" :style="{width: '100%', 'background-color': 'white'}">
       <Header selected-keys="o"/>
-    </a-layout-header>
-    <a-layout-content style="padding-top: 8px;">
-      <a-row justify="center">
-        <a-col :span="12" style="text-align: start; background-color: white">
-          <a-page-header
-              style="border: 1px solid rgb(235, 237, 240)"
-              title="用户中心"
-              sub-title="可以查看用户资料"
-              @back="() => go_back()"
-          />
-          <a-row justify="space-between" align="bottom">
-            <a-space>
-              <a-avatar
+    </t-header>
+    <t-content style="padding-top: 8px;">
+      <t-row justify="center">
+        <t-col :span="6" style="text-align: start; background-color: white">
+          <div style="border: 1px solid rgb(235, 237, 240); padding: 16px; display:flex;align-items:center;gap:8px;">
+            <t-button variant="text" @click="go_back">← 返回</t-button>
+            <div>
+              <div style="font-size: 18px; font-weight:bold">用户中心</div>
+              <div style="color:#666;font-size:14px">可以查看用户资料</div>
+            </div>
+          </div>
+
+          <t-row style="margin-top:16px">
+            <t-space>
+              <t-avatar
                   :src="user?.avatar"
-                  :size="140"
-                  fallback="data:image/png;base64,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"/>
-              <a-space direction="vertical">
+                  size="140px"
+                  fallback="data:image/png;base64,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"/>
+              <t-space direction="vertical">
                 <h2>{{ user?.nick_name }}<span style="font-size: 16px">({{ username }})</span></h2>
-                <a-space>
-                  <a-button v-show="!is_self" type="primary">
+                <t-space>
+                  <t-button v-show="!is_self" theme="primary">
                     关注
-                  </a-button>
-                  <a-popover title="扫码分享">
+                  </t-button>
+                  <t-popup trigger="click" header="扫码分享">
                     <template #content>
                       <t-qrcode :value="`${apiUrls.share_account_link(user?.account_id)}`" level="H"
                                 style="margin: 0 auto;" type="svg"/>
                     </template>
-                    <a-button :icon="h(ShareAltOutlined)" type="dashed">分享</a-button>
-                  </a-popover>
-
-                </a-space>
-                <a-space direction="horizontal">
-                  <a-statistic :value="follow.followee_count">
+                    <t-button variant="outline">
+                      <template #icon>
+                        <ShareIcon/>
+                      </template>
+                      分享
+                    </t-button>
+                  </t-popup>
+                </t-space>
+                <t-space>
+                  <t-statistic :value="follow.followee_count">
                     <template #suffix>
                       <span style="font-size: 16px;color: gray">关注</span>
                     </template>
-                  </a-statistic>
-                  <a-statistic :value="follow.follower_count">
+                  </t-statistic>
+                  <t-statistic :value="follow.follower_count">
                     <template #suffix>
                       <span style="font-size: 16px;color: gray">粉丝</span>
                     </template>
-                  </a-statistic>
-                  <a-statistic :value="follow.like_count">
+                  </t-statistic>
+                  <t-statistic :value="follow.like_count">
                     <template #suffix>
                       <span style="font-size: 16px;color: gray">获赞</span>
                     </template>
-                  </a-statistic>
-                </a-space>
-                <a-typography-paragraph v-if="false" v-model:content="desc" editable style="width: 40vw"/>
-              </a-space>
-            </a-space>
-            <!--            <a-space>-->
-            <!--               <a-button :icon="h(EditOutlined)" type="text"></a-button>-->
-            <!--            </a-space>-->
-          </a-row>
-          <a-tabs v-model:activeKey="activeKey" size="large" @change="handleTabChange">
-            <a-tab-pane key="1">
-              <template #tab>
-                <span>
-                <id-card-h theme="outline" fill="#333"/>
-                <a-typography-text>资料</a-typography-text>
-                  </span>
-              </template>
-              <a-card>
-                <a-descriptions title="用户信息" bordered :column="2">
-                  <a-descriptions-item label="用户名">{{ user?.username }}</a-descriptions-item>
-                  <a-descriptions-item label="电子邮箱">{{ user?.email }}</a-descriptions-item>
-                  <a-descriptions-item label="账户目前状态" :span="2">
-                    <a-badge status="processing" text="正常"/>
-                  </a-descriptions-item>
-                  <a-descriptions-item label="出生日期">{{ user?.gmt_birth }}</a-descriptions-item>
-                  <a-descriptions-item label="性别">{{ sex_code_map[user?.sex] }}</a-descriptions-item>
-                </a-descriptions>
-              </a-card>
-            </a-tab-pane>
-            <a-tab-pane key="2" tab="帖子">
-              <a-spin :spinning="postLoading">
-                <a-card v-if="posts.length < 1">
-                  <a-empty description="暂无帖子"/>
-                </a-card>
-                <a-list :data-source="posts"  item-layout="horizontal" :loading="!postLoaded">
-                  <template #loadMore>
-                    <div
-                        :style="{ textAlign: 'center', marginTop: '12px', height: '32px', lineHeight: '32px' }"
-                    >
-                      <a-button @click="onLoadMore">加载更多</a-button>
-                    </div>
-                  </template>
-                  <template #renderItem="{ item }">
-                    <a-list-item>
-                      <Post :post="item" style="width: 100%"/>
-                    </a-list-item>
-                  </template>
+                  </t-statistic>
+                </t-space>
+                <!-- 可编辑段落，保留原逻辑 -->
+                <t-paragraph v-if="false" v-model:content="desc" editable style="width: 40vw"/>
+              </t-space>
+            </t-space>
+          </t-row>
 
-                </a-list>
-                <!--              <Post v-for="post in posts" style="padding-top: 2px" :post="post"/>-->
-                <!--                <a-list :grid="{ gutter: 16, column: 2 }" :data-source="posts">-->
-                <!--                  <template #renderItem="{ item }">-->
-                <!--                    <a-list-item>-->
-                <!--                      <a-card hoverable style="width: 300px">-->
-                <!--                        <template #cover>-->
-                <!--                          <img-->
-                <!--                              alt="example"-->
-                <!--                              src="https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png"-->
-                <!--                          />-->
-                <!--                        </template>-->
-                <!--                        <template #actions>-->
-                <!--                          <setting-outlined key="setting"/>-->
-                <!--                          <edit-outlined key="edit"/>-->
-                <!--                          <ellipsis-outlined key="ellipsis"/>-->
-                <!--                        </template>-->
-                <!--                        <a-card-meta :title="item.content.text">-->
-                <!--                        </a-card-meta>-->
-                <!--                      </a-card>-->
-                <!--                    </a-list-item>-->
-                <!--                  </template>-->
-                <!--                </a-list>-->
-
-              </a-spin>
-            </a-tab-pane>
-          </a-tabs>
-
-        </a-col>
-      </a-row>
-    </a-layout-content>
-  </a-layout>
+          <t-tabs :default-value="activeKey" @change="onTabChange">
+            <t-tab-panel :value="1" label="资料">
+              <t-card>
+                <t-descriptions title="用户信息" bordered :column="2">
+                  <t-descriptions-item label="用户名">{{ user?.username }}</t-descriptions-item>
+                  <t-descriptions-item label="电子邮箱">{{ user?.email }}</t-descriptions-item>
+                  <t-descriptions-item label="账户目前状态" :span="2">
+                    正常
+                  </t-descriptions-item>
+                  <t-descriptions-item label="出生日期">{{ user?.gmt_birth }}</t-descriptions-item>
+                  <t-descriptions-item label="性别">{{ sex_code_map[user?.sex] }}</t-descriptions-item>
+                </t-descriptions>
+              </t-card>
+            </t-tab-panel>
+            <t-tab-panel :value="2" label="帖子">
+              <t-list split @load-more="onLoadMore" :async-loading="asyncLoading">
+                <t-list-item v-for="item in posts" :key="item.key">
+                  <Post :post="item" style="width: 100%"/>
+                </t-list-item>
+              </t-list>
+            </t-tab-panel>
+          </t-tabs>
+        </t-col>
+      </t-row>
+    </t-content>
+  </t-layout>
 </template>
 
 <style scoped>

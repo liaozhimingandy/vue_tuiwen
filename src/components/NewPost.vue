@@ -125,11 +125,7 @@ watch([content, fileList], () => {
 )
 
 const showFacePanel = ref(false);
-// 选中表情包回调
-// const onSelectFace = (tag: string) => {
-//   content.value += tag
-//   showFacePanel.value = false
-// }
+
 
 // 缓存最后一次光标位置
 const lastCursorPos = ref(0);

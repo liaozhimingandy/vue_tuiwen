@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import {onMounted, reactive, ref} from "vue";
-import {LockOutlined} from '@ant-design/icons-vue';
+import {MessagePlugin} from 'tdesign-vue-next';
+import {LockOnIcon} from 'tdesign-icons-vue-next';
 import Header from "@/components/Header.vue";
 import instance from "@/services";
-import {message} from "ant-design-vue";
 
 const headerRef = ref<Element>();
 import {CScrollbar} from "c-scrollbar";
 import {sex_code_map} from "@/common/constants.js";
-import type {Rule} from "ant-design-vue/es/form";
 import {md5} from "js-md5";
 import {apiUrls, update_self_account} from "@/services/api.ts";
 import appStore from "@/stores";
@@ -16,7 +15,7 @@ import {storeToRefs} from "pinia";
 import type {IAccount} from "@/interface";
 import router from "@/router";
 
-const activeKey = ref('1');
+const activeKey = ref(1);
 const {account} = storeToRefs(appStore.useAccountStore);
 const saving = ref<boolean>(false);
 const contentHeight = ref<number | undefined>(undefined);
@@ -25,7 +24,7 @@ const updateContentHeight = () => {
   contentHeight.value = window.innerHeight - headerRef.value.$el.offsetHeight - 12;
 };
 
-onMounted(()=>{
+onMounted(() => {
   updateContentHeight();
 })
 
@@ -44,26 +43,35 @@ const formData = reactive({
 });
 
 // 密码确认校验
-const validateConfirmPassword = async (_rule: Rule, value: string) => {
-  if (value !== formData.password_new) {
-    return Promise.reject('两次输入的密码不一致');
+const validateConfirmPassword = async (
+    value: string,
+    context?: { formData: typeof formData }
+) => {
+  if (value !== context?.formData.password_new) {
+    // 返回 result:false + 自定义提示
+    return {
+      result: false,
+      message: '两次输入的密码不一致',
+      type: 'error'
+    };
   }
-  return Promise.resolve();
+  return {result: true};
 };
 
 // 修改密码表单规则
 const rules_password = {
   password_current: [
-    {required: true, message: '请输入密码', trigger: 'blur'},
-    {message: '长度必须介于1和32之间', trigger: ['blur', 'change']}
+    {required: true, message: '请输入密码', trigger: 'blur', type: 'error'},
+    {message: '长度必须介于1和32之间', trigger: ['blur', 'change'], type: 'error'}
   ],
   password_new: [
-    {required: true, message: '请输入新密码', trigger: 'blur'},
-    {min: 6, max: 12, message: '长度必须介于1和16之间', trigger: ['blur', 'change']}
+    {required: true, message: '请输入新密码', trigger: 'blur', type: 'error'},
+    {min: 6, max: 12, message: '长度必须介于1和16之间', trigger: ['blur', 'change'], type: 'error'},
+    {validator: validateConfirmPassword, trigger: 'blur'},
   ],
   password_confirm: [
-    {required: true, message: '请再次输入密码', trigger: 'blur'},
-    {min: 6, max: 12, message: '长度必须介于1和16之间', trigger: ['blur', 'change']},
+    {required: true, message: '请再次输入密码', trigger: 'blur', type: 'error'},
+    {min: 6, max: 12, message: '长度必须介于1和16之间', trigger: ['blur', 'change'], type: 'error'},
     {validator: validateConfirmPassword, trigger: 'blur'},
   ],
 };
@@ -71,7 +79,7 @@ const rules_password = {
 // 个人信息更新规则
 const rules_account = {
   avatar: [
-      {required: true, message: '你的头像', trigger: 'blur'},
+    {required: true, message: '你的头像', trigger: 'blur'},
   ],
   username: [
     {required: true, message: '用户名,平台唯一标识,不能和其他人相同', trigger: 'blur'},
@@ -90,7 +98,12 @@ const rules_account = {
 };
 
 // 密码重置
-const password_reset = () => {
+const password_reset = (ctx: { validateResult: any, firstError?: string }) => {
+  if (ctx.validateResult !== true) {
+    MessagePlugin.warning(ctx.firstError || '表单校验不通过，请检查填写内容');
+    return;
+  }
+
   saving.value = true;
   let data = {
     account_id: account.value.account_id,
@@ -98,11 +111,11 @@ const password_reset = () => {
     password_new: md5(formData.password_new)
   }
   instance.put(apiUrls.update_password(), JSON.stringify(data)).then(() => {
-    message.success("密码设置成功,下次请用新密码登录!");
+    MessagePlugin.success("密码设置成功,下次请用新密码登录!");
     appStore.useAccountStore.logout();
     router.push({name: "login"});
   }).catch(((err: any) =>
-    message.error(err.response.data.detail)))
+      MessagePlugin.error(err.response.data.detail)))
       .finally(() => saving.value = false);
 }
 
@@ -120,10 +133,10 @@ const update_account = () => {
 
   instance.put(apiUrls.update_account(account.value.account_id), data)
       .then((r: IAccount) => {
-        message.success("更新成功");
-        account.value = r.data as IAccount;
-      }
-      ).finally(() => saving.value=false)
+            MessagePlugin.success("更新成功");
+            account.value = r.data as IAccount;
+          }
+      ).finally(() => saving.value = false)
 }
 
 // 上传的图片列表
@@ -141,92 +154,97 @@ const allow_beep = ref<boolean>(true);
 </script>
 
 <template>
-  <a-layout style="min-height: 100vh; text-align: center;">
-    <a-layout-header ref="headerRef" :style="{width: '100%',
+  <t-layout style="min-height: 100vh; text-align: center;">
+    <t-header ref="headerRef" :style="{width: '100%',
       'background-color': 'white'}">
-      <Header selected-keys="o"/>
-    </a-layout-header>
-    <a-layout-content style="padding-top: 8px">
-      <a-row justify="center">
-        <a-col :span="12">
+      <Header selected-keys="none"/>
+    </t-header>
+    <t-content style="padding-top: 8px">
+      <t-row justify="center">
+        <t-col :span="6">
           <c-scrollbar
               trigger="hover"
               class="content"
           >
-            <a-tabs v-model:activeKey="activeKey" tab-position="left" animated class="content">
-              <a-tab-pane key="1" tab="个人资料">
-                <a-typography-title :level="4">个人资料</a-typography-title>
-                <a-form :model="account" :rules="rules_account" ref="formRef1" @finish="update_account">
-                  <a-space direction="vertical">
-                    <a-form-item>
-                      <a-upload-dragger v-model:file-list="files" :action="apiUrls.upload_image_url()" :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
+            <t-tabs :default-value="activeKey" animated placement="left" size="large">
+              <t-tab-panel :value="1" label="个人资料">
+                <t-typography-title level="h4">个人资料</t-typography-title>
+                <t-form ref="formRef1" :data="account" :rules="rules_account" :colon="true" @submit="update_account">
+                  <t-space direction="vertical">
+                    <t-form-item>
+                      <a-upload-dragger v-model:file-list="files" :action="apiUrls.upload_image_url()"
+                                        :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
                                         :maxCount="1" @change="uploadChange">
-                        <a-avatar :src="account.avatar" :size="120"></a-avatar>
+                        <t-avatar :image="account.avatar" size="120px"></t-avatar>
                       </a-upload-dragger>
-                    </a-form-item>
-                    <a-form-item label="用户名" name="username">
-                      <a-input v-model:value="account.username" placeholder="平台唯一标识,不能和其他人相同"></a-input>
-                    </a-form-item>
-                    <a-form-item label="昵称" name="nick_name">
-                      <a-input v-model:value="account.nick_name" placeholder="用于对外显示的网名,可以和其他人同名"></a-input>
-                    </a-form-item>
-                    <a-form-item label="出生日期" name="gmt_birth">
-                      <a-date-picker v-model:value="account.gmt_birth" value-format="YYYY-MM-DD"></a-date-picker>
-                    </a-form-item>
-                    <a-form-item name="sex" label="性别">
-                      <a-select v-model:value="account.sex" :options='sexListOptions'/>
-                    </a-form-item>
-                    <a-form-item>
-                      <a-button type="primary" html-type="submit" style="width: 100%" :loading="saving">保存</a-button>
-                    </a-form-item>
-                  </a-space>
-                </a-form>
-              </a-tab-pane>
-              <a-tab-pane key="2" tab="账号安全">
-                <a-typography-title :level="4">账号安全</a-typography-title>
-                <a-form :model="formData" :rules="rules_password" ref="formRef" autocomplete="off" @finish="password_reset">
-                  <a-space direction="vertical">
-                    <a-form-item label="旧密码" name="password_current" hasFeedback>
-                      <a-input-password v-model:value="formData.password_current" placeholder="请输入当前密码">
-                        <template #prefix>
-                          <LockOutlined class="site-form-item-icon"/>
-                        </template>
-                      </a-input-password>
-                    </a-form-item>
-                    <a-form-item label="新密码" name="password_new" hasFeedback placeholder="请输入新密码">
-                      <a-input-password v-model:value="formData.password_new">
-                        <template #prefix>
-                          <LockOutlined class="site-form-item-icon"/>
-                        </template>
-                      </a-input-password>
-                    </a-form-item>
-                    <a-form-item label="确认密码" name="password_confirm" hasFeedback placeholder="请输入新密码">
-                      <a-input-password v-model:value="formData.password_confirm">
-                        <template #prefix>
-                          <LockOutlined class="site-form-item-icon"/>
-                        </template>
-                      </a-input-password>
-                    </a-form-item>
-                    <a-form-item>
-                      <a-button type="primary" html-type="submit" :loading="saving" style="width: 100%">保存</a-button>
-                    </a-form-item>
-                  </a-space>
-                </a-form>
-              </a-tab-pane>
-              <a-tab-pane key="3" tab="通用">
-                <a-typography-title :level="4">通用设置</a-typography-title>
-                <a-form >
-                  <a-form-item label="是否接收系统通知">
-                    <a-switch v-model:checked="allow_beep" >推送</a-switch>
-                  </a-form-item>
-                </a-form>
-              </a-tab-pane>
-            </a-tabs>
+                    </t-form-item>
+                    <t-form-item label="用户名" name="username">
+                      <t-input :value="account.username" placeholder="平台唯一标识,不能和其他人相同" disabled></t-input>
+                    </t-form-item>
+                    <t-form-item label="昵称" name="nick_name">
+                      <t-input v-model:value="account.nick_name"
+                               placeholder="用于对外显示的网名,可以和其他人同名"></t-input>
+                    </t-form-item>
+                    <t-form-item label="出生日期" name="gmt_birth">
+                      <t-date-picker v-model:value="account.gmt_birth" value-format="YYYY-MM-DD">
+                      </t-date-picker>
+                    </t-form-item>
+                    <t-form-item name="sex" label="性别">
+                      <t-select v-model:value="account.sex" :options='sexListOptions'/>
+                    </t-form-item>
+                    <t-form-item>
+                      <t-button theme="primary" type="submit" style="width: 100%" :disable="saving">保存</t-button>
+                    </t-form-item>
+                  </t-space>
+                </t-form>
+              </t-tab-panel>
+              <t-tab-panel :value="2" label="账号安全">
+                <a-space direction="vertical">
+                  <t-typography-title level="h4">账号安全</t-typography-title>
+                  <t-form ref="formRef" :data="formData" :rules="rules_password" @submit="password_reset">
+                    <t-space direction="vertical">
+                      <t-form-item label="旧密码" name="password_current">
+                        <t-input v-model:value="formData.password_current" placeholder="请输入当前密码" type="password">
+                          <template #prefix-icon>
+                            <lock-on-icon/>
+                          </template>
+                        </t-input>
+                      </t-form-item>
+                      <t-form-item label="新密码" name="password_new" placeholder="请输入新密码">
+                        <t-input v-model:value="formData.password_new" type="password">
+                          <template #prefix-icon>
+                            <lock-on-icon/>
+                          </template>
+                        </t-input>
+                      </t-form-item>
+                      <t-form-item label="确认密码" name="password_confirm" placeholder="请输入新密码">
+                        <t-input v-model:value="formData.password_confirm" type="password">
+                          <template #prefix-icon>
+                            <lock-on-icon/>
+                          </template>
+                        </t-input>
+                      </t-form-item>
+                      <t-form-item>
+                        <t-button theme="primary" type="submit" :disabled="saving">保存</t-button>
+                      </t-form-item>
+                    </t-space>
+                  </t-form>
+                </a-space>
+              </t-tab-panel>
+              <t-tab-panel :value="3" label="通用">
+                <t-typography-title :level="4">通用设置</t-typography-title>
+                <t-form>
+                  <t-form-item label="是否接收系统通知">
+                    <t-switch v-model:value="allow_beep">推送</t-switch>
+                  </t-form-item>
+                </t-form>
+              </t-tab-panel>
+            </t-tabs>
           </c-scrollbar>
-        </a-col>
-      </a-row>
-    </a-layout-content>
-  </a-layout>
+        </t-col>
+      </t-row>
+    </t-content>
+  </t-layout>
 </template>
 
 <style scoped>

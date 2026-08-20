@@ -1,21 +1,23 @@
-<!--这是推文组件,用于展示一条推文-->
+<!--这是推文组件,用于展示一条推文（tdesign-vue-next 重构版）-->
 <script setup lang="ts">
 import {h, onMounted, ref, computed} from 'vue';
+// ========== TDesign 图标替换 antd icons ==========
 import {
-  HeartOutlined,
-  ShareAltOutlined,
-  MessageOutlined,
-  LinkOutlined,
-  WeiboOutlined,
-  EllipsisOutlined,
-  DeleteOutlined,
-  StopOutlined, SmileOutlined
-} from "@ant-design/icons-vue";
+  HeartIcon,
+  ShareIcon,
+  ChatBubbleIcon,
+  LinkIcon,
+  LogoTwitterIcon,
+  MoreIcon,
+  DeleteIcon,
+  StopCircleIcon,
+  SmileIcon
+} from 'tdesign-icons-vue-next';
 import dayjs from 'dayjs';
-import {type MenuProps, message} from "ant-design-vue";
+// TDesign 全局提示、弹窗确认
+import {MessagePlugin, DialogPlugin} from 'tdesign-vue-next';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {ShareNetwork} from 'vue-social-sharing'
-
 
 dayjs.extend(relativeTime);
 import type {IAccount, IComment, IPost} from "@/interface";
@@ -25,81 +27,56 @@ import appStore from "../stores";
 import NineImageGrid from "@/components/NineImageGrid.vue";
 import TextCollapse from "@/components/TextCollapse.vue";
 import {apiUrls} from "@/services/api.ts";
+import {useCacheStore} from "@/stores/app.ts";
+import {storeToRefs} from "pinia";
+import FacePicker from "@/components/FacePicker.vue";
 
 const props = defineProps<{
   post: IPost;
 }>();
 
+const cacheStore = useCacheStore();
+const {account_map} = storeToRefs(cacheStore)
+const account = computed(() => {
+  return account_map.value[props.post.account_id] ?? {};
+})
+const follow = computed(() => {
+  return account_map.value[props.post.account_id]?.follow ?? {};
+})
+
+const account_id = appStore.useAccountStore.account.account_id;
+const select_item = ref<string>('');
+const like = ref();
+const comments = ref<IComment[]>([]);
+const submitting = ref<boolean>(false);
+const comment_data = ref<string>('');
+const user_map = ref<Record<string, IAccount>>({});
 
 const handleFollow = () => cacheStore.toggleFollow(account_id, props.post.account_id);
 
-//
-// const handleFollow = () => {
-//
-//   if (!follow.value?.is_following) {
-//     // 处理加关注逻辑
-//     let data = {
-//       follower_id: account_id,
-//       followee_id: props.post.account_id
-//     };
-//     instance.post(apiUrls.post_follow(), JSON.stringify(data)).then(() => {
-//       message.success('关注成功');
-//       follow.value.is_following = !follow.value.is_following;
-//     });
-//   } else {
-//     //   取消点赞
-//     instance.delete(apiUrls.delete_follow(account_id, props.post.account_id)).then(() => {
-//       message.success('取消关注成功');
-//       follow.value.is_following = !follow.value.is_following;
-//     });
-//
-//   }
-// };
-
 const handleLike = (post_id: string) => {
   if (!like?.value.is_liked) {
-    // 处理点赞逻辑
     let data = {
       obj_id: post_id,
       obj_type: 1,
       account_id: account_id
     }
-
     instance.post(apiUrls.post_likes(), {...data}).then(() => {
-      message.success("点赞成功");
+      MessagePlugin.success("点赞成功");
       like.value.count += 1;
       like.value.is_liked = !like.value.is_liked;
     });
   } else {
     instance.delete(apiUrls.delete_likes(props.post.post_id)).then(() => {
-      message.success("取消点赞成功");
+      MessagePlugin.success("取消点赞成功");
       like.value.count -= 1;
       like.value.is_liked = !like.value.is_liked;
     })
   }
 };
 
-
 const handleShare = () => {
 }
-
-const comments = ref<IComment[]>([]);
-const submitting = ref<boolean>(false);
-const comment_data = ref<string>('');
-const account_id = appStore.useAccountStore.account.account_id;
-const select_item = ref<string>('');
-// const account = ref<IAccount>();
-const like = ref();
-
-
-//const follow = ref();
-
-onMounted(async () => {
-  // 获取帖子和该账户粉丝等信息
-  await appStore.useCacheStore.fetch_account(props.post.account_id);
-  // 查询点赞数
-  instance.get(apiUrls.get_likes(props.post.post_id)).then((r: any) => like.value = r.data);
-})
 
 // 提交评论
 const handleSubmit = () => {
@@ -113,9 +90,8 @@ const handleSubmit = () => {
     obj_type: 1,
     account_id: account_id
   }
-  // 提交成功后清空输入框
   instance.post(apiUrls.post_comments(), {...data}).then((r: any) => {
-    message.success("评论成功!");
+    MessagePlugin.success("评论成功!");
     comment_data.value = '';
     let els = comments.value.concat(r.data);
     let map = new Map();
@@ -125,10 +101,9 @@ const handleSubmit = () => {
   }).finally(() => submitting.value = false);
 }
 
-// 当点击评论按钮时
+// 加载评论
 const handleComment = async () => {
   select_item.value = select_item.value === 'c' ? '' : 'c';
-  // 1.加载评论
   await instance.get(apiUrls.get_comments(props.post.post_id)).then(async (r: any) => {
     let items = comments.value.concat(r.data.items);
     let map = new Map();
@@ -136,10 +111,7 @@ const handleComment = async () => {
     comments.value = Array.from(map.values());
     comments.value = comments.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
 
-    // 2. 提取所有不重复的 account_id
     const accountIds = Array.from(new Set(comments.value.map(a => a.account_id)));
-
-    // 3. 批量获取用户信息
     await Promise.all(accountIds.map(async id => {
       if (user_map.value[id]) return;
       instance.get(apiUrls.get_account(id)).then((r: IAccount) => user_map.value[id] = r.data);
@@ -147,45 +119,41 @@ const handleComment = async () => {
   });
 }
 
-// 组合式 API 中的复制函数
+// 复制链接
 const copyLink = async (url: string) => {
   try {
     await navigator.clipboard.writeText(url);
-    message.success('链接已复制到剪贴板'); // 使用 ant-design-vue 的 message
+    MessagePlugin.success('链接已复制到剪贴板');
   } catch {
-    // 降级方案（兼容 Safari 等旧浏览器）
     const input = document.createElement('input');
     input.value = url;
     document.body.appendChild(input);
     input.select();
     document.execCommand('copy');
     document.body.removeChild(input);
-    message.success('链接已复制（兼容模式）');
+    MessagePlugin.success('链接已复制（兼容模式）');
   }
 };
 
-import {Modal} from 'ant-design-vue';
-import {useCacheStore} from "@/stores/app.ts";
-
-const handleClick: MenuProps['onClick'] = e => {
-  switch (e.key) {
+// 下拉菜单点击事件
+const handleDropdownClick = (value: string) => {
+  switch (value) {
     case '0':
-      //删除帖子
-      Modal.confirm({
-        title: '你确定要执行这个操作吗？',
-        content: '删除此帖子后,不可恢复!',
-        okText: '确定',
-        cancelText: '取消',
-        onOk() {
+      // 删除帖子 confirm
+      DialogPlugin.confirm({
+        header: '你确定要执行这个操作吗？',
+        body: '删除此帖子后,不可恢复!',
+        confirmBtn: '确定',
+        cancelBtn: '取消',
+        onConfirm: () => {
           instance.delete(apiUrls.delete_posts(props.post.post_id))
               .then(() => {
-                message.success(`删除成功`);
+                MessagePlugin.success(`删除成功`);
                 appStore.usePostStore.delete_post(props.post.post_id);
               })
-              .catch((e: any) => message.error(`删除失败${e}`))
-          // 这里写确认后要执行的逻辑
+              .catch((e: any) => MessagePlugin.error(`删除失败${e}`))
         },
-        onCancel() {
+        onClose: () => {
           console.log('用户取消了');
         }
       });
@@ -194,10 +162,7 @@ const handleClick: MenuProps['onClick'] = e => {
       const to = 'a@qq.com';
       const subject = '建议反馈';
       const body = '你好，我有以下建议：';
-
       const href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
-      // 关键：打开后立刻关闭空白页
       const tab = window.open(href, '_blank');
       break;
     default:
@@ -205,204 +170,215 @@ const handleClick: MenuProps['onClick'] = e => {
   }
 };
 
-import {storeToRefs} from "pinia";
-import FacePicker from "@/components/FacePicker.vue";
-
-const user_map = ref<Record<string, IAccount>>({});
-const cacheStore = useCacheStore();
-// 关键：用 storeToRefs 保持响应式
-const {account_map} = storeToRefs(cacheStore)
-const account = computed(() => {
-  return account_map.value[props.post.account_id] ?? {};
-})
-const follow = computed(() => {
-  return account_map.value[props.post.account_id]?.follow ?? {};
-})
-
 const onSelectFace = () => {
-
 }
+
+onMounted(async () => {
+  await appStore.useCacheStore.fetch_account(props.post.account_id);
+  instance.get(apiUrls.get_likes(props.post.post_id)).then((r: any) => like.value = r.data);
+})
+
+// 构造下拉菜单选项
+const dropdownOptions = computed(() => {
+  const opts: Array<{ value: string; content: any; icon?: any }> = [];
+  if (account_id === post.account_id) {
+    opts.push({
+      value: '0',
+      content: '删除此帖子',
+      icon: h(DeleteIcon)
+    })
+  }
+  if (account_id !== post.account_id) {
+    opts.push({
+      value: '1',
+      content: '举报',
+      icon: h(StopCircleIcon)
+    })
+  }
+  return opts;
+})
 </script>
 
 <template>
-  <t-watermark :watermark-content="post.right_status === 0 ? '仅你自己可见' : ''"
-               style="background-color: white; margin-bottom: 4px">
-    <a-card style="text-align: left" size="small">
-      <template #extra>
-        <a-dropdown>
-          <template #overlay>
-            <a-menu @click="handleClick">
-              <a-menu-item key="0" v-if="account_id === post.account_id">
-                <DeleteOutlined/>
-                删除此帖子
-              </a-menu-item>
-              <!--            <a-menu-divider v-if="account_id === post.account_id"/>-->
-              <a-menu-item key="1" v-if="account_id !== post.account_id">
-                <StopOutlined/>
-                举报
-              </a-menu-item>
-            </a-menu>
-          </template>
-          <EllipsisOutlined/>
-        </a-dropdown>
+  <t-watermark
+      :watermark-content="post.right_status === 0 ? '仅你自己可见' : ''"
+      style="margin-bottom: 4px"
+  >
+    <t-card size="small" style="text-align: left">
+      <!-- 卡片右上角下拉更多 -->
+      <template #actions>
+        <t-dropdown
+            :options="dropdownOptions"
+            @click="handleDropdownClick"
+            trigger="click"
+        >
+          <t-button variant="text" :icon="h(MoreIcon)"/>
+        </t-dropdown>
       </template>
-      <!-- 第一段：用户信息 -->
-      <template #title>
+
+      <!-- 用户头部信息 -->
+      <template #header>
         <div style="display: flex; align-items: center; margin-bottom: 2px;">
-          <!-- 用户头像 -->
-          <a-popover>
+          <!-- Popover 气泡卡片 -->
+          <t-popup trigger="hover" show-arrow placement="bottom-left">
             <template #content>
               <t-space direction="vertical" style="width: 300px">
-                <t-avatar :src="account?.avatar" :size="64"/>
+                <t-avatar :src="account?.avatar" size="large"/>
                 <t-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</t-typography-text>
                 <t-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
                   {{ follow.follower_count }}
                 </t-typography-text>
                 <t-divider/>
-                <a-flex justify="space-between">
-                  <t-button v-if="account_id !== post.account_id" theme="primary"
-                            @click="handleFollow" :danger="follow?.is_following">
+                <t-space justify="space-between" style="width:100%">
+                  <t-button
+                      v-if="account_id !== post.account_id"
+                      theme="primary"
+                      :danger="follow?.is_following"
+                      @click="handleFollow"
+                  >
                     {{ follow?.is_following ? '取消关注' : '加关注' }}
                   </t-button>
                   <router-link :to="{ name: 'user', params: { username: post.account_id } }">
-                    <a-button type="primary">个人资料</a-button>
+                    <t-button theme="primary">个人资料</t-button>
                   </router-link>
-                </a-flex>
+                </t-space>
               </t-space>
             </template>
             <router-link :to="{ name: 'user', params: { username: post.account_id } }">
-              <a-avatar :src="account?.avatar" size="large"/>
+              <t-avatar :src="account?.avatar" size="large"/>
             </router-link>
-          </a-popover>
+          </t-popup>
 
-          <!-- 用户信息 -->
           <div style="margin-left: 12px;">
             <t-typography-text style="margin: 0;"><b>{{ account?.nick_name || post.account_id }}</b></t-typography-text>
             <br/>
             <span style="color: #888;">发布于{{ timestampFormat(post.gmt_created) }}</span>
           </div>
 
-          <!-- 加关注按钮 -->
-          <t-button v-if="post.account_id !== account_id" theme="primary"
-                    style="margin-left: auto;" @click="handleFollow" :danger="follow?.is_following">
+          <t-button
+              v-if="post.account_id !== account_id"
+              theme="primary"
+              style="margin-left: auto;"
+              @click="handleFollow"
+              :danger="follow?.is_following"
+          >
             {{ follow?.is_following ? '取消关注' : '加关注' }}
           </t-button>
         </div>
       </template>
-      <!-- 第二段：博客内容 -->
+
+      <!-- 推文正文内容 -->
       <div style="margin-bottom: 16px; background-color: white;">
         <t-space direction="vertical" :size="6" style="width: 100%;">
-          <!--          文本描述内容-->
-
-          <!--                <div v-html="post.content.text"  class="rich-text-content" ></div>-->
           <TextCollapse>
             <div v-html="formatMessageToHtml(post.content.text)"></div>
           </TextCollapse>
-          <!--        <Editor-->
-          <!--            v-model="post.content.text"-->
-          <!--            mode="readOnly"-->
-          <!--        />-->
-
-          <!--          图片展示 -->
-          <NineImageGrid :image-list="props.post.content.images" :single-max-width="160" :two-col-max-width="200"
-                         :three-col-max-width="360"/>
-
-
+          <NineImageGrid
+              :image-list="props.post.content.images"
+              :single-max-width="160"
+              :two-col-max-width="200"
+              :three-col-max-width="360"
+          />
         </t-space>
       </div>
-      <template #actions>
-        <!-- 第三段：操作按钮 -->
-        <!-- 分享按钮 -->
-        <a-popover title="分享给好友" trigger="click">
-          <template #content>
-            <t-qrcode :value="`${apiUrls.share_post_link(post?.post_id)}`" level="H"
-                      type="svg" style="margin: 0 auto;"/>
-            <t-space>
-              <t-button theme="primary" @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`)"
-              >
-                <template #icon>
-                  <LinkOutlined/>
-                </template>
-                复制链接
-              </t-button>
-              <t-button theme="primary">
-                <template #icon>
-                  <WeiboOutlined/>
-                </template>
-                <ShareNetwork
-                    network="Weibo"
-                    :url="`${apiUrls.share_post_link(post?.post_id)}`"
-                    :title="`来自${account?.nick_name}的分享`"
-                    :description="$props.post.content.text"
-                    quote="-"
-                    hashtags="-"
-                >
-                  微博
-                </ShareNetwork>
-              </t-button>
 
-            </t-space>
-          </template>
-          <t-button :icon="h(ShareAltOutlined)" variant="text" @click="handleShare">分享</t-button>
-        </a-popover>
-        <!-- 评论按钮 -->
-        <t-button :icon="h(MessageOutlined)" :variant="select_item === 'c' ? 'primary' : 'text'" @click="handleComment">
-          评论
-        </t-button>
-        <!-- 赞按钮 -->
-        <t-button :icon="h(HeartOutlined)" variant="text" @click="handleLike(post.post_id)">赞({{
-            like?.count
-          }})
-        </t-button>
+      <!-- 底部操作栏：分享 / 评论 / 点赞 -->
+      <template #footer>
+        <t-row :align="'middle'" justify="center" style="gap: 24px">
+          <t-col flex="auto" style="display: inline-flex; justify-content: center">
+            <t-popup show-arrow>
+              <template #content>
+                <div style="text-align:center;padding:8px">
+                  <t-qrcode
+                      :value="`${apiUrls.share_post_link(post?.post_id)}`"
+                      level="H"
+                      type="svg"
+                      style="margin: 0 auto;"
+                  />
+                  <t-space style="margin-top:12px">
+                    <t-button theme="primary" @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`)">
+                      <template #icon>
+                        <LinkIcon/>
+                      </template>
+                      复制链接
+                    </t-button>
+                    <t-button theme="primary">
+                      <template #icon>
+                        <LogoTwitterIcon/>
+                      </template>
+                      <ShareNetwork
+                          network="Weibo"
+                          :url="`${apiUrls.share_post_link(post?.post_id)}`"
+                          :title="`来自${account?.nick_name}的分享`"
+                          :description="post.content.text"
+                          quote="-"
+                          hashtags="-"
+                      >
+                        微博
+                      </ShareNetwork>
+                    </t-button>
+                  </t-space>
+                </div>
+              </template>
+              <t-button :icon="h(ShareIcon)" variant="text" @click="handleShare">分享</t-button>
+            </t-popup>
+          </t-col>
+          <t-col flex="auto" style="display: inline-flex; justify-content: center">
+            <t-button
+                :icon="h(ChatBubbleIcon)"
+                :variant="select_item === 'c' ? 'base' : 'text'"
+                @click="handleComment"
+            >
+              评论
+            </t-button>
+          </t-col>
+          <t-col flex="auto" style="display: inline-flex; justify-content: center">
+            <t-button :icon="h(HeartIcon)" variant="text" @click="handleLike(post.post_id)">
+              赞({{ like?.count }})
+            </t-button>
+          </t-col>
+        </t-row>
       </template>
-    </a-card>
-    <!--      评论框-->
-    <a-comment v-if="select_item === 'c'" style="text-align: start">
+    </t-card>
+
+    <!-- 评论输入区域 -->
+    <t-comment v-if="select_item === 'c'" style="text-align: start;background-color: white">
       <template #avatar>
-        <a-avatar :src="appStore.useAccountStore.account?.avatar" alt="..."/>
+        <t-avatar :src="appStore.useAccountStore.account?.avatar" alt="avatar"/>
       </template>
       <template #content>
-        <a-form-item>
-          <a-textarea v-model:value="comment_data" :rows="4"/>
-        </a-form-item>
-        <a-form-item>
-          <a-flex justify="space-between">
-            <a-popover>
-              <template #content>
-                <FacePicker @select="onSelectFace"/>
-              </template>
-              <a-tooltip title="表情包">
-                <a-button type="text" size="large">
-                  <template #icon>
-                    <SmileOutlined/>
-                  </template>
-                </a-button>
-              </a-tooltip>
-            </a-popover>
-            <a-button html-type="submit" :loading="submitting" type="primary" @click="handleSubmit">
-              提交评论
-            </a-button>
-          </a-flex>
-        </a-form-item>
+        <t-textarea v-model="comment_data" :rows="4"/>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;align-items:center">
+          <t-popup trigger="click" show-arrow>
+            <template #content>
+              <FacePicker @select="onSelectFace"/>
+            </template>
+            <t-tooltip content="表情包">
+              <t-button variant="text" size="large" :icon="h(SmileIcon)"/>
+            </t-tooltip>
+          </t-popup>
+          <t-button theme="primary" :loading="submitting" @click="handleSubmit">
+            提交评论
+          </t-button>
+        </div>
       </template>
-    </a-comment>
-    <a-list
+    </t-comment>
+
+    <!-- 评论列表 -->
+    <t-list
         v-if="select_item === 'c'"
-        :data-source="comments"
+        :data="comments"
         :header="`${comments.length} 条评论`"
-        item-layout="horizontal"
     >
-      <template #renderItem="{ item }">
-        <a-list-item style="text-align: start">
-          <a-comment
+        <t-list-item style="text-align: start" v-for="item in comments">
+          <t-comment
               :author="user_map[item.account_id]?.nick_name"
               :avatar="user_map[item.account_id]?.avatar"
               :content="item.content"
               :datetime="timestampFormat(item.gmt_created)"
           />
-        </a-list-item>
-      </template>
-    </a-list>
+        </t-list-item>
+    </t-list>
   </t-watermark>
 </template>
 

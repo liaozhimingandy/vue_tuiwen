@@ -1,29 +1,12 @@
 <script setup lang="ts">
-import {ref, unref} from 'vue';
+import {computed, ref, unref} from 'vue';
 import instance from '@/services'
 import {apiUrls} from "@/services/api.ts";
-import {message} from "ant-design-vue";
 import router from "@/router";
 import {md5} from "js-md5";
+import type {FormProps, AutoCompleteProps} from 'tdesign-vue-next';
+import {MessagePlugin} from 'tdesign-vue-next'
 
-// 步骤配置
-const steps = [
-  {
-    key: 0,
-    title: '发送验证码',
-    description: '填写注册时留的联系方式',
-  },
-  {
-    key: 1,
-    title: '验证码',
-    description: '填写你收到的验证码',
-  },
-  {
-    key: 2,
-    title: '完成',
-    description: '重置密码成功',
-  },
-];
 const current = ref<number>(0);
 
 // 表单实例与数据
@@ -45,7 +28,12 @@ const resetting = ref(false)
 /**
  * 发送验证码
  */
-const handleSendCode = async () => {
+const handleSendCode: FormProps['onSubmit'] = async ({validateResult, firstError}) => {
+  if (!(validateResult === true)) {
+    await MessagePlugin.warning(firstError || '');
+    return;
+  }
+
   const form = unref(formData1);
   if (!form.email) return
 
@@ -56,12 +44,12 @@ const handleSendCode = async () => {
     "scene": "reset_pwd",
   };
   try {
-    const res = await instance.post(apiUrls.send_code(), {...data})
-    message.success(res.data.message)
+    const res = await instance.post(apiUrls.send_code(), data)
+    await MessagePlugin.success(res.data.message)
     current.value = 1
   } catch (err: any) {
     const msg = err?.response?.data?.detail || '发送验证码失败'
-    message.error(msg)
+    await MessagePlugin.error(msg)
   } finally {
     sending.value = false
   }
@@ -70,7 +58,11 @@ const handleSendCode = async () => {
 /**
  * 重置密码
  */
-const handleResetPassword = async () => {
+const handleResetPassword: FormProps['onSubmit'] = async ({validateResult, firstError}) => {
+  if (!(validateResult === true)) {
+    await MessagePlugin.warning(firstError || '');
+    return;
+  }
   const {email} = unref(formData1);
   const {code, password} = unref(formData2);
   if (!email || !code || !password) return;
@@ -83,11 +75,12 @@ const handleResetPassword = async () => {
     }
 
     const res = await instance.put(apiUrls.reset_password(), params)
-    message.success(res.data.message)
+    await MessagePlugin.success(res.data.message)
+    goLogin()
     current.value = 2
   } catch (err: any) {
     const msg = err?.response?.data?.detail || '重置密码失败'
-    message.error(msg)
+    await MessagePlugin.error(msg)
   } finally {
     resetting.value = false
   }
@@ -99,134 +92,108 @@ const handleResetPassword = async () => {
 const goLogin = () => {
   router.push({name: 'login'})
 }
+
+/**
+ * 邮箱自动填入
+ */
+const emailSuffix = ['@qq.com', '@163.com', '@gmail.com'];
+const emailOptions = computed<AutoCompleteProps['options']>(() => {
+  const emailPrefix = formData1.value.email.split('@')[0];
+  if (!emailPrefix) return [];
+  return emailSuffix.map((suffix) => emailPrefix + suffix);
+});
 </script>
 
 <template>
-  <a-layout style="min-height: 100vh">
-    <a-layout-content style="padding: 32px 16px; background: #fff">
-      <a-page-header
-          style="border: 1px solid rgb(235, 237, 240)"
-          title="重置密码"
-          sub-title="收取验证码"
-          @back="goLogin"
-      />
-
-      <a-row justify="center">
-        <a-col :md="{ span: 12, offset: 6 }" :xs="24">
-          <a-steps :items="steps" :current="current" style="width: 100%"/>
-        </a-col>
-      </a-row>
-      <a-row justify="center" style="margin-top: 30px">
-        <a-col :xs="24" :sm="24" :md="14" :lg="14" :xl="12">
-          <!-- 步骤1：发送验证码 -->
-          <a-card v-if="current === 0" :hoverable="true" style="min-width: 100%">
-            <a-form
+  <t-layout style="min-height: 100vh; background-color: white;">
+    <t-content>
+      <t-row justify="center">
+        <t-col :span="6">
+          <t-space direction="vertical" style="width: 100%">
+            <t-typography-title>密码重置</t-typography-title>
+            <t-divider></t-divider>
+            <t-steps layout="horizontal" :current="current" status="process">
+              <t-step-item title="步骤1" content="填写邮箱">
+                <template v-if="current === 0" #extra>
+                  <t-button size="small" variant="base" @click="current++"> 下一步</t-button>
+                </template>
+              </t-step-item>
+              <t-step-item title="步骤2" content="填写密码和验证码">
+                <template v-if="current === 1" #extra>
+                  <t-button size="small" @click="current--"> 上一步</t-button>
+                </template>
+              </t-step-item>
+            </t-steps>
+            <t-form
                 ref="formRef1"
-                :model="formData1"
-                @finish="handleSendCode"
-                layout="vertical"
+                :data="formData1"
+                @submit="handleSendCode"
+                v-show="current === 0"
+                style="margin-top: 20px;"
             >
-              <a-form-item
+              <t-form-item
                   label="电子邮箱"
                   name="email"
-                  :rules="[
-              { required: true, message: '请输入电子邮箱', trigger: 'blur' },
-              { type: 'email', message: '请输入有效的邮箱', trigger: ['blur', 'change'] },
-            ]"
-                  has-feedback
+                  :rules="[{required: true, message: '请输入电子邮箱', trigger: 'blur' },{email: {ignore_max_length: true,}}]"
               >
-                <a-input
+                <t-auto-complete
                     v-model:value="formData1.email"
                     placeholder="注册时填写的电子邮箱"
-                    maxlength="32"
-                    show-count
+                    :options="emailOptions"
                 />
-              </a-form-item>
-
-              <a-form-item>
-                <a-button
-                    type="primary"
-                    html-type="submit"
-                    :loading="sending"
-                    block
-                >
-                  发送验证码
-                </a-button>
-              </a-form-item>
-            </a-form>
-          </a-card>
-
-          <!-- 步骤2：输入验证码 + 新密码 -->
-          <a-card v-else-if="current === 1" :hoverable="true" style="width: 500px">
-            <a-form
+              </t-form-item>
+              <t-form-item>
+                <t-button type="submit" :disabled="sending" block>发送验证码</t-button>
+              </t-form-item>
+            </t-form>
+            <!-- 步骤2：输入验证码 + 新密码 -->
+            <t-form
                 ref="formRef2"
-                :model="formData2"
-                @finish="handleResetPassword"
+                :data="formData2"
+                @submit="handleResetPassword"
                 layout="vertical"
+                v-show="current === 1"
             >
-              <a-form-item
+              <t-form-item
                   label="新密码"
                   name="password"
-                  :rules="[
-              { required: true, message: '请输入新密码', trigger: 'blur' },
-              { min: 6, max: 16, message: '长度 6~16 位', trigger: ['blur', 'change'] },
-            ]"
-                  has-feedback
-              >
-                <a-input-password
+                  :rules="[{ required: true, message: '请输入新密码', trigger: 'blur' },]">
+                <t-input
                     v-model:value="formData2.password"
                     placeholder="请输入新密码"
-                    maxlength="16"
-                    show-count
+                    type="password"
+                    maxlength="10"
+                    show-limit-number
                 />
-              </a-form-item>
-              <a-form-item
+              </t-form-item>
+              <t-form-item
                   label="验证码"
                   name="code"
                   :rules="[
               { required: true, message: '请输入验证码', trigger: 'blur' },
-              { pattern: /^\d{6}$/, message: '验证码为6位数字', trigger: ['blur', 'change'] },
-            ]"
-                  has-feedback
-              >
-                <a-input
+              {
+      validator: (val: string) => /^\d{6}$/.test(val),
+      message: '验证码必须为6位纯数字',
+      trigger: ['blur', 'change']
+    },
+    ]">
+                <t-input
                     v-model:value="formData2.code"
                     placeholder="请输入6位数字验证码"
+                    show-limit-number
                     maxlength="6"
-                    show-count
                 />
-              </a-form-item>
+              </t-form-item>
+              <t-form-item>
+                <t-button type="submit" :disabled="resetting" block>重置密码</t-button>
+              </t-form-item>
+            </t-form>
+          </t-space>
+        </t-col>
+      </t-row>
+    </t-content>
+  </t-layout>
 
-              <a-form-item>
-                <a-button
-                    type="primary"
-                    html-type="submit"
-                    :loading="resetting"
-                    block
-                >
-                  重置密码
-                </a-button>
-              </a-form-item>
-            </a-form>
-          </a-card>
-
-          <!-- 步骤3：成功 -->
-          <a-result
-              v-else-if="current === 2"
-              status="success"
-              title="密码重置成功"
-              sub-title="请前往登录页登录"
-          >
-            <template #extra>
-              <a-button type="primary" @click="goLogin">
-                前往登录
-              </a-button>
-            </template>
-          </a-result>
-        </a-col>
-      </a-row>
-    </a-layout-content>
-  </a-layout>
 </template>
 
 <style scoped>
