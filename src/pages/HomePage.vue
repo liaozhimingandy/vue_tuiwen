@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import {ref, onMounted, onBeforeUnmount, h, reactive} from 'vue';
-import instance from '@/services/';
+import {ref, onMounted, onBeforeUnmount} from 'vue';
 import {storeToRefs} from "pinia";
+import {debounce} from "lodash";
+import {useRouter} from "vue-router";
+import type {MenuProps} from 'tdesign-vue-next';
+import {MessagePlugin} from "tdesign-vue-next";
 import {CScrollbar} from 'c-scrollbar'; // 滚动条
-import {SettingFilled, UserOutlined, CommentOutlined} from "@ant-design/icons-vue";
 
+import instance from '@/services/';
 import NewPost from "@/components/NewPost.vue";
 import type {IPost} from "@/interface";
 import Post from "@/components/Post.vue";
-import {debounce} from "lodash";
 import Header from '../components/Header.vue';
 import appStore from "@/stores";
 import {apiUrls, update_self_account, get_posts} from "@/services/api.ts";
-import {type ItemType, type MenuProps, message} from "ant-design-vue";
-import {useRouter} from "vue-router";
 
 const isMobile = ref<boolean>(true);
 const headerRef = ref<any>(null);
@@ -21,7 +21,6 @@ const postContent = ref<any>(null);
 const contentHeight = ref<number | undefined>(undefined);
 const showBackTop = ref<boolean>(false); // 控制返回顶部按钮的显示与隐藏
 const {posts} = storeToRefs(appStore.usePostStore);// 推文列表
-const count = ref(0);
 
 // 判断屏幕宽度是否小于等于768px（平板及以下）
 const checkDeviceSize = () => {
@@ -53,14 +52,11 @@ const scrollToTop = () => {
 // 获取最新数据
 const get_past_latest = async () => {
   instance.get(apiUrls.get_posts_latest()).then((r: any) => {
-    appStore.usePostStore.addPosts(r.c as IPost[]);
+    appStore.usePostStore.addPosts(r.data.items as IPost[]);
     is_show_success.value = true;
-    count.value = r.data.items.length;
     //   3s后自动隐藏
-    setTimeout(() => {
-      is_show_success.value = false
-    }, 3000);
-  }).catch((e: any) => message.error(`拉取数据失败:${e}`));
+    MessagePlugin.success(`成功更新${r.data.items.length}条数据`);
+  }).catch((e: any) => MessagePlugin.error(`拉取数据失败:${e}`));
 }
 
 //获取推文信息
@@ -68,19 +64,15 @@ const get_post = async () => {
   let post = posts.value.at(-1);
   let r = await get_posts(10, post?.post_id ?? null);
   if (r.data.total == 0) {
-    message.info("没有数据可以拉取了")
+    await MessagePlugin.info("没有数据可以拉取了")
     return;
   }
   appStore.usePostStore.addPosts(r.data.items as IPost[]);
   is_show_success.value = true;
-  count.value = r.data.items.length;
   //   3s后自动隐藏
-  setTimeout(() => {
-    is_show_success.value = false
-  }, 3000);
+  await MessagePlugin.success(`成功更新${r.data.items.length}条数据`);
   // }).catch((e: any) => message.error(`拉取数据失败:${e}`));
 }
-const recommendations = ref<Array<Map<string, string>>>([]);
 
 onMounted(async () => {
 
@@ -146,32 +138,10 @@ const handlePageVisible = () => {
 // ====================================
 
 
-//=====================================
-function getItem(
-    label: string,
-    key: string,
-    icon?: any,
-    children?: ItemType[],
-    type?: 'group',
-): ItemType {
-  return {
-    key,
-    icon,
-    children,
-    label,
-    type,
-  } as ItemType;
-}
-
-const items: ItemType[] = reactive([
-  getItem('用户中心', 'user', () => h(UserOutlined),),
-  {type: 'divider'},
-  getItem('设置', 'settings', () => h(SettingFilled),)
-])
 const router = useRouter();
-const handleClick: MenuProps['onClick'] = e => {
-  //console.log('click', e.key);
-  switch (e.key) {
+
+const changeHandler: MenuProps['onChange'] = (active) => {
+  switch (active) {
     case 'user':
       router.push({
         name: 'user',
@@ -180,15 +150,16 @@ const handleClick: MenuProps['onClick'] = e => {
         }
       });
       break;
-    case 'settings':
+    case 'setting':
       router.push({name: 'settings'});
       break;
 
     default:
       break
-
   }
-};
+  ;
+}
+
 </script>
 
 <template>
@@ -198,97 +169,78 @@ const handleClick: MenuProps['onClick'] = e => {
       <Header selected-keys="home"/>
     </t-header>
     <t-content style="padding-top: 8px">
-      <a-row style="background-color: #E9EBEE">
+      <t-row style="background-color: #E9EBEE">
         <!-- 功能列表 (第一列) -->
-        <a-col :md="5" v-if="!isMobile">
+        <t-col :md="3" v-if="!isMobile">
           <c-scrollbar
               trigger="hover"
           >
             <!-- 功能列表内容 -->
-            <a-space direction="vertical" style="width: 100%;">
-              <a-menu :items="items" @click="handleClick" mode="inline" style="text-align: left;"/>
-              <a-typography-text style="text-align: center">{{ new Date().getFullYear() }}
-                <a-button type="text" disabled>内侧中</a-button>
-                <a-button href="https://www.alsoapp.com/privacy/" target="_blank" type="text">隐私政策</a-button>
-              </a-typography-text>
-            </a-space>
+            <t-space direction="vertical" style="width: 100%;">
+              <t-menu default-value="none" @change="changeHandler">
+                <t-menu-item value="user">
+                  <template #icon>
+                    <t-icon name="user-circle"/>
+                  </template>
+                  用户中心
+                </t-menu-item>
+                <t-menu-item value="setting">
+                  <template #icon>
+                    <t-icon name="setting"/>
+                  </template>
+                  设置
+                </t-menu-item>
+              </t-menu>
+              <t-typography-text style="text-align: center">{{ new Date().getFullYear() }}
+                <t-button variant="text" disabled>内侧中</t-button>
+                <t-button href="https://www.alsoapp.com/privacy/" target="_blank" variant="text">隐私政策</t-button>
+              </t-typography-text>
+            </t-space>
           </c-scrollbar>
-        </a-col>
+        </t-col>
 
         <!-- 博客列表 (第二列) -->
-        <a-col :md="12" :xs="24" :sm="24" :offset="isMobile ? 0 : 1">
-          <a-alert :message="`成功更新${count}条数据`" type="success" v-if="is_show_success" show-icon closable/>
+        <t-col :md="5" :xs="12" :sm="12" :offset="isMobile ? 0 : 1">
           <c-scrollbar
               trigger="hover"
               class="content"
               @scroll="handleScroll"
               ref="postContent"
           >
-            <a-col :md="isMobile? 22 : 20">
+            <t-col :md="11">
               <!--            发布推文输入框 -->
-
               <NewPost/>
-
               <!-- 博客列表内容 -->
-              <a-card v-if="posts.length < 1">
-                <a-empty/>
-              </a-card>
+              <t-card v-if="posts.length < 1">
+                <t-empty/>
+              </t-card>
               <Post v-for="post in posts" style="padding-top: 2px" :post="post"/>
-              <!--                <a-list-->
-              <!--                  item-layout="horizontal"-->
-              <!--                  :data-source="posts"-->
-              <!--                  render-item="item">-->
-              <!--                <a-list-item v-for="post in posts" :key="post.post_id">-->
-              <!--                </a-list-item>-->
-              <!--              </a-list>-->
-            </a-col>
+            </t-col>
           </c-scrollbar>
-        </a-col>
+        </t-col>
 
         <!-- 推荐内容 (第三列) -->
-        <a-col :md="5" offset="1" v-if="!isMobile" style="padding-right: 16px;">
+        <t-col :md="3" v-if="!isMobile" style="padding-right: 16px;">
           <c-scrollbar
               trigger="hover"
               class="content"
           >
-            <a-alert message="禁止非法及不良言论" type="warning"/>
-            <a-card title="推荐内容" v-show="false">
-              <!-- 推荐内容 -->
-<!--              <a-list-->
-<!--                  item-layout="horizontal"-->
-<!--                  :data-source="recommendations"-->
-<!--                  render-item="item">-->
-<!--                <a-list-item v-for="item in recommendations" :key="item.title">-->
-<!--                  <a-list-item-meta-->
-<!--                      :title="item.title"-->
-<!--                      description="推荐的文章或者内容"-->
-<!--                  />-->
-<!--                </a-list-item>-->
-<!--              </a-list>-->
-            </a-card>
+            <t-alert message="禁止非法及不良言论" type="warning"/>
+            <t-card title="推荐内容" v-show="false">
+            </t-card>
           </c-scrollbar>
-        </a-col>
-      </a-row>
+        </t-col>
+      </t-row>
     </t-content>
-  </t-layout>
-  <a-float-button-group>
-    <a-float-button>
-      <template #icon>
-        <CommentOutlined/>
-      </template>
-      <template #tooltip>
-        <div>给我们提出宝贵的意见或建议,我们非常关注你的建议</div>
-        <b>contact@alsoapp.com</b>
-      </template>
-    </a-float-button>
-    <t-back-top
-      container=".baseList-container"
+     <t-back-top
+      container=".container"
+       shape="circle"
       :visible-height="0"
-      style="position: absolute"
-      :offset="['24px', '80px']"
-      @click="scrollToTop" v-if="showBackTop"
+      :offset="[20, 0]"
+      style="position: absolute; right: 20px; bottom: 20px"
+      @click="scrollToTop"
     ></t-back-top>
-  </a-float-button-group>
+  </t-layout>
 </template>
 
 <style scoped>

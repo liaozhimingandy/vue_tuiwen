@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import {onMounted, ref, watch} from 'vue';
-import {DownOutlined, PlusOutlined, SmileOutlined} from "@ant-design/icons-vue";
+import {onMounted, ref, watch, computed} from 'vue';
+import { PlusOutlined} from "@ant-design/icons-vue";
 import type {IPost} from "@/interface";
 import appStore from '@/stores/';
 import {storeToRefs} from 'pinia';
-import {message} from "ant-design-vue";
-import {AddPicture} from '@icon-park/vue-next';
 import {post_right_map} from "@/common/constants.js";
 import {apiUrls, publish_post} from "@/services/api.ts";
 import {trimEmptyParagraph} from "@/common/utils.ts";
 import FacePicker from "@/components/FacePicker.vue";
+import {MessagePlugin} from "tdesign-vue-next";
+import {ChevronDownIcon, ImageAddIcon, SmileIcon} from "tdesign-icons-vue-next";
+import type { DropdownProps, UploadProps, ButtonProps} from 'tdesign-vue-next';
 
 const draftStore = storeToRefs(appStore.useDraftStore);
 
@@ -51,11 +52,16 @@ const handlePreview = async (file: any) => {
 // 选中的状态，默认 "public"
 const selected_status = ref(1);
 // 处理菜单点击事件
-const handleMenuClick = ({key}: { key: string }) => {
-  selected_status.value = key;
-
+const handleMenuClick : DropdownProps['onClick'] = (data) => {
+  selected_status.value = data.value as number;
 };
-
+// 组装下拉选项
+const dropdownOptions = computed<DropdownProps['options']>(() => {
+  return Object.entries(post_right_map).map(([value, content]) => ({
+    value,
+    content,
+  }));
+});
 // 处理发布博客
 const handlePublish = () => {
   // 这里你可以把博客内容和上传的图片发送到后端
@@ -91,7 +97,7 @@ const handlePublish = () => {
   is_open.value = false;
   content.value = "";
   fileList.value = [];
-  message.success("发布成功");
+  MessagePlugin.success("发布成功");
   appStore.useDraftStore.clearDraft();
 };
 
@@ -155,107 +161,134 @@ const onSelectFace = (face: string) => {
   showFacePanel.value = false;
 }
 
-
+const sizeLimit = ref<UploadProps['sizeLimit']>({
+  size: 10240,
+  unit: 'KB',
+});
+const abridgeName: UploadProps['abridgeName'] = [6, 6];
+const handleFail: UploadProps['onFail'] = ({ file }) => {
+  MessagePlugin.error(`文件 ${file.name} 上传失败`);
+};
+const disabled = ref(false);
+const uploadAllFilesInOneRequest = ref(false);
+const autoUpload = ref(true);
+const showImageFileName = ref(true);
+const uploadFiles: ButtonProps['onClick'] = () => {
+  // uploadRef1.value.uploadFiles();
+  // uploadRef2.value.uploadFiles();
+  // uploadRef3.value.uploadFiles();
+};
 </script>
 
 <template>
   <div id="newPost">
-    <a-card :hoverable="true" style="width: 100%; margin-bottom: 20px; border-radius: 8px;"
+    <t-card style="width: 100%; margin-bottom: 20px; border-radius: 8px;"
     >
       <!-- 第一段：用户头像 + 输入框 -->
       <div style="display: flex; align-items: center; margin-bottom: 16px;">
         <!-- 用户头像 -->
-        <a-avatar :src="appStore.useAccountStore.account?.avatar" size="large"/>
+        <t-avatar :image="appStore.useAccountStore.account?.avatar" size="large"/>
         <!-- 输入框 -->
-        <a-input
+        <t-input
             v-model:value="content"
             style="margin-left: 12px; flex-grow: 1;"
             placeholder="请输入博客内容..."
             rows="6"
-            type="textarea"
+            type="text"
+            show-limit-number
             @click="is_open=!is_open"
 
         />
       </div>
       <!-- 第二段：上传图片按钮 + 发布按钮 -->
-      <a-flex justify="space-between">
-        <a-space>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <t-space size="small">
           <!-- 上传图片按钮 -->
-          <a-tooltip>
-            <template #title>
-              上传图片
-            </template>
-            <a-button type="text" @click="handleOpenChange(true)">
+          <t-tooltip content="上传图片">
+            <t-button variant="text" @click="handleOpenChange(true)">
               <template #icon>
-                <add-picture theme="outline" size="24" fill="#333"/>
+                <image-add-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
               </template>
-            </a-button>
-          </a-tooltip>
+            </t-button>
+          </t-tooltip>
           <!-- 表情弹窗 -->
-          <a-popover>
+          <t-popup showArrow>
             <template #content>
               <FacePicker @select="onSelectFace"/>
             </template>
-            <a-tooltip title="表情包">
-              <a-button type="text" size="large">
+            <t-tooltip content="表情包">
+              <t-button variant="text">
                 <template #icon>
-                  <SmileOutlined/>
+                  <smile-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
                 </template>
-              </a-button>
-            </a-tooltip>
-          </a-popover>
-        </a-space>
+              </t-button>
+            </t-tooltip>
+          </t-popup>
+        </t-space>
         <!-- 发布按钮 -->
-        <a-button
-            type="primary"
+        <t-button
+            theme="primary"
             @click="handlePublish"
             :disabled="!content.trim()"
         >
           发布
-        </a-button>
-      </a-flex>
-    </a-card>
+        </t-button>
+      </div>
+    </t-card>
   </div>
-  <a-modal
-      v-model:open="is_open"
-      title="发贴"
-      :closable="true"
-      :maskClosable="false"
+  <t-dialog
+      v-model:visible="is_open"
+      header="发贴"
       :footer="null"
   >
-    <a-space direction="vertical" style="width: 100%">
+    <template #body>
+    <t-space direction="vertical" style="width: 100%">
       <!-- 用户头像 -->
-      <a-space direction="horizontal">
-        <a-avatar :src="appStore.useAccountStore.account?.avatar" size="large"/>
-        <a-dropdown :trigger="['click']">
-          <a-button class="ant-dropdown-link" @click.prevent type="text">
-            {{ post_right_map[selected_status] }}
-            <DownOutlined/>
-          </a-button>
-          <template #overlay>
-            <a-menu>
-              <a-menu @click="handleMenuClick">
-                <a-menu-item v-for="(lable, value) in post_right_map" :key="value">
-                  {{ lable }}
-                </a-menu-item>
-              </a-menu>
-            </a-menu>
-          </template>
-        </a-dropdown>
+      <div style="display:flex; align-items:center; gap:16px;">
+        <t-avatar :image="appStore.useAccountStore.account?.avatar" size="large"/>
+         <t-dropdown :options="dropdownOptions" @click="handleMenuClick">
+            <t-button variant="text">
+              {{ post_right_map[selected_status] }}
+              <template #suffix>
+                <ChevronDownIcon size="14px"/>
+              </template>
+            </t-button>
+          </t-dropdown>
         <router-link
             :to="{ name: 'long' }"
             target="_blank"
         >
-          <a-button type="link">发长文</a-button>
+          <t-link>发长文</t-link>
         </router-link>
-      </a-space>
+      </div>
       <!-- 输入框 -->
-      <a-textarea ref="inputRef" :rows="4" placeholder="分享一下你的生活趣事" v-model:value="content" show-count
-                  :maxlength="256"
+      <t-textarea ref="inputRef" placeholder="分享一下你的生活趣事" v-model:value="content"
+                  :maxcharacter="256"
+                  :autosize="{ minRows: 3, maxRows: 5 }"
                   @focus="saveCursor"
                   @blur="saveCursor"/>
-    </a-space>
-    <a-divider/>
+    </t-space>
+    <t-divider/>
+{{fileList}}
+      <!--          图片上传功能 TDesign t‑upload -->
+   <t-upload
+      ref="uploadRef3"
+      v-model="fileList"
+      :action="apiUrls.upload_image_url()"
+      theme="image"
+      tips="允许选择多张图片文件上传，最多只能上传 9 张图片"
+      accept="image/*"
+      :size-limit="sizeLimit"
+      :abridge-name="abridgeName"
+      :disabled="disabled"
+      :auto-upload="autoUpload"
+      :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
+      :upload-all-files-in-one-request="uploadAllFilesInOneRequest"
+      multiple
+      :max="9"
+      @fail="handleFail"
+    >
+   </t-upload>
     <!--          图片上传功能 -->
     <a-upload
         v-model:file-list="fileList"
@@ -273,49 +306,44 @@ const onSelectFace = (face: string) => {
     <a-modal :open="previewVisible" :title="previewTitle" :footer="null" @cancel="handleCancel">
       <img alt="example" style="width: 100%" :src="previewImage"/>
     </a-modal>
-    <a-divider v-if="is_open_upload_image"/>
+    <d-divider v-if="is_open_upload_image"/>
     <!-- 第二段：上传图片按钮 + 发布按钮 -->
-    <a-flex justify="space-between">
-      <a-space>
-        <!-- 上传图片按钮 -->
-        <a-tooltip>
-          <template #title>
-            上传图片
-          </template>
-          <a-button type="text" size="large" @click="is_open_upload_image=!is_open_upload_image">
-            <template #icon>
-              <add-picture theme="outline" size="24" fill="#333"/>
-            </template>
-          </a-button>
-        </a-tooltip>
-        <!-- 表情弹窗 -->
-        <a-popover
-            v-model:open="showFacePanel"
-            trigger="click"
-        >
-          <template #content>
-            <FacePicker @select="onSelectFace"/>
-          </template>
-          <a-tooltip title="表情包">
-            <a-button type="text" size="large">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+        <t-space size="small">
+          <!-- 上传图片按钮 -->
+          <t-tooltip content="上传图片">
+            <t-button variant="text" @click="handleOpenChange(true)">
               <template #icon>
-                <SmileOutlined/>
+                <image-add-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
               </template>
-            </a-button>
-          </a-tooltip>
-        </a-popover>
-      </a-space>
-      <!-- 发布按钮 -->
-      <a-button
-          type="primary"
-          @click="handlePublish"
-          :disabled="!content.trim()"
-          @mousedown.prevent="showFacePanel = true"
-      >
-        发布
-      </a-button>
-    </a-flex>
-  </a-modal>
+            </t-button>
+          </t-tooltip>
+          <!-- 表情弹窗 -->
+          <t-popup showArrow>
+            <template #content>
+              <FacePicker @select="onSelectFace"/>
+            </template>
+            <t-tooltip content="表情包">
+              <t-button variant="text">
+                <template #icon>
+                  <smile-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
+                </template>
+              </t-button>
+            </t-tooltip>
+          </t-popup>
+        </t-space>
+        <!-- 发布按钮 -->
+        <t-button
+            theme="primary"
+            @click="handlePublish"
+            :disabled="!content.trim()"
+            @mousedown.prevent="showFacePanel=true"
+        >
+          发布
+        </t-button>
+      </div>
+      </template>
+  </t-dialog>
 </template>
 
 <style scoped>
