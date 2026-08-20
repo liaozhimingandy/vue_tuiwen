@@ -49,7 +49,7 @@ const handleLogin: FormProps['onSubmit'] = async ({validateResult, firstError })
     appStore.useAccountStore.update_token('refresh_token', r.data.refresh_token);
     account_id = r.data.account_id;
     MessagePlugin.success("登录成功!")
-  });
+  }).catch((r: any)=> MessagePlugin.error(r.data.detail));
   await update_self_account(account_id);
   await router.push(proxy.proxy.$route.query.redirect || '/');
 };
