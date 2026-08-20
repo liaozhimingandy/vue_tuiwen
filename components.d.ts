@@ -101,6 +101,7 @@ declare module 'vue' {
     TTabs: typeof import('tdesign-vue-next')['Tabs']
     TTooltip: typeof import('tdesign-vue-next')['Tooltip']
     TTypographyText: typeof import('tdesign-vue-next')['Text']
+    TTypographyTitle: typeof import('tdesign-vue-next')['Title']
     TWatermark: typeof import('tdesign-vue-next')['Watermark']
   }
 }

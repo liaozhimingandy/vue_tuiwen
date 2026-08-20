@@ -252,23 +252,23 @@ const onSelectFace = () => {
           <!-- 用户头像 -->
           <a-popover>
             <template #content>
-              <a-space direction="vertical" style="width: 300px">
-                <a-avatar :src="account?.avatar" :size="64"/>
-                <a-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</a-typography-text>
-                <a-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
+              <t-space direction="vertical" style="width: 300px">
+                <t-avatar :src="account?.avatar" :size="64"/>
+                <t-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</t-typography-text>
+                <t-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
                   {{ follow.follower_count }}
-                </a-typography-text>
-                <a-divider/>
+                </t-typography-text>
+                <t-divider/>
                 <a-flex justify="space-between">
-                  <a-button v-if="account_id !== post.account_id" type="primary"
+                  <t-button v-if="account_id !== post.account_id" theme="primary"
                             @click="handleFollow" :danger="follow?.is_following">
                     {{ follow?.is_following ? '取消关注' : '加关注' }}
-                  </a-button>
+                  </t-button>
                   <router-link :to="{ name: 'user', params: { username: post.account_id } }">
                     <a-button type="primary">个人资料</a-button>
                   </router-link>
                 </a-flex>
-              </a-space>
+              </t-space>
             </template>
             <router-link :to="{ name: 'user', params: { username: post.account_id } }">
               <a-avatar :src="account?.avatar" size="large"/>
@@ -277,21 +277,21 @@ const onSelectFace = () => {
 
           <!-- 用户信息 -->
           <div style="margin-left: 12px;">
-            <a-typography-text style="margin: 0;"><b>{{ account?.nick_name || post.account_id }}</b></a-typography-text>
+            <t-typography-text style="margin: 0;"><b>{{ account?.nick_name || post.account_id }}</b></t-typography-text>
             <br/>
             <span style="color: #888;">发布于{{ timestampFormat(post.gmt_created) }}</span>
           </div>
 
           <!-- 加关注按钮 -->
-          <a-button v-if="post.account_id !== account_id" type="primary"
+          <t-button v-if="post.account_id !== account_id" theme="primary"
                     style="margin-left: auto;" @click="handleFollow" :danger="follow?.is_following">
             {{ follow?.is_following ? '取消关注' : '加关注' }}
-          </a-button>
+          </t-button>
         </div>
       </template>
       <!-- 第二段：博客内容 -->
       <div style="margin-bottom: 16px; background-color: white;">
-        <a-space direction="vertical" :size="6" style="width: 100%;">
+        <t-space direction="vertical" :size="6" style="width: 100%;">
           <!--          文本描述内容-->
 
           <!--                <div v-html="post.content.text"  class="rich-text-content" ></div>-->
@@ -308,7 +308,7 @@ const onSelectFace = () => {
                          :three-col-max-width="360"/>
 
 
-        </a-space>
+        </t-space>
       </div>
       <template #actions>
         <!-- 第三段：操作按钮 -->
@@ -317,15 +317,15 @@ const onSelectFace = () => {
           <template #content>
             <t-qrcode :value="`${apiUrls.share_post_link(post?.post_id)}`" level="H"
                       type="svg" style="margin: 0 auto;"/>
-            <a-space>
-              <a-button type="primary" @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`)"
+            <t-space>
+              <t-button theme="primary" @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`)"
               >
                 <template #icon>
                   <LinkOutlined/>
                 </template>
                 复制链接
-              </a-button>
-              <a-button type="primary">
+              </t-button>
+              <t-button theme="primary">
                 <template #icon>
                   <WeiboOutlined/>
                 </template>
@@ -339,21 +339,21 @@ const onSelectFace = () => {
                 >
                   微博
                 </ShareNetwork>
-              </a-button>
+              </t-button>
 
-            </a-space>
+            </t-space>
           </template>
-          <a-button :icon="h(ShareAltOutlined)" type="text" @click="handleShare">分享</a-button>
+          <t-button :icon="h(ShareAltOutlined)" variant="text" @click="handleShare">分享</t-button>
         </a-popover>
         <!-- 评论按钮 -->
-        <a-button :icon="h(MessageOutlined)" :type="select_item === 'c' ? 'primary' : 'text'" @click="handleComment">
+        <t-button :icon="h(MessageOutlined)" :variant="select_item === 'c' ? 'primary' : 'text'" @click="handleComment">
           评论
-        </a-button>
+        </t-button>
         <!-- 赞按钮 -->
-        <a-button :icon="h(HeartOutlined)" type="text" @click="handleLike(post.post_id)">赞({{
+        <t-button :icon="h(HeartOutlined)" variant="text" @click="handleLike(post.post_id)">赞({{
             like?.count
           }})
-        </a-button>
+        </t-button>
       </template>
     </a-card>
     <!--      评论框-->

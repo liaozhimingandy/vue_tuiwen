@@ -6,7 +6,7 @@ import instance from "@/services"
 import {apiUrls} from "@/services/api.ts";
 import {timestampFormat} from "@/common/utils.ts";
 import NineImageGrid from "@/components/NineImageGrid.vue";
-import {message} from "ant-design-vue";
+import {MessagePlugin} from 'tdesign-vue-next';
 
 const route = useRoute();
 const post_id = route.params.post_id;
@@ -27,7 +27,7 @@ onMounted(async () => {
       account.value = resAccount.data as IAccount;
     }
   } catch (err) {
-    message.error("帖子加载失败，请稍后重试");
+    await MessagePlugin.error("帖子加载失败，请稍后重试");
   } finally {
     loading.value = false;
   }
@@ -35,22 +35,22 @@ onMounted(async () => {
 </script>
 
 <template>
-  <a-spin :spinning="loading" tip="加载中..." style="height: 100vh">
-    <a-empty v-if="!post" description="帖子不存在或已删除!">
-    </a-empty>
-    <a-layout v-else style="min-height: 50vh">
-      <a-layout-content>
-        <a-row justify="center">
-          <a-col :md="12" :xs="22" :sm="22">
-            <a-space>
-              <a-avatar :src="account?.avatar" :size="64"></a-avatar>
-              <a-typography-title :level="4">{{ account?.nick_name }}</a-typography-title>
-              <a-typography-text>发布于{{ timestampFormat(post?.gmt_created) }}</a-typography-text>
-            </a-space>
-          </a-col>
-        </a-row>
-        <a-row justify="center">
-          <a-col :md="12" :xs="22" :sm="22">
+  <t-spin :spinning="loading" tip="加载中..." style="height: 100vh">
+    <t-empty v-if="!post" description="帖子不存在或已删除!">
+    </t-empty>
+    <t-layout v-else style="min-height: 50vh">
+      <t-content>
+        <t-row justify="center">
+          <t-col :md="8" :xs="11" :sm="12">
+            <t-space>
+              <t-avatar :src="account?.avatar" :size="64"></t-avatar>
+              <t-typography-title :level="4">{{ account?.nick_name }}</t-typography-title>
+              <t-typography-text>发布于{{ timestampFormat(post?.gmt_created) }}</t-typography-text>
+            </t-space>
+          </t-col>
+        </t-row>
+        <t-row justify="center">
+          <t-col :md="8" :xs="11" :sm="12">
             <div v-html="post?.content?.text" v-if="post?.post_type==2" class="rich-wrap"/>
             <a-typography-text v-if="post?.post_type==1">
               {{ post?.content?.text }}
@@ -58,14 +58,14 @@ onMounted(async () => {
             <NineImageGrid v-if="post?.post_type==1" :image-list="post.content.images" :single-max-width="160"
                        :two-col-max-width="200"
                        :three-col-max-width="360"/>
-          </a-col>
-        </a-row>
-      </a-layout-content>
-      <a-layout-footer style="text-align: center">
+          </t-col>
+        </t-row>
+      </t-content>
+      <t-footer style="text-align: center">
         © {{ new Date().getFullYear() }} - {{ account?.nick_name }}
-      </a-layout-footer>
-    </a-layout>
-  </a-spin>
+      </t-footer>
+    </t-layout>
+  </t-spin>
 </template>
 
 <style scoped>
