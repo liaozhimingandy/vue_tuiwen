@@ -30,24 +30,6 @@ const handleOpenChange = (open: boolean) => {
   }
 };
 
-const previewVisible = ref(false);
-const previewImage = ref('');
-const previewTitle = ref('');
-
-const handleCancel = () => {
-  previewVisible.value = false;
-  previewTitle.value = '';
-};
-
-const handlePreview = async (file: any) => {
-  if (!file.url && !file.preview) {
-    // file.preview = (await getBase64(file.originFileObj)) as string;
-    file.preview = 'https://xsgames.co/randomusers/avatar.php?g=male';
-  }
-  previewImage.value = file.url || file.preview;
-  previewVisible.value = true;
-  previewTitle.value = file.name || file.url.substring(file.url.lastIndexOf('/') + 1);
-};
 
 // 选中的状态，默认 "public"
 const selected_status = ref(1);
@@ -168,7 +150,6 @@ const handleFail: UploadProps['onFail'] = ({ file }) => {
 const disabled = ref(false);
 const uploadAllFilesInOneRequest = ref(false);
 const autoUpload = ref(true);
-const showImageFileName = ref(true);
 const uploadFiles: ButtonProps['onClick'] = () => {
   // uploadRef1.value.uploadFiles();
   // uploadRef2.value.uploadFiles();
@@ -285,24 +266,7 @@ const uploadFiles: ButtonProps['onClick'] = () => {
       @fail="handleFail"
     >
    </t-upload>
-    <!--          图片上传功能 -->
-    <a-upload
-        v-model:file-list="fileList"
-        :action="apiUrls.upload_image_url()"
-        list-type="picture-card"
-        @preview="handlePreview"
-        v-show="is_open_upload_image"
-        :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
-    >
-      <div v-if="fileList.length < 9">
-        <plus-outlined/>
-        <div style="margin-top: 8px">上传</div>
-      </div>
-    </a-upload>
-    <a-modal :open="previewVisible" :title="previewTitle" :footer="null" @cancel="handleCancel">
-      <img alt="example" style="width: 100%" :src="previewImage"/>
-    </a-modal>
-    <d-divider v-if="is_open_upload_image"/>
+    <t-divider v-if="is_open_upload_image"/>
     <!-- 第二段：上传图片按钮 + 发布按钮 -->
     <div style="display:flex;justify-content:space-between;align-items:center">
         <t-space size="small">

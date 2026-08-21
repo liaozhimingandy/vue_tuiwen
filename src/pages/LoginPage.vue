@@ -44,14 +44,15 @@ const handleLogin: FormProps['onSubmit'] = async ({validateResult, firstError })
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"
     }
-  }).then((r: any) => {
+  }).then(((r: any) => {
     appStore.useAccountStore.update_token('access_token', r.data.access_token);
     appStore.useAccountStore.update_token('refresh_token', r.data.refresh_token);
     account_id = r.data.account_id;
     MessagePlugin.success("登录成功!")
-  }).catch((r: any)=> MessagePlugin.error(r.data.detail));
-  await update_self_account(account_id);
-  await router.push(proxy.proxy.$route.query.redirect || '/');
+    update_self_account(account_id);
+    router.push(proxy.proxy.$route.query.redirect || '/');
+  })).catch((err: any) => MessagePlugin.error(err?.response?.data?.detail || "接口地址不存在(404)"));
+
 };
 
 const handleRegister = () => {

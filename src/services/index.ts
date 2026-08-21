@@ -1,7 +1,7 @@
 // index.ts
 import 'axios';
 import axios from "axios";
-import {message} from 'ant-design-vue';
+import {MessagePlugin} from 'tdesign-vue-next';
 import router from "../router";
 // @ts-ignore
 import {config} from "@/common/config.ts";
@@ -77,7 +77,7 @@ instance.interceptors.response.use(
             consecutiveFailCount = 0; // 先重置，避免死循环
             runtimeRedetectApi().then((changed) => {
                 if (changed) {
-                    message.info('网络线路已自动切换');
+                    MessagePlugin.info('网络线路已自动切换');
                 }
             });
         }
@@ -90,9 +90,9 @@ instance.interceptors.response.use(
         if (!response) {
             // axios原生超时标识 ECONNABORTED
             if (code === 'ECONNABORTED') {
-                message.warning('请求超时，请稍后重试');
+                await MessagePlugin.warning('请求超时，请稍后重试');
             } else {
-                message.error('网络连接失败，请检查网络');
+                await MessagePlugin.error('网络连接失败，请检查网络');
             }
             return Promise.reject(error);
         }
@@ -172,22 +172,22 @@ instance.interceptors.response.use(
                 }
                 break;
             case 403:
-                message.error("登录过期，权限不足，请重新登录");
+                await MessagePlugin.error("登录过期，权限不足，请重新登录");
                 break;
             case 404:
-                // message.error(detail || '接口地址不存在');
+                // await MessagePlugin.error(detail || '接口地址不存在');
                 break;
             case 408:
-                message.error("请求超时");
+                await MessagePlugin.error("请求超时");
                 break;
             case 500:
-                message.error("服务器错误");
+                await MessagePlugin.error("服务器错误");
                 break;
             case 504:
-                message.error("网络超时");
+                await MessagePlugin.error("网络超时");
                 break;
             default:
-                message.error(detail || `请求失败[${status}]`);
+                await MessagePlugin.error(detail || `请求失败[${status}]`);
         }
 
         return Promise.reject(error);

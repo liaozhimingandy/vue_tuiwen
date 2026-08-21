@@ -14,6 +14,7 @@ import appStore from "@/stores";
 import {storeToRefs} from "pinia";
 import type {IAccount} from "@/interface";
 import router from "@/router";
+import type { UploadProps} from 'tdesign-vue-next';
 
 const activeKey = ref(1);
 const {account} = storeToRefs(appStore.useAccountStore);
@@ -141,6 +142,12 @@ const update_account = () => {
 
 // 上传的图片列表
 const files = ref<File[]>([]);
+const formatImgResponse: UploadProps['formatResponse'] = () => {
+  return {
+    name: 'FileName',
+    url: 'https://tdesign.gtimg.com/demo/demo-image-1.png',
+  };
+}
 
 // 上传事件
 const uploadChange = (info: any) => {
@@ -172,6 +179,17 @@ const allow_beep = ref<boolean>(true);
                 <t-form ref="formRef1" :data="account" :rules="rules_account" :colon="true" @submit="update_account">
                   <t-space direction="vertical">
                     <t-form-item>
+                      <t-upload
+                          :files="files"
+                          :action="apiUrls.upload_image_url()"
+                          theme="image"
+                          accept="image/*"
+                          :format-response="formatImgResponse"
+                          :show-image-preview="true"
+                          :max="1"
+                          :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
+                      />
+
                       <a-upload-dragger v-model:file-list="files" :action="apiUrls.upload_image_url()"
                                         :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
                                         :maxCount="1" @change="uploadChange">
