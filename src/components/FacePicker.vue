@@ -24,7 +24,7 @@ const selectFace = (item: FaceItem) => {
         placement="bottom"
         animated
     >
-      <t-tab-pane
+      <t-tab-panel
           v-for="(group, idx) in FACE_GROUPS"
           :value="String(idx)"
       >
@@ -54,7 +54,7 @@ const selectFace = (item: FaceItem) => {
             </div>
           </div>
         </div>
-      </t-tab-pane>
+      </t-tab-panel>
     </t-tabs>
   </div>
 </template>
