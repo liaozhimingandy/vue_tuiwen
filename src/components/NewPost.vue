@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import {onMounted, ref, watch, computed} from 'vue';
-import { PlusOutlined} from "@ant-design/icons-vue";
 import type {IPost} from "@/interface";
 import appStore from '@/stores/';
 import {storeToRefs} from 'pinia';
 import {post_right_map} from "@/common/constants.js";
 import {apiUrls, publish_post} from "@/services/api.ts";
-import {trimEmptyParagraph} from "@/common/utils.ts";
+import {getResourceUrl, trimEmptyParagraph} from "@/common/utils.ts";
 import FacePicker from "@/components/FacePicker.vue";
 import {MessagePlugin} from "tdesign-vue-next";
 import {ChevronDownIcon, ImageAddIcon, SmileIcon} from "tdesign-icons-vue-next";
@@ -21,14 +20,6 @@ const fileList = ref<File[]>([]);
 const is_open_upload_image = ref<boolean>(false); //是否打开上传图片的弹窗
 // 设置图片上传的接口地址
 const is_open = ref<boolean>(false); //输入框是否打开
-
-// 处理图片上传
-const handleOpenChange = (open: boolean) => {
-  is_open.value = open;
-  if (!is_open_upload_image.value) {
-    is_open_upload_image.value = true;
-  }
-};
 
 
 // 选中的状态，默认 "public"
@@ -155,6 +146,7 @@ const uploadFiles: ButtonProps['onClick'] = () => {
   // uploadRef2.value.uploadFiles();
   // uploadRef3.value.uploadFiles();
 };
+
 </script>
 
 <template>
@@ -164,7 +156,7 @@ const uploadFiles: ButtonProps['onClick'] = () => {
       <!-- 第一段：用户头像 + 输入框 -->
       <div style="display: flex; align-items: center; margin-bottom: 16px;">
         <!-- 用户头像 -->
-        <t-avatar :image="appStore.useAccountStore.account?.avatar" size="large"/>
+        <t-avatar :image="getResourceUrl(appStore.useAccountStore.account?.avatar)" size="large"/>
         <!-- 输入框 -->
         <t-input
             v-model:value="content"
@@ -182,7 +174,7 @@ const uploadFiles: ButtonProps['onClick'] = () => {
         <t-space size="small">
           <!-- 上传图片按钮 -->
           <t-tooltip content="上传图片">
-            <t-button variant="text" @click="handleOpenChange(true)">
+            <t-button variant="text" @click="()=>is_open_upload_image=!is_open_upload_image">
               <template #icon>
                 <image-add-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
               </template>
@@ -208,7 +200,7 @@ const uploadFiles: ButtonProps['onClick'] = () => {
             @click="handlePublish"
             :disabled="!content.trim()"
         >
-          发布
+          发布{{is_open_upload_image}}
         </t-button>
       </div>
     </t-card>
@@ -246,14 +238,14 @@ const uploadFiles: ButtonProps['onClick'] = () => {
                   @blur="saveCursor"/>
     </t-space>
     <t-divider/>
-{{fileList}}
       <!--          图片上传功能 TDesign t‑upload -->
    <t-upload
       ref="uploadRef3"
       v-model="fileList"
       :action="apiUrls.upload_image_url()"
       theme="image"
-      tips="允许选择多张图片文件上传，最多只能上传 9 张图片"
+      tips="最多只能上传1张图片"
+      v-show="is_open_upload_image"
       accept="image/*"
       :size-limit="sizeLimit"
       :abridge-name="abridgeName"
@@ -272,7 +264,7 @@ const uploadFiles: ButtonProps['onClick'] = () => {
         <t-space size="small">
           <!-- 上传图片按钮 -->
           <t-tooltip content="上传图片">
-            <t-button variant="text" @click="handleOpenChange(true)">
+            <t-button variant="text" @click="()=>is_open_upload_image=!is_open_upload_image">
               <template #icon>
                 <image-add-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
               </template>

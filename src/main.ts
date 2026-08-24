@@ -8,9 +8,9 @@ import App from './App.vue'
 import {registerStore} from "./stores";
 import {checkHealth, initEndpoints} from "./common/endpoint-detector.ts";
 import {logger} from "./common/utils.ts";
-import {message} from "ant-design-vue";
 import {config} from "./common/config.ts";
 import {apiUrls} from "./services/api.ts";
+import {MessagePlugin} from 'tdesign-vue-next';
 import {canAutoDetect, getDetectState, recordDetectFail, resetDetectState} from "./common/detectPersist.ts";
 
 let app: ReturnType<typeof createApp>
@@ -71,7 +71,7 @@ async function backgroundDetectTask() {
         logger.log(`自动探测未到时间：连续失败${st.failCount}次，下次探测：${new Date(st.nextDetectTimestamp).toLocaleString()}`)
         // ⚠️即使未到探测时间，也要判断：是否已经达到3次失败，需要释放页面
         if (st.failCount === 3) {
-            message.error(`已尝试3次连接服务均失败，请检查网络，系统将后台继续重试`)
+            await MessagePlugin.error(`已尝试3次连接服务均失败，请检查网络，系统将后台继续重试`)
         }
         return
     }
@@ -92,7 +92,7 @@ async function backgroundDetectTask() {
         resetDetectState()
         logger.log('后台端点探测完成，可用列表：', endpoints)
         removeBlockingMask()
-        message.info('已自动切换可用服务节点，页面即将重载');
+        await MessagePlugin.info('已自动切换可用服务节点，页面即将重载');
         detectTimer = setTimeout(() => location.reload(), 60 * 1000);
     } catch (err) {
         logger.warn('后台端点探测失败', err)
@@ -100,7 +100,7 @@ async function backgroundDetectTask() {
         logger.log(`自动探测记录失败，当前连续失败:${st.failCount}，下次探测时间:${new Date(st.nextDetectTimestamp).toLocaleString()}`)
         // ✅累计3次失败：释放遮罩，启动Vue应用，给用户提示
         if (st.failCount >= 3) {
-            message.error(`已尝试3次连接服务均失败，请检查网络，系统将后台继续重试`)
+            await MessagePlugin.error(`已尝试3次连接服务均失败，请检查网络，系统将后台继续重试`)
         }
     } finally {
         detectingLock = false

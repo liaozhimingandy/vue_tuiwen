@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import {ref, getCurrentInstance, onMounted} from 'vue';
 import {MessagePlugin} from 'tdesign-vue-next';
-import {SettingIcon} from 'tdesign-icons-vue-next';
 import type {FormProps} from 'tdesign-vue-next';
 import {md5} from 'js-md5';
 
@@ -29,9 +28,9 @@ onMounted(() => {
   }
 })
 
-const handleLogin: FormProps['onSubmit'] = async ({validateResult, firstError }) => {
+const handleLogin: FormProps['onSubmit'] = async ({validateResult, firstError}) => {
   if (!(validateResult === true)) {
-   await MessagePlugin.warning(firstError || '请输入登录信息');
+    await MessagePlugin.warning(firstError || '请输入登录信息');
     return;
   }
 
@@ -139,25 +138,35 @@ const onSearch = async (val: string) => {
         <template #actions>
           <t-tooltip content="如果默认后端地址不可用时,可以自行修改可用地址">
             <t-button variant="text" @click="setApiConfig">
-              <SettingIcon/>
+              <template #icon>
+                <t-icon name="setting" />
+              </template>
             </t-button>
           </t-tooltip>
         </template>
         <t-form ref="formRef" :data="formData" :rules="rules" @submit="handleLogin">
           <t-form-item label="用户名" name="username">
-            <t-input v-model:value="formData.username" placeholder="请输入用户名"/>
+            <t-input v-model:value="formData.username" placeholder="请输入用户名">
+              <template #prefix-icon>
+                <t-icon name="user"/>
+              </template>
+            </t-input>
           </t-form-item>
           <t-form-item label="密  码" name="password">
-            <t-input v-model:value="formData.password" placeholder="请输入密码" type="password"/>
+            <t-input v-model:value="formData.password" placeholder="请输入密码" type="password" autocomplete="password">
+              <template #prefix-icon>
+                <t-icon name="lock-on"/>
+              </template>
+            </t-input>
           </t-form-item>
           <t-divider>
             <t-link @click="goResetPwd">忘记密码？点此重置</t-link>
           </t-divider>
           <t-form-item>
-            <div style="display:flex;gap:24px;justify-content:space-evenly;">
-              <t-button theme="primary" type="submit">登录</t-button>
+            <t-space direction="horizontal" align="center" size="large">
+              <t-button theme="primary" type="submit" >登录</t-button>
               <t-button theme="default" @click="handleRegister">注册</t-button>
-            </div>
+            </t-space>
           </t-form-item>
         </t-form>
       </t-card>

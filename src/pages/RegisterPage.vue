@@ -4,10 +4,12 @@ import {md5} from "js-md5";
 import cloneDeep from "lodash/cloneDeep";
 import instance from '@/services'
 import router from "@/router";
-import {sex_code_map} from "../common/constants.ts"
+import {sex_code_map, sexListOptions} from "../common/constants.ts"
 import {apiUrls} from "@/services/api.ts";
-import  { MessagePlugin} from 'tdesign-vue-next';
+import {MessagePlugin} from 'tdesign-vue-next';
 import type {AutoCompleteProps, FormProps} from 'tdesign-vue-next'
+import {config} from "@/common/config.ts";
+
 const formRef = ref(null);
 // 注册表单数据
 const formData = ref({
@@ -17,16 +19,14 @@ const formData = ref({
   nick_name: '',
   gmt_birth: "",
   area_code: "CHN",
-  sex: "0",
-  avatar: "https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png"
-});
-const sexListOptions = Object.entries(sex_code_map).map(([k, v]) => {
-  return {"value": k[0], "label": v}
+  sex: "1",
+  avatar: ""
 });
 
+
 const validateConfirmPassword = async (
-  value: string,
-  context?: { formData: typeof formData.value }
+    value: string,
+    context?: { formData: typeof formData.value }
 ) => {
   if (value !== context?.formData.password) {
     return {
@@ -35,7 +35,7 @@ const validateConfirmPassword = async (
       type: 'error'
     };
   }
-  return { result: true };
+  return {result: true};
 };
 
 const rules = {
@@ -67,7 +67,7 @@ const rules = {
   ]
 };
 
-const handleRegister: FormProps['onSubmit'] = async ({validateResult, firstError }) => {
+const handleRegister: FormProps['onSubmit'] = async ({validateResult, firstError}) => {
   if (!(validateResult === true)) {
     await MessagePlugin.warning(firstError || '表单校验不通过，请检查填写内容');
     return;
@@ -89,13 +89,13 @@ const emailSuffix = ['@qq.com', '@163.com', '@gmail.com'];
 const emailOptions = computed<AutoCompleteProps['options']>(() => {
   const emailPrefix = formData.value.email.split('@')[0];
   if (!emailPrefix) return [];
-  return emailSuffix.map((suffix) => emailPrefix + suffix);
+  return config.EMAIL_SUFFIX.map((suffix) => emailPrefix + suffix);
 });
 </script>
 
 <template>
   <div style="height: 100vh; background-color: #E9EBEE; display:flex;justify-content:center;align-items:center">
-    <t-card  style="width: 400px" header-bordered>
+    <t-card style="width: 400px" header-bordered>
       <!-- Logo区域 -->
       <template #title>
         <div style="display:flex;align-items:center;gap:8px">
@@ -105,20 +105,40 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
       </template>
       <t-form :data="formData" :rules="rules" ref="formRef" @submit="handleRegister">
         <t-form-item label="电子邮箱" name="email">
-          <t-auto-complete v-model:value="formData.email" placeholder="电子邮箱" filterable :options="emailOptions"/>
+          <t-auto-complete filterable :options="emailOptions">
+            <template #default>
+              <t-input
+                  v-model="formData.email"
+                  placeholder="电子邮箱"
+              >
+                <template #prefix-icon>
+                  <t-icon name="mail"/>
+                </template>
+              </t-input>
+            </template>
+          </t-auto-complete>
         </t-form-item>
         <t-form-item label="密码" name="password">
-          <t-input v-model:value="formData.password" placeholder="请输入密码" type="password"/>
+          <t-input v-model:value="formData.password" placeholder="请输入密码" type="password" autocomplete="password">
+            <template #prefix-icon>
+              <t-icon name="lock-on"/>
+            </template>
+          </t-input>
         </t-form-item>
         <t-form-item label="确认密码" name="confirmPassword">
-          <t-input v-model:value="formData.confirmPassword" placeholder="请确认密码"  type="password"/>
+          <t-input v-model:value="formData.confirmPassword" placeholder="请确认密码" type="password"
+                   autocomplete="confirmPassword">
+            <template #prefix-icon>
+              <t-icon name="lock-on"/>
+            </template>
+          </t-input>
         </t-form-item>
         <t-divider/>
         <t-form-item name="nick_name" label="显示名称">
           <t-input v-model:value="formData.nick_name"></t-input>
         </t-form-item>
         <t-form-item label="出生日期" name="gmt_birth">
-          <t-date-picker v-model:value="formData.gmt_birth" value-format="YYYY-MM-DD"/>
+          <t-date-picker v-model:value="formData.gmt_birth" value-format="YYYY-MM-DD" style="width: 100%"/>
         </t-form-item>
         <t-form-item name="sex" label="性别">
           <t-select v-model:value="formData.sex" :options='sexListOptions'/>

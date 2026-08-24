@@ -8,6 +8,7 @@ import router from "@/router";
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
 import {useDeviceWatcher} from '@/common/device.ts';
+import {getResourceUrl} from "@/common/utils.ts";
 
 const {isMobile} = useDeviceWatcher();
 
@@ -96,7 +97,7 @@ const options: DropdownProps['options'] = [
     </template>
     <t-menu-item :value="item.key" v-for="item in items">
       <template #icon>
-        <t-icon name="home" :size="36"/>
+        <t-icon name="home" size="36px"/>
       </template>
     </t-menu-item>
     <template #operations>
@@ -116,10 +117,10 @@ const options: DropdownProps['options'] = [
         </t-button>
       </t-popup>
       <t-dropdown :options="options">
-        <a-sapce>
-          <t-avatar :image="appStore.useAccountStore.account?.avatar" :hide-on-load-failed="false"/>
+        <t-space direction="horizontal">
+          <t-avatar :image="getResourceUrl(appStore.useAccountStore.account?.avatar)" :hide-on-load-failed="false"/>
           <span v-if="!isMobile" style="margin-left: 8px;">{{ appStore.useAccountStore.account?.nick_name }}</span>
-        </a-sapce>
+        </t-space>
       </t-dropdown>
     </template>
   </t-head-menu>

@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import {onMounted, reactive, ref} from "vue";
 import {MessagePlugin} from 'tdesign-vue-next';
-import {LockOnIcon} from 'tdesign-icons-vue-next';
 import Header from "@/components/Header.vue";
 import instance from "@/services";
 
 const headerRef = ref<Element>();
 import {CScrollbar} from "c-scrollbar";
-import {sex_code_map} from "@/common/constants.js";
+import {sexListOptions} from "@/common/constants.js";
 import {md5} from "js-md5";
 import {apiUrls, update_self_account} from "@/services/api.ts";
 import appStore from "@/stores";
 import {storeToRefs} from "pinia";
 import type {IAccount} from "@/interface";
 import router from "@/router";
-import type { UploadProps} from 'tdesign-vue-next';
+import type {UploadProps} from 'tdesign-vue-next';
+import {getResourceUrl} from "@/common/utils.ts";
 
 const activeKey = ref(1);
 const {account} = storeToRefs(appStore.useAccountStore);
@@ -27,12 +27,12 @@ const updateContentHeight = () => {
 
 onMounted(() => {
   updateContentHeight();
+  files.value.push({
+    name: 'avator',
+    url: getResourceUrl(account.value.avatar),
+  })
 })
 
-// 性别字典
-const sexListOptions = Object.entries(sex_code_map).map(([k, v]) => {
-  return {"value": parseInt(k[0]), "label": v}
-});
 // 查询用户信息
 update_self_account(account.value.account_id);
 
@@ -141,23 +141,24 @@ const update_account = () => {
 }
 
 // 上传的图片列表
-const files = ref<File[]>([]);
-const formatImgResponse: UploadProps['formatResponse'] = () => {
-  return {
-    name: 'FileName',
-    url: 'https://tdesign.gtimg.com/demo/demo-image-1.png',
-  };
-}
+const files = ref<UploadProps['value']>([]);
+const sizeLimit = ref<UploadProps['sizeLimit']>({
+  size: 10,
+  unit: 'MB',
+});
+
 
 // 上传事件
-const uploadChange = (info: any) => {
-  if (info.file.status === 'done') {
-    // 上传完成
-    account.value.avatar = info.file.response.image_url;
-  }
-}
+const onUploadSuccess: UploadProps['onSuccess'] = ({file}) => {
+  account.value.avatar = file?.response?.image_url;
+  MessagePlugin.success(`头像上传成功`);
+};
 
 const allow_beep = ref<boolean>(true);
+
+const onUploadFail: UploadProps['onFail'] = ({file}) => {
+  MessagePlugin.error(`文件 ${file.name} 上传失败`);
+};
 </script>
 
 <template>
@@ -180,21 +181,18 @@ const allow_beep = ref<boolean>(true);
                   <t-space direction="vertical">
                     <t-form-item>
                       <t-upload
-                          :files="files"
+                          v-model="files"
                           :action="apiUrls.upload_image_url()"
+                          :size-limit="sizeLimit"
                           theme="image"
                           accept="image/*"
-                          :format-response="formatImgResponse"
                           :show-image-preview="true"
                           :max="1"
+                          :autoUpload="true"
                           :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
+                          @fail="onUploadFail"
+                          @success="onUploadSuccess"
                       />
-
-                      <a-upload-dragger v-model:file-list="files" :action="apiUrls.upload_image_url()"
-                                        :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
-                                        :maxCount="1" @change="uploadChange">
-                        <t-avatar :image="account.avatar" size="120px"></t-avatar>
-                      </a-upload-dragger>
                     </t-form-item>
                     <t-form-item label="用户名" name="username">
                       <t-input :value="account.username" placeholder="平台唯一标识,不能和其他人相同" disabled></t-input>
@@ -217,28 +215,36 @@ const allow_beep = ref<boolean>(true);
                 </t-form>
               </t-tab-panel>
               <t-tab-panel :value="2" label="账号安全">
-                <a-space direction="vertical">
+                <t-space direction="vertical">
                   <t-typography-title level="h4">账号安全</t-typography-title>
                   <t-form ref="formRef" :data="formData" :rules="rules_password" @submit="password_reset">
                     <t-space direction="vertical">
+                      <input
+                          v-model="account.username"
+                          type="text"
+                          autocomplete="username"
+                          hidden
+                          readonly
+                      />
                       <t-form-item label="旧密码" name="password_current">
-                        <t-input v-model:value="formData.password_current" placeholder="请输入当前密码" type="password">
+                        <t-input v-model:value="formData.password_current" placeholder="请输入当前密码" type="password"
+                                 autocomplete="current-password">
                           <template #prefix-icon>
-                            <lock-on-icon/>
+                            <t-icon name="lock-on" />
                           </template>
                         </t-input>
                       </t-form-item>
                       <t-form-item label="新密码" name="password_new" placeholder="请输入新密码">
-                        <t-input v-model:value="formData.password_new" type="password">
+                        <t-input v-model:value="formData.password_new" type="password" autocomplete="new-password">
                           <template #prefix-icon>
-                            <lock-on-icon/>
+                           <t-icon name="lock-on" />
                           </template>
                         </t-input>
                       </t-form-item>
                       <t-form-item label="确认密码" name="password_confirm" placeholder="请输入新密码">
-                        <t-input v-model:value="formData.password_confirm" type="password">
+                        <t-input v-model:value="formData.password_confirm" type="password" autocomplete="new-password">
                           <template #prefix-icon>
-                            <lock-on-icon/>
+                            <t-icon name="lock-on" />
                           </template>
                         </t-input>
                       </t-form-item>
@@ -247,10 +253,10 @@ const allow_beep = ref<boolean>(true);
                       </t-form-item>
                     </t-space>
                   </t-form>
-                </a-space>
+                </t-space>
               </t-tab-panel>
               <t-tab-panel :value="3" label="通用">
-                <t-typography-title :level="4">通用设置</t-typography-title>
+                <t-typography-title level="h4">通用设置</t-typography-title>
                 <t-form>
                   <t-form-item label="是否接收系统通知">
                     <t-switch v-model:value="allow_beep">推送</t-switch>

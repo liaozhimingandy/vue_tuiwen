@@ -4,7 +4,6 @@ import process from 'node:process';
 import {defineConfig} from 'vite'
 import vue from '@vitejs/plugin-vue'
 import {version} from './package.json' with {type: 'json'}
-import {AntDesignVueResolver} from 'unplugin-vue-components/resolvers'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import removeConsole from 'vite-plugin-remove-console'
@@ -25,7 +24,6 @@ export default defineConfig({
         vue(),
         AutoImport({
             resolvers: [
-                AntDesignVueResolver(),
                 TDesignResolver({
                     library: 'vue-next'
                 })
@@ -33,9 +31,6 @@ export default defineConfig({
         }),
         Components({
             resolvers: [
-                AntDesignVueResolver({
-                    importStyle: false, // css in js
-                }),
                 TDesignResolver({
                     library: 'vue-next'
                 })

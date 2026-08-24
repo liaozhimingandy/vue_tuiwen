@@ -3,15 +3,9 @@
 import {h, onMounted, ref, computed} from 'vue';
 // ========== TDesign 图标替换 antd icons ==========
 import {
-  HeartIcon,
   ShareIcon,
-  ChatBubbleIcon,
-  LinkIcon,
-  LogoTwitterIcon,
-  MoreIcon,
   DeleteIcon,
   StopCircleIcon,
-  SmileIcon
 } from 'tdesign-icons-vue-next';
 import dayjs from 'dayjs';
 // TDesign 全局提示、弹窗确认
@@ -21,7 +15,7 @@ import {ShareNetwork} from 'vue-social-sharing'
 
 dayjs.extend(relativeTime);
 import type {IAccount, IComment, IPost} from "@/interface";
-import {formatMessageToHtml, timestampFormat} from "@/common/utils.ts";
+import {formatMessageToHtml, getResourceUrl, timestampFormat} from "@/common/utils.ts";
 import instance from '../services/';
 import appStore from "../stores";
 import NineImageGrid from "@/components/NineImageGrid.vue";
@@ -200,9 +194,7 @@ const dropdownOptions = computed(() => {
 </script>
 
 <template>
-  <t-watermark
-      :watermark-content="post.right_status === 0 ? '仅你自己可见' : ''"
-      style="margin-bottom: 4px"
+  <t-watermark :watermark-content="{ text: post.right_status === 0 ? '仅你自己可见' : '' }"
   >
     <t-card size="small" style="text-align: left">
       <!-- 卡片右上角下拉更多 -->
@@ -212,58 +204,63 @@ const dropdownOptions = computed(() => {
             @click="handleDropdownClick"
             trigger="click"
         >
-          <t-button variant="text" :icon="h(MoreIcon)"/>
+          <t-button variant="text">
+            <template #icon>
+              <t-icon name="more"/>
+            </template>
+          </t-button>
         </t-dropdown>
       </template>
 
       <!-- 用户头部信息 -->
       <template #header>
-        <div style="display: flex; align-items: center; margin-bottom: 2px;">
-          <!-- Popover 气泡卡片 -->
-          <t-popup trigger="hover" show-arrow placement="bottom-left">
-            <template #content>
-              <t-space direction="vertical" style="width: 300px">
-                <t-avatar :src="account?.avatar" size="large"/>
-                <t-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</t-typography-text>
-                <t-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
-                  {{ follow.follower_count }}
-                </t-typography-text>
-                <t-divider/>
-                <t-space justify="space-between" style="width:100%">
-                  <t-button
-                      v-if="account_id !== post.account_id"
-                      theme="primary"
-                      :danger="follow?.is_following"
-                      @click="handleFollow"
-                  >
-                    {{ follow?.is_following ? '取消关注' : '加关注' }}
-                  </t-button>
-                  <router-link :to="{ name: 'user', params: { username: post.account_id } }">
-                    <t-button theme="primary">个人资料</t-button>
-                  </router-link>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; width: 100%;">
+          <t-space>
+            <t-popup trigger="hover" show-arrow placement="bottom-left">
+              <template #content>
+                <t-space direction="vertical" style="width: 300px">
+                  <t-avatar :image="getResourceUrl(account?.avatar)" size="large"/>
+                  <t-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</t-typography-text>
+                  <t-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
+                    {{ follow.follower_count }}
+                  </t-typography-text>
+                  <t-divider/>
+                  <t-space justify="space-between" style="width:100%">
+                    <t-button
+                        v-if="account_id !== post.account_id"
+                        theme="primary"
+                        :danger="follow?.is_following"
+                        @click="handleFollow"
+                    >
+                      {{ follow?.is_following ? '取消关注' : '加关注' }}
+                    </t-button>
+                    <router-link :to="{ name: 'user', params: { username: post.account_id } }">
+                      <t-button theme="primary">个人资料</t-button>
+                    </router-link>
+                  </t-space>
                 </t-space>
-              </t-space>
-            </template>
-            <router-link :to="{ name: 'user', params: { username: post.account_id } }">
-              <t-avatar :src="account?.avatar" size="large"/>
-            </router-link>
-          </t-popup>
+              </template>
+              <router-link :to="{ name: 'user', params: { username: post.account_id } }">
+                <t-avatar :image="getResourceUrl(account?.avatar)" size="large"/>
+              </router-link>
+            </t-popup>
 
-          <div style="margin-left: 12px;">
-            <t-typography-text style="margin: 0;"><b>{{ account?.nick_name || post.account_id }}</b></t-typography-text>
-            <br/>
-            <span style="color: #888;">发布于{{ timestampFormat(post.gmt_created) }}</span>
-          </div>
-
+            <div style="margin-left: 12px;">
+              <t-typography-text style="margin: 0;"><b>{{ account?.nick_name || post.account_id }}</b>
+              </t-typography-text>
+              <br/>
+              <span style="color: #888;">发布于{{ timestampFormat(post.gmt_created) }}</span>
+            </div>
+          </t-space>
           <t-button
               v-if="post.account_id !== account_id"
               theme="primary"
-              style="margin-left: auto;"
               @click="handleFollow"
               :danger="follow?.is_following"
           >
             {{ follow?.is_following ? '取消关注' : '加关注' }}
           </t-button>
+
         </div>
       </template>
 
@@ -298,13 +295,13 @@ const dropdownOptions = computed(() => {
                   <t-space style="margin-top:12px">
                     <t-button theme="primary" @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`)">
                       <template #icon>
-                        <LinkIcon/>
+                        <t-icon name="link"/>
                       </template>
                       复制链接
                     </t-button>
                     <t-button theme="primary">
                       <template #icon>
-                        <LogoTwitterIcon/>
+                        <t-icon name="logo-twitter"/>
                       </template>
                       <ShareNetwork
                           network="Weibo"
@@ -320,20 +317,30 @@ const dropdownOptions = computed(() => {
                   </t-space>
                 </div>
               </template>
-              <t-button :icon="h(ShareIcon)" variant="text" @click="handleShare">分享</t-button>
+              <t-button variant="text" @click="handleShare">
+                <template #icon>
+                  <t-icon name="share"/>
+                </template>
+                分享
+              </t-button>
             </t-popup>
           </t-col>
           <t-col flex="auto" style="display: inline-flex; justify-content: center">
             <t-button
-                :icon="h(ChatBubbleIcon)"
                 :variant="select_item === 'c' ? 'base' : 'text'"
                 @click="handleComment"
             >
+              <template #icon>
+                <t-icon name="chat-bubble"/>
+              </template>
               评论
             </t-button>
           </t-col>
           <t-col flex="auto" style="display: inline-flex; justify-content: center">
-            <t-button :icon="h(HeartIcon)" variant="text" @click="handleLike(post.post_id)">
+            <t-button variant="text" @click="handleLike(post.post_id)">
+              <template #icon>
+                <t-icon name="heart"/>
+              </template>
               赞({{ like?.count }})
             </t-button>
           </t-col>
@@ -354,7 +361,10 @@ const dropdownOptions = computed(() => {
               <FacePicker @select="onSelectFace"/>
             </template>
             <t-tooltip content="表情包">
-              <t-button variant="text" size="large" :icon="h(SmileIcon)"/>
+              <t-button variant="text" size="large"/>
+              <template #icon>
+                <t-icon name="smille"/>
+              </template>
             </t-tooltip>
           </t-popup>
           <t-button theme="primary" :loading="submitting" @click="handleSubmit">
@@ -370,14 +380,14 @@ const dropdownOptions = computed(() => {
         :data="comments"
         :header="`${comments.length} 条评论`"
     >
-        <t-list-item style="text-align: start" v-for="item in comments">
-          <t-comment
-              :author="user_map[item.account_id]?.nick_name"
-              :avatar="user_map[item.account_id]?.avatar"
-              :content="item.content"
-              :datetime="timestampFormat(item.gmt_created)"
-          />
-        </t-list-item>
+      <t-list-item style="text-align: start" v-for="item in comments">
+        <t-comment
+            :author="user_map[item.account_id]?.nick_name"
+            :avatar="user_map[item.account_id]?.avatar"
+            :content="item.content"
+            :datetime="timestampFormat(item.gmt_created)"
+        />
+      </t-list-item>
     </t-list>
   </t-watermark>
 </template>

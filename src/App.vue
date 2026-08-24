@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {ref, onMounted} from 'vue';
-import zhConfig from 'tdesign-vue-next/es/locale/zh_CN';
 import {useRouter} from "vue-router";
 
 import 'tdesign-vue-next/es/style/index.css';
@@ -43,14 +42,14 @@ onMounted(async () => {
 </script>
 
 <template>
+
   <t-config-provider>
     <!-- 全屏加载容器 -->
     <div class="app-loading" v-if="is_loading" >
       <t-loading indicator loading preventScrollThrough text="页面加载中..." size="large" :delay="500"/>
     </div>
     <!-- 加载完成后显示内容 -->
-    <router-view v-else/>
-
+   <router-view v-else/>
   </t-config-provider>
 </template>
 

@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import {onMounted, ref, watch, computed} from "vue";
 import {useRoute} from 'vue-router';
-import type { ListProps, ListItemMetaProps } from 'tdesign-vue-next';
-
+import type { ListProps } from 'tdesign-vue-next';
+import {MessagePlugin} from 'tdesign-vue-next';
 import Header from "@/components/Header.vue";
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
-import {message} from "ant-design-vue";
 
 const route = useRoute()
 
@@ -58,7 +57,7 @@ const doSearch = async (q: string, isLoadMore = false) => {
   } catch (err) {
     if (!isLoadMore) {
       items.value = [];
-      message.info("未搜索到内容!");
+      await MessagePlugin.warning("未搜索到内容!");
     }
     hasMore.value = false;
   } finally {

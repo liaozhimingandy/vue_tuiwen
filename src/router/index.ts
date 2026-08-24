@@ -14,7 +14,7 @@ import HotPage from "../pages/HotPage.vue";
 import LoginPage from "../pages/LoginPage.vue";
 import RegisterPage from "../pages/RegisterPage.vue";
 import appStore from "../stores";
-import {message} from "ant-design-vue";
+import {MessagePlugin} from 'tdesign-vue-next';
 import SearchResultPage from "../pages/SearchResultPage.vue";
 import TwoStepVerificationPage from "../pages/TwoStepVerificationPage.vue";
 
@@ -98,7 +98,7 @@ router.beforeEach((to, _) => {
     }
 
     if (!isWhiteList && !hasToken) {
-        message.warn("需要重新登录!");
+        MessagePlugin.warning("需要重新登录!");
         return {
             name: 'login',
             query: {redirect: to.fullPath},

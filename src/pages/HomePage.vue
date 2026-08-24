@@ -17,11 +17,10 @@ import {apiUrls, update_self_account, get_posts} from "@/services/api.ts";
 
 const isMobile = ref<boolean>(true);
 const headerRef = ref<any>(null);
-const postContent = ref<any>(null);
-const contentHeight = ref<number | undefined>(undefined);
+const scrollbarRef = ref<any>(null);
+const contentHeight = ref<number | undefined>(window.innerHeight);
 const showBackTop = ref<boolean>(false); // 控制返回顶部按钮的显示与隐藏
 const {posts} = storeToRefs(appStore.usePostStore);// 推文列表
-
 // 判断屏幕宽度是否小于等于768px（平板及以下）
 const checkDeviceSize = () => {
   isMobile.value = window.innerWidth < 768;
@@ -33,13 +32,13 @@ const updateContentHeight = () => {
 
 // 处理滚动事件
 const handleScroll = debounce((event: any) => {
-  const scrollTop = event.target.scrollTop; // 当前滚动位置
-  const scrollHeight = event.target.scrollHeight; // 内容总高度
-  const clientHeight = postContent.value.$el.clientHeight; // 视口高度
+  const target = event.target as HTMLElement;
+  const scrollTop = target.scrollTop;
+  const scrollHeight = target.scrollHeight;
+  const clientHeight = target.clientHeight;
 
-  // 当内容高度超过视口高度，且当前滚动位置超过一定值时，显示返回顶部按钮
+  console.info(scrollTop, scrollHeight, clientHeight)
   showBackTop.value = scrollTop >= clientHeight;
-  // 判断滚动条是否到达底部
   if (scrollTop + clientHeight >= scrollHeight - 20) {
     get_post();
   }
@@ -47,7 +46,8 @@ const handleScroll = debounce((event: any) => {
 
 // 返回顶部
 const scrollToTop = () => {
-  postContent.value.setScrollTop({top: 0, behavior: 'smooth'});
+  if (!scrollbarRef.value) return;
+  scrollbarRef.value.setScrollTop({ top: 10, behavior: 'smooth' });
 };
 // 获取最新数据
 const get_past_latest = async () => {
@@ -92,7 +92,8 @@ onBeforeUnmount(async () => {
   window.removeEventListener("resize", checkDeviceSize);
   // 销毁组件：清除定时器 + 页面可见监听
   stopPoll();
-  document.removeEventListener('visibilitychange', handlePageVisible)
+  document.removeEventListener('visibilitychange', handlePageVisible);
+  handleScroll.cancel();
 })
 
 // 获取用户信息
@@ -177,7 +178,7 @@ const changeHandler: MenuProps['onChange'] = (active) => {
           >
             <!-- 功能列表内容 -->
             <t-space direction="vertical" style="width: 100%;">
-              <t-menu default-value="none" @change="changeHandler">
+              <t-menu default-value="none" @change="changeHandler" style="width: 100%">
                 <t-menu-item value="user">
                   <template #icon>
                     <t-icon name="user-circle"/>
@@ -205,7 +206,7 @@ const changeHandler: MenuProps['onChange'] = (active) => {
               trigger="hover"
               class="content"
               @scroll="handleScroll"
-              ref="postContent"
+              ref="scrollbarRef"
           >
             <t-col :md="11">
               <!--            发布推文输入框 -->
@@ -225,7 +226,7 @@ const changeHandler: MenuProps['onChange'] = (active) => {
               trigger="hover"
               class="content"
           >
-            <t-alert message="禁止非法及不良言论" type="warning"/>
+            <t-alert message="禁止非法及不良言论" theme="warning"/>
             <t-card title="推荐内容" v-show="false">
             </t-card>
           </c-scrollbar>
@@ -233,13 +234,13 @@ const changeHandler: MenuProps['onChange'] = (active) => {
       </t-row>
     </t-content>
      <t-back-top
-      container=".container"
        shape="circle"
-      :visible-height="0"
       :offset="[20, 0]"
+       :visible-height="0"
       style="position: absolute; right: 20px; bottom: 20px"
       @click="scrollToTop"
     ></t-back-top>
+
   </t-layout>
 </template>
 

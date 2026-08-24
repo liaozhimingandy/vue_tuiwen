@@ -6,6 +6,7 @@ import router from "@/router";
 import {md5} from "js-md5";
 import type {FormProps, AutoCompleteProps} from 'tdesign-vue-next';
 import {MessagePlugin} from 'tdesign-vue-next'
+import {config} from "@/common/config.ts";
 
 const current = ref<number>(0);
 
@@ -96,11 +97,10 @@ const goLogin = () => {
 /**
  * 邮箱自动填入
  */
-const emailSuffix = ['@qq.com', '@163.com', '@gmail.com'];
 const emailOptions = computed<AutoCompleteProps['options']>(() => {
   const emailPrefix = formData1.value.email.split('@')[0];
   if (!emailPrefix) return [];
-  return emailSuffix.map((suffix) => emailPrefix + suffix);
+  return config.EMAIL_SUFFIX.map((suffix) => emailPrefix + suffix);
 });
 </script>
 
@@ -120,6 +120,12 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
               </t-step-item>
               <t-step-item title="步骤2" content="填写密码和验证码">
                 <template v-if="current === 1" #extra>
+                  <t-button size="small" variant="text" @click="current--"> 上一步</t-button>
+                  <t-button size="small" variant="base" @click="current++"> 下一步</t-button>
+                </template>
+              </t-step-item>
+              <t-step-item title="步骤3" content="完成">
+                <template v-if="current === 2" #extra>
                   <t-button size="small" @click="current--"> 上一步</t-button>
                 </template>
               </t-step-item>
@@ -163,6 +169,7 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
                     placeholder="请输入新密码"
                     type="password"
                     maxlength="10"
+                    autocomplete="password"
                     show-limit-number
                 />
               </t-form-item>
@@ -188,6 +195,12 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
                 <t-button type="submit" :disabled="resetting" block>重置密码</t-button>
               </t-form-item>
             </t-form>
+
+            <div v-show="current === 2" style="width: 100%;text-align: center;">
+              <t-space align="center" size="large">
+                <t-link href="/" content="返回首页" theme="primary" size="large"/>
+              </t-space>
+            </div>
           </t-space>
         </t-col>
       </t-row>

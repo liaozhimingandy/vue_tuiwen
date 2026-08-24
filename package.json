@@ -9,11 +9,9 @@
     "preview": "pm run build && vite preview"
   },
   "dependencies": {
-    "@ant-design/icons-vue": "^7.0.1",
     "@icon-park/vue-next": "^1.4.2",
     "@wangeditor/editor": "^5.1.23",
     "@wangeditor/editor-for-vue": "^5.1.12",
-    "ant-design-vue": "^4.2.6",
     "axios": "^1.18.1",
     "c-scrollbar": "^1.0.2",
     "dayjs": "^1.11.21",

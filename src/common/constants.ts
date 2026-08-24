@@ -7,6 +7,10 @@ export const sex_code_map = {
         9: "未说明的性别"
     };
 
+export const sexListOptions = Object.entries(sex_code_map).map(([k, v]) => {
+  return {"value": k[0], "label": v}
+});
+
 export const post_right_map = {
         0: "仅自己可见",
         1: "公开"

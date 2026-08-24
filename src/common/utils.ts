@@ -90,3 +90,20 @@ export function formatMessageToHtml(rawText: string): string {
         return `<img src="${faceInfo.src}" style="width:26px;height:26px;vertical-align:middle;margin:0 2px;" />`;
     });
 }
+
+/**
+ * 拼接图片完整地址
+ * @param path 后端返回路径：支持相对路径 /xxx.jpg 或者已经是完整https链接
+ * @returns 可直接img.src使用的完整url
+ */
+export function getResourceUrl(path?: string): string {
+  if (!path) return ''
+  // 如果已经是完整 http/https 链接，直接返回（兼容OSS全链接场景）
+  if (/^https?:\/\//.test(path)) {
+    return path
+  }
+  // 防止重复拼接 //
+  const base = config.CDN_BASE_URL.endsWith('/') ? config.CDN_BASE_URL.slice(0, -1) : config.CDN_BASE_URL
+  const relPath = path.startsWith('/') ? path : `/${path}`
+  return `${base}${relPath}`
+}
