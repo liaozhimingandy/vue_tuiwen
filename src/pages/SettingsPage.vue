@@ -119,7 +119,6 @@ const password_reset = (ctx: { validateResult: any, firstError?: string }) => {
       MessagePlugin.error(err.response.data.detail)))
       .finally(() => saving.value = false);
 }
-
 // 更新账户信息
 const update_account = () => {
   saving.value = true;
@@ -179,7 +178,7 @@ const onUploadFail: UploadProps['onFail'] = ({file}) => {
                 <t-typography-title level="h4">个人资料</t-typography-title>
                 <t-form ref="formRef1" :data="account" :rules="rules_account" :colon="true" @submit="update_account">
                   <t-space direction="vertical">
-                    <t-form-item>
+                    <t-form-item label="头像">
                       <t-upload
                           v-model="files"
                           :action="apiUrls.upload_image_url()"

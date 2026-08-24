@@ -7,11 +7,8 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AModal: typeof import('ant-design-vue/es')['Modal']
-    ASpace: typeof import('ant-design-vue/es')['Space']
-    AUpload: typeof import('ant-design-vue/es')['Upload']
-    AUploadDragger: typeof import('ant-design-vue/es')['UploadDragger']
     FacePicker: typeof import('./src/components/FacePicker.vue')['default']
+    FeedbackDialog: typeof import('./src/components/FeedbackDialog.vue')['default']
     Header: typeof import('./src/components/Header.vue')['default']
     NewPost: typeof import('./src/components/NewPost.vue')['default']
     NineImageGrid: typeof import('./src/components/NineImageGrid.vue')['default']
@@ -60,8 +57,6 @@ declare module 'vue' {
     TSelect: typeof import('tdesign-vue-next')['Select']
     TSpace: typeof import('tdesign-vue-next')['Space']
     TStatistic: typeof import('tdesign-vue-next')['Statistic']
-    TStepItem: typeof import('tdesign-vue-next')['StepItem']
-    TSteps: typeof import('tdesign-vue-next')['Steps']
     TSwitch: typeof import('tdesign-vue-next')['Switch']
     TTabPanel: typeof import('tdesign-vue-next')['TabPanel']
     TTabs: typeof import('tdesign-vue-next')['Tabs']

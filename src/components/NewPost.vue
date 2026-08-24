@@ -199,9 +199,7 @@ const uploadFiles: ButtonProps['onClick'] = () => {
             theme="primary"
             @click="handlePublish"
             :disabled="!content.trim()"
-        >
-          发布{{is_open_upload_image}}
-        </t-button>
+        >发布</t-button>
       </div>
     </t-card>
   </div>
@@ -214,7 +212,7 @@ const uploadFiles: ButtonProps['onClick'] = () => {
     <t-space direction="vertical" style="width: 100%">
       <!-- 用户头像 -->
       <div style="display:flex; align-items:center; gap:16px;">
-        <t-avatar :image="appStore.useAccountStore.account?.avatar" size="large"/>
+        <t-avatar :image="getResourceUrl(appStore.useAccountStore.account?.avatar)" size="large"/>
          <t-dropdown :options="dropdownOptions" @click="handleMenuClick">
             <t-button variant="text">
               {{ post_right_map[selected_status] }}

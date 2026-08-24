@@ -107,3 +107,4 @@ export function getResourceUrl(path?: string): string {
   const relPath = path.startsWith('/') ? path : `/${path}`
   return `${base}${relPath}`
 }
+

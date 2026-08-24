@@ -5,17 +5,17 @@ import {h, onMounted, ref, computed} from 'vue';
 import {
   ShareIcon,
   DeleteIcon,
-  StopCircleIcon,
+  StopCircleIcon, MailIcon, LogoutIcon,
 } from 'tdesign-icons-vue-next';
 import dayjs from 'dayjs';
 // TDesign 全局提示、弹窗确认
-import {MessagePlugin, DialogPlugin} from 'tdesign-vue-next';
+import {MessagePlugin, DialogPlugin, type DropdownProps} from 'tdesign-vue-next';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {ShareNetwork} from 'vue-social-sharing'
 
 dayjs.extend(relativeTime);
 import type {IAccount, IComment, IPost} from "@/interface";
-import {formatMessageToHtml, getResourceUrl, timestampFormat} from "@/common/utils.ts";
+import {formatMessageToHtml, getResourceUrl, logger, timestampFormat} from "@/common/utils.ts";
 import instance from '../services/';
 import appStore from "../stores";
 import NineImageGrid from "@/components/NineImageGrid.vue";
@@ -135,6 +135,7 @@ const handleDropdownClick = (value: string) => {
     case '0':
       // 删除帖子 confirm
       DialogPlugin.confirm({
+        theme: "warning",
         header: '你确定要执行这个操作吗？',
         body: '删除此帖子后,不可恢复!',
         confirmBtn: '确定',
@@ -147,9 +148,12 @@ const handleDropdownClick = (value: string) => {
               })
               .catch((e: any) => MessagePlugin.error(`删除失败${e}`))
         },
-        onClose: () => {
-          console.log('用户取消了');
-        }
+        onCancel: () => {
+          logger.log('用户取消了');
+        },
+        onCloseBtnClick:  () => {
+          logger.log('用户取消了');
+        },
       });
       break;
     case '1':
@@ -173,48 +177,37 @@ onMounted(async () => {
 })
 
 // 构造下拉菜单选项
-const dropdownOptions = computed(() => {
-  const opts: Array<{ value: string; content: any; icon?: any }> = [];
-  if (account_id === post.account_id) {
+const dropdownOptions = computed<DropdownProps['options']>(() => {
+  const opts: DropdownProps['options'] = [];
+  const isOwner = appStore.useAccountStore.account.account_id === props.post.account_id;
+
+  if (isOwner) {
     opts.push({
-      value: '0',
+      value: 0,
       content: '删除此帖子',
-      icon: h(DeleteIcon)
-    })
-  }
-  if (account_id !== post.account_id) {
+      prefixIcon: () => h(DeleteIcon),
+      onClick: () => handleDropdownClick('0')
+    });
+  } else {
     opts.push({
-      value: '1',
+      value: 1,
       content: '举报',
-      icon: h(StopCircleIcon)
-    })
+      prefixIcon: () => h(StopCircleIcon),
+      onClick: () => handleDropdownClick('1')
+    });
   }
   return opts;
-})
+});
 </script>
 
 <template>
   <t-watermark :watermark-content="{ text: post.right_status === 0 ? '仅你自己可见' : '' }"
   >
     <t-card size="small" style="text-align: left">
-      <!-- 卡片右上角下拉更多 -->
-      <template #actions>
-        <t-dropdown
-            :options="dropdownOptions"
-            @click="handleDropdownClick"
-            trigger="click"
-        >
-          <t-button variant="text">
-            <template #icon>
-              <t-icon name="more"/>
-            </template>
-          </t-button>
-        </t-dropdown>
-      </template>
-
       <!-- 用户头部信息 -->
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; width: 100%;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; width: 100%;">
           <t-space>
             <t-popup trigger="hover" show-arrow placement="bottom-left">
               <template #content>
@@ -252,15 +245,23 @@ const dropdownOptions = computed(() => {
               <span style="color: #888;">发布于{{ timestampFormat(post.gmt_created) }}</span>
             </div>
           </t-space>
-          <t-button
-              v-if="post.account_id !== account_id"
-              theme="primary"
-              @click="handleFollow"
-              :danger="follow?.is_following"
-          >
-            {{ follow?.is_following ? '取消关注' : '加关注' }}
-          </t-button>
-
+          <t-space direction="horizontal">
+            <t-button
+                v-if="post.account_id !== account_id"
+                theme="primary"
+                @click="handleFollow"
+                :danger="follow?.is_following"
+            >
+              {{ follow?.is_following ? '取消关注' : '加关注' }}
+            </t-button>
+            <t-dropdown :options="dropdownOptions">
+              <t-button variant="text">
+                <template #icon>
+                  <t-icon name="more"/>
+                </template>
+              </t-button>
+            </t-dropdown>
+          </t-space>
         </div>
       </template>
 

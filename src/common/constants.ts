@@ -8,7 +8,7 @@ export const sex_code_map = {
     };
 
 export const sexListOptions = Object.entries(sex_code_map).map(([k, v]) => {
-  return {"value": k[0], "label": v}
+  return {"value": Number(k[0]), "label": v}
 });
 
 export const post_right_map = {

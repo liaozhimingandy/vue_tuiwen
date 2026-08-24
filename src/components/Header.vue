@@ -2,7 +2,7 @@
 import {h, onMounted, ref} from "vue";
 import {MessagePlugin} from 'tdesign-vue-next';
 import type {DropdownProps, MenuProps} from 'tdesign-vue-next';
-import {LogoutIcon, MailIcon, HomeIcon, NotificationIcon, SearchIcon} from 'tdesign-icons-vue-next';
+import {LogoutIcon, MailIcon, SearchIcon} from 'tdesign-icons-vue-next';
 import appStore from "@/stores";
 import router from "@/router";
 import instance from "@/services";
@@ -46,7 +46,7 @@ const onLogout = () => {
 const items = ref([
   {
     key: 'home',
-    icon: h(HomeIcon),
+    icon: '',
     label: h('a', {href: '/', target: '_self'}, ''),
     title: '首页',
   },
@@ -64,9 +64,9 @@ const onSearch = () => {
 
 const options: DropdownProps['options'] = [
   {
-    content: '提供宝贵意见',
+    content: '意见反馈',
     value: 1,
-    href: 'mailto:liaozhimingandy@gg.com',
+    onClick: () => handleOpenFeedback(),
     prefixIcon: () => h(MailIcon)
   },
   {
@@ -76,6 +76,12 @@ const options: DropdownProps['options'] = [
     prefixIcon: () => h(LogoutIcon)
   },
 ]
+
+
+const feedbackDialogRef = ref();
+const handleOpenFeedback = () => {
+  feedbackDialogRef.value?.open();
+};
 </script>
 
 <template>
@@ -112,7 +118,7 @@ const options: DropdownProps['options'] = [
         </template>
         <t-button size="large" variant="text">
           <template #icon>
-            <notification-icon/>
+            <t-icon name="notification"/>
           </template>
         </t-button>
       </t-popup>
@@ -124,6 +130,7 @@ const options: DropdownProps['options'] = [
       </t-dropdown>
     </template>
   </t-head-menu>
+  <FeedbackDialog ref="feedbackDialogRef"/>
 </template>
 
 <style scoped>
@@ -146,5 +153,12 @@ const options: DropdownProps['options'] = [
 .header-search {
   width: 220px;
   margin-left: 16px;
+}
+
+:deep(.t-head-menu__middle) {
+  position: absolute !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 1;
 }
 </style>

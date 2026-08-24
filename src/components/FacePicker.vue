@@ -61,7 +61,7 @@ const selectFace = (item: FaceItem) => {
 
 <style scoped>
 .face-panel {
-  width: 420px;
+  width: 360px;
   background: #fff;
   border-radius: 8px;
   overflow: hidden;

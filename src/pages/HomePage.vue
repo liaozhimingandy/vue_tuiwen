@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref, onMounted, onBeforeUnmount} from 'vue';
+import {ref, onMounted, onBeforeUnmount, computed} from 'vue';
 import {storeToRefs} from "pinia";
 import {debounce} from "lodash";
 import {useRouter} from "vue-router";
@@ -37,7 +37,6 @@ const handleScroll = debounce((event: any) => {
   const scrollHeight = target.scrollHeight;
   const clientHeight = target.clientHeight;
 
-  console.info(scrollTop, scrollHeight, clientHeight)
   showBackTop.value = scrollTop >= clientHeight;
   if (scrollTop + clientHeight >= scrollHeight - 20) {
     get_post();
@@ -47,7 +46,7 @@ const handleScroll = debounce((event: any) => {
 // 返回顶部
 const scrollToTop = () => {
   if (!scrollbarRef.value) return;
-  scrollbarRef.value.setScrollTop({ top: 10, behavior: 'smooth' });
+  scrollbarRef.value.setScrollTop({top: 10, behavior: 'smooth'});
 };
 // 获取最新数据
 const get_past_latest = async () => {
@@ -233,12 +232,12 @@ const changeHandler: MenuProps['onChange'] = (active) => {
         </t-col>
       </t-row>
     </t-content>
-     <t-back-top
-       shape="circle"
-      :offset="[20, 0]"
-       :visible-height="0"
-      style="position: absolute; right: 20px; bottom: 20px"
-      @click="scrollToTop"
+    <t-back-top
+        shape="circle"
+        :offset="[20, 0]"
+        :visible-height="0"
+        style="position: absolute; right: 20px; bottom: 20px"
+        @click="scrollToTop"
     ></t-back-top>
 
   </t-layout>

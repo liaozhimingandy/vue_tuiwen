@@ -4,7 +4,7 @@ import {onMounted, ref} from "vue";
 import type {IPost, IAccount} from "@/interface";
 import instance from "@/services"
 import {apiUrls} from "@/services/api.ts";
-import {timestampFormat} from "@/common/utils.ts";
+import {getResourceUrl, timestampFormat} from "@/common/utils.ts";
 import NineImageGrid from "@/components/NineImageGrid.vue";
 import {MessagePlugin} from 'tdesign-vue-next';
 
@@ -35,37 +35,38 @@ onMounted(async () => {
 </script>
 
 <template>
-  <t-spin :spinning="loading" tip="加载中..." style="height: 100vh">
-    <t-empty v-if="!post" description="帖子不存在或已删除!">
-    </t-empty>
-    <t-layout v-else style="min-height: 50vh">
-      <t-content>
-        <t-row justify="center">
-          <t-col :md="8" :xs="11" :sm="12">
-            <t-space>
-              <t-avatar :src="account?.avatar" :size="64"></t-avatar>
-              <t-typography-title :level="4">{{ account?.nick_name }}</t-typography-title>
-              <t-typography-text>发布于{{ timestampFormat(post?.gmt_created) }}</t-typography-text>
-            </t-space>
-          </t-col>
-        </t-row>
-        <t-row justify="center">
-          <t-col :md="8" :xs="11" :sm="12">
-            <div v-html="post?.content?.text" v-if="post?.post_type==2" class="rich-wrap"/>
-            <a-typography-text v-if="post?.post_type==1">
-              {{ post?.content?.text }}
-            </a-typography-text>
-            <NineImageGrid v-if="post?.post_type==1" :image-list="post.content.images" :single-max-width="160"
-                       :two-col-max-width="200"
-                       :three-col-max-width="360"/>
-          </t-col>
-        </t-row>
-      </t-content>
-      <t-footer style="text-align: center">
-        © {{ new Date().getFullYear() }} - {{ account?.nick_name }}
-      </t-footer>
-    </t-layout>
-  </t-spin>
+  <t-empty v-if="!post" description="帖子不存在或已删除!">
+  </t-empty>
+  <t-layout v-else style="min-height: 50vh">
+    <t-content>
+      <t-row justify="center">
+        <t-col :md="8" :xs="11" :sm="12">
+          <t-space direction="horizontal">
+            <t-avatar :image="getResourceUrl(account?.avatar)" size="64px"></t-avatar>
+            <div style="margin-left: 12px; display: flex; flex-direction: column; justify-content: center; height: 100%;">
+              <t-typography-text style="margin: 0;"><b>{{ account?.nick_name || post.account_id }}</b>
+              </t-typography-text>
+              <span style="color: #888;">发布于{{ timestampFormat(post.gmt_created) }}</span>
+            </div>
+          </t-space>
+        </t-col>
+      </t-row>
+      <t-row justify="center">
+        <t-col :md="8" :xs="11" :sm="12">
+          <div v-html="post?.content?.text" v-if="post?.post_type==2" class="rich-wrap"/>
+          <t-typography-text v-if="post?.post_type==1">
+            {{ post?.content?.text }}
+          </t-typography-text>
+          <NineImageGrid v-if="post?.post_type==1" :image-list="post.content.images" :single-max-width="160"
+                         :two-col-max-width="200"
+                         :three-col-max-width="360"/>
+        </t-col>
+      </t-row>
+    </t-content>
+    <t-footer style="text-align: center">
+      © {{ new Date().getFullYear() }} - {{ account?.nick_name }}
+    </t-footer>
+  </t-layout>
 </template>
 
 <style scoped>
