@@ -141,7 +141,7 @@ const onPublish = async () => {
   // 调发布接口
   await publish_post(post);
 
-  MessagePlugin.success("发布成功!");
+  await MessagePlugin.success("发布成功!");
   editorRef.value.clear();
   appStore.useDraftStore.clearDraft();
 }
@@ -158,7 +158,7 @@ const dropdownOptions = computed<DropdownProps['options']>(() => {
 
 <template>
   <t-layout style="min-height: 100vh;">
-    <t-header ref="headerRef" :style="{width: '100%','background-color': 'white'}">
+    <t-header ref="headerRef" :style="{width: '100vw','background-color': 'white'}">
       <Header selected-keys="none"/>
     </t-header>
     <t-content :style="{ padding: '0 50px', marginTop: '4px' }">

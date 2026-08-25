@@ -2,11 +2,11 @@ import appStore from "@/stores";
 import instance from '@/services';
 import type {IAccount} from "@/interface";
 import {config} from "../common/config.ts";
-import {getApiBaseUrl} from "../common/endpoint-detector.ts";
 
 export const apiUrls = {
   // 用户账号相关
   get_account: (account_id: string) => `/accounts/${account_id}/`,
+  check_username: (username: string) => `/accounts/check-username/${username}/`,
   register: () => '/accounts/register/',
   update_password: () => '/accounts/password/change/',
   reset_password: () => "/accounts/password/reset/",

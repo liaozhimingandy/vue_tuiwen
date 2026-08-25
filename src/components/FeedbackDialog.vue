@@ -54,11 +54,15 @@ const submitLoading = ref(false);
 interface FeedbackForm {
   content: string;
   contact: string;
+  feedback_type: number;
+  level: number;
 }
 
 const formData = reactive<FeedbackForm>({
   content: '',
-  contact: ''
+  contact: '',
+  feedback_type: 1,
+  level: 1
 });
 
 // 表单校验规则
@@ -88,6 +92,7 @@ const handleConfirm = async () => {
     await instance.post(apiUrls.feedback(), formData);
     await MessagePlugin.success('感谢您提交的反馈！');
     visible.value = false;
+    formRef.value?.reset();
   } catch (err) {
     const msg = (err as any)?.response?.data?.msg ?? '提交反馈失败，请稍后重试';
     await MessagePlugin.error(msg);

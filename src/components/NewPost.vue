@@ -5,18 +5,19 @@ import appStore from '@/stores/';
 import {storeToRefs} from 'pinia';
 import {post_right_map} from "@/common/constants.js";
 import {apiUrls, publish_post} from "@/services/api.ts";
-import {getResourceUrl, trimEmptyParagraph} from "@/common/utils.ts";
+import {getResourceUrl, logger, trimEmptyParagraph} from "@/common/utils.ts";
 import FacePicker from "@/components/FacePicker.vue";
 import {MessagePlugin} from "tdesign-vue-next";
 import {ChevronDownIcon, ImageAddIcon, SmileIcon} from "tdesign-icons-vue-next";
-import type { DropdownProps, UploadProps, ButtonProps} from 'tdesign-vue-next';
+import type {DropdownProps, UploadProps, ButtonProps, CheckboxProps} from 'tdesign-vue-next';
+import instance from "@/services";
 
 const draftStore = storeToRefs(appStore.useDraftStore);
 
 // 内容
 const content = ref("");
 // 上传图片
-const fileList = ref<File[]>([]);
+const fileList = ref<UploadProps['value']>([]);
 const is_open_upload_image = ref<boolean>(false); //是否打开上传图片的弹窗
 // 设置图片上传的接口地址
 const is_open = ref<boolean>(false); //输入框是否打开
@@ -25,7 +26,7 @@ const is_open = ref<boolean>(false); //输入框是否打开
 // 选中的状态，默认 "public"
 const selected_status = ref(1);
 // 处理菜单点击事件
-const handleMenuClick : DropdownProps['onClick'] = (data) => {
+const handleMenuClick: DropdownProps['onClick'] = (data) => {
   selected_status.value = data.value as number;
 };
 // 组装下拉选项
@@ -121,8 +122,8 @@ const inputRef = ref();
 const onSelectFace = (face: string) => {
   // 如果从未聚焦过，默认插到文本末尾
   const start = lastCursorPos.value < 0
-    ? content.value.length
-    : lastCursorPos.value;
+      ? content.value.length
+      : lastCursorPos.value;
 
   // 1. 先更新响应式数据，由 v-model 同步 DOM
   content.value = content.value.slice(0, start) + face + content.value.slice(start);
@@ -135,7 +136,7 @@ const sizeLimit = ref<UploadProps['sizeLimit']>({
   unit: 'KB',
 });
 const abridgeName: UploadProps['abridgeName'] = [6, 6];
-const handleFail: UploadProps['onFail'] = ({ file }) => {
+const handleFail: UploadProps['onFail'] = ({file}) => {
   MessagePlugin.error(`文件 ${file.name} 上传失败`);
 };
 const disabled = ref(false);
@@ -145,6 +146,30 @@ const uploadFiles: ButtonProps['onClick'] = () => {
   // uploadRef1.value.uploadFiles();
   // uploadRef2.value.uploadFiles();
   // uploadRef3.value.uploadFiles();
+};
+const showUploadButton = ref<CheckboxProps['value']>(true);
+
+const requestMethod1: UploadProps['requestMethod'] = async (file) => {
+  logger.info(file)
+  const formData = new FormData();
+  formData.append("file", uploadFile.raw as File);
+
+  const res = await instance.post(apiUrls.upload_image_url(), formData, {
+    headers: {
+      'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`
+    }
+  });
+  // 返回后端json，onUploadSuccess里就能读到 response.image_url
+  return res.data;
+};
+
+const onSuccess: UploadProps['onSuccess'] = ({file, response}) => {
+  logger.info(file);
+  fileList.value.push({
+    url: getResourceUrl(response.image_url),
+    name: file?.name,
+    status: 'success'
+  });
 };
 
 </script>
@@ -174,9 +199,10 @@ const uploadFiles: ButtonProps['onClick'] = () => {
         <t-space size="small">
           <!-- 上传图片按钮 -->
           <t-tooltip content="上传图片">
-            <t-button variant="text" @click="()=>is_open_upload_image=!is_open_upload_image">
+            <t-button variant="text" @click="()=>is_open = !is_open">
               <template #icon>
-                <image-add-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
+                <image-add-icon :fill-color='["transparent","transparent"]'
+                                :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
               </template>
             </t-button>
           </t-tooltip>
@@ -188,7 +214,8 @@ const uploadFiles: ButtonProps['onClick'] = () => {
             <t-tooltip content="表情包">
               <t-button variant="text">
                 <template #icon>
-                  <smile-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
+                  <smile-icon :fill-color='["transparent","transparent"]'
+                              :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
                 </template>
               </t-button>
             </t-tooltip>
@@ -199,7 +226,8 @@ const uploadFiles: ButtonProps['onClick'] = () => {
             theme="primary"
             @click="handlePublish"
             :disabled="!content.trim()"
-        >发布</t-button>
+        >发布
+        </t-button>
       </div>
     </t-card>
   </div>
@@ -209,11 +237,11 @@ const uploadFiles: ButtonProps['onClick'] = () => {
       :footer="null"
   >
     <template #body>
-    <t-space direction="vertical" style="width: 100%">
-      <!-- 用户头像 -->
-      <div style="display:flex; align-items:center; gap:16px;">
-        <t-avatar :image="getResourceUrl(appStore.useAccountStore.account?.avatar)" size="large"/>
-         <t-dropdown :options="dropdownOptions" @click="handleMenuClick">
+      <t-space direction="vertical" style="width: 100%">
+        <!-- 用户头像 -->
+        <div style="display:flex; align-items:center; gap:16px;">
+          <t-avatar :image="getResourceUrl(appStore.useAccountStore.account?.avatar)" size="large"/>
+          <t-dropdown :options="dropdownOptions" @click="handleMenuClick">
             <t-button variant="text">
               {{ post_right_map[selected_status] }}
               <template #suffix>
@@ -221,50 +249,53 @@ const uploadFiles: ButtonProps['onClick'] = () => {
               </template>
             </t-button>
           </t-dropdown>
-        <router-link
-            :to="{ name: 'long' }"
-            target="_blank"
-        >
-          <t-link>发长文</t-link>
-        </router-link>
-      </div>
-      <!-- 输入框 -->
-      <t-textarea ref="inputRef" placeholder="分享一下你的生活趣事" v-model:value="content"
-                  :maxcharacter="256"
-                  :autosize="{ minRows: 3, maxRows: 5 }"
-                  @focus="saveCursor"
-                  @blur="saveCursor"/>
-    </t-space>
-    <t-divider/>
+          <router-link
+              :to="{ name: 'long' }"
+              target="_blank"
+          >
+            <t-link>发长文</t-link>
+          </router-link>
+        </div>
+        <!-- 输入框 -->
+        <t-textarea ref="inputRef" placeholder="分享一下你的生活趣事" v-model:value="content"
+                    :maxcharacter="256"
+                    :autosize="{ minRows: 3, maxRows: 5 }"
+                    @focus="saveCursor"
+                    @blur="saveCursor"/>
+      </t-space>
+      <t-divider/>
       <!--          图片上传功能 TDesign t‑upload -->
-   <t-upload
-      ref="uploadRef3"
-      v-model="fileList"
-      :action="apiUrls.upload_image_url()"
-      theme="image"
-      tips="最多只能上传1张图片"
-      v-show="is_open_upload_image"
-      accept="image/*"
-      :size-limit="sizeLimit"
-      :abridge-name="abridgeName"
-      :disabled="disabled"
-      :auto-upload="autoUpload"
-      :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
-      :upload-all-files-in-one-request="uploadAllFilesInOneRequest"
-      multiple
-      :max="9"
-      @fail="handleFail"
-    >
-   </t-upload>
-    <t-divider v-if="is_open_upload_image"/>
-    <!-- 第二段：上传图片按钮 + 发布按钮 -->
-    <div style="display:flex;justify-content:space-between;align-items:center">
+      <t-upload
+          ref="uploadRef3"
+          :allow-upload-duplicate-file="true"
+          v-model="fileList"
+          :action="apiUrls.upload_image_url()"
+          theme="image"
+          tips="最多只能上传9张图片"
+          v-show="is_open_upload_image"
+          accept="image/*"
+          :size-limit="sizeLimit"
+          :abridge-name="abridgeName"
+          :disabled="disabled"
+          :auto-upload="autoUpload"
+          :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
+          :upload-button="showUploadButton ? undefined : null"
+          :cancel-upload-button="showUploadButton ? { theme: 'default', content: '取消上传' } : null"
+          multiple
+          :max="9"
+          @fail="handleFail"
+      >
+      </t-upload>
+      <t-divider v-if="is_open_upload_image"/>
+      <!-- 第二段：上传图片按钮 + 发布按钮 -->
+      <div style="display:flex;justify-content:space-between;align-items:center">
         <t-space size="small">
           <!-- 上传图片按钮 -->
           <t-tooltip content="上传图片">
             <t-button variant="text" @click="()=>is_open_upload_image=!is_open_upload_image">
               <template #icon>
-                <image-add-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
+                <image-add-icon :fill-color='["transparent","transparent"]'
+                                :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
               </template>
             </t-button>
           </t-tooltip>
@@ -276,7 +307,8 @@ const uploadFiles: ButtonProps['onClick'] = () => {
             <t-tooltip content="表情包">
               <t-button variant="text">
                 <template #icon>
-                  <smile-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
+                  <smile-icon :fill-color='["transparent","transparent"]'
+                              :stroke-color='["currentColor","currentColor"]' :stroke-width="2.5"/>
                 </template>
               </t-button>
             </t-tooltip>
@@ -292,7 +324,7 @@ const uploadFiles: ButtonProps['onClick'] = () => {
           发布
         </t-button>
       </div>
-      </template>
+    </template>
   </t-dialog>
 </template>
 

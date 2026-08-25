@@ -14,7 +14,7 @@ import {storeToRefs} from "pinia";
 import type {IAccount} from "@/interface";
 import router from "@/router";
 import type {UploadProps} from 'tdesign-vue-next';
-import {getResourceUrl} from "@/common/utils.ts";
+import {getResourceUrl, logger} from "@/common/utils.ts";
 
 const activeKey = ref(1);
 const {account} = storeToRefs(appStore.useAccountStore);
@@ -35,6 +35,7 @@ onMounted(() => {
 
 // 查询用户信息
 update_self_account(account.value.account_id);
+const username = account.value.username;
 
 // 密码重置表单
 const formData = reactive({
@@ -59,6 +60,25 @@ const validateConfirmPassword = async (
   return {result: true};
 };
 
+import type {FormProps, CustomValidator} from 'tdesign-vue-next';
+
+const checkUserNameValidator: CustomValidator = async (val, context) => {
+  if (!val || !val.trim()) {
+        return new Promise((resolve) => resolve(false));
+      }
+  checkingName.value = true;
+  try {
+    const r = await instance.get(apiUrls.check_username(val));
+    logger.info(r)
+    return new Promise((resolve) => resolve( !r.data.exists || username === account.value.username));
+  }catch (err){
+    return new Promise((resolve) => resolve(false));
+  }finally {
+    checkingName.value = false;
+  }
+};
+
+
 // 修改密码表单规则
 const rules_password = {
   password_current: [
@@ -77,6 +97,7 @@ const rules_password = {
   ],
 };
 
+
 // 个人信息更新规则
 const rules_account = {
   avatar: [
@@ -85,18 +106,37 @@ const rules_account = {
   username: [
     {required: true, message: '用户名,平台唯一标识,不能和其他人相同', trigger: 'blur'},
     {min: 2, max: 32, message: '长度必须介于2和32之间', trigger: ['blur', 'change']},
-  ],
-  nick_name: [
-    {required: true, message: '用于对外显示的网名', trigger: 'blur'},
-    {min: 2, max: 32, message: '长度必须介于2和32之间', trigger: ['blur', 'change']},
-  ],
-  gmt_birth: [
-    {required: true, message: '你的出生日期', trigger: 'blur'},
-  ],
-  sex: [
-    {required: true, message: '性别', trigger: 'blur'},
-  ],
-};
+  {
+    required: true,
+    message: 'username必填',
+    type: 'error',
+  },
+  {
+    min: 2,
+    message: '至少需要两个字母',
+    type: 'error',
+    trigger: 'blur',
+  },
+  {
+    validator: checkUserNameValidator,
+    message: "该用户已存在",
+    type: 'error',
+    trigger: 'blur'
+  }],
+nick_name: [
+  {required: true, message: '用于对外显示的网名', trigger: 'blur'},
+  {min: 2, max: 32, message: '长度必须介于2和32之间', trigger: ['blur', 'change']},
+],
+    gmt_birth:
+[
+  {required: true, message: '你的出生日期', trigger: 'blur'},
+],
+    sex:
+[
+  {required: true, message: '性别', trigger: 'blur'},
+],
+}
+;
 
 // 密码重置
 const password_reset = (ctx: { validateResult: any, firstError?: string }) => {
@@ -120,7 +160,12 @@ const password_reset = (ctx: { validateResult: any, firstError?: string }) => {
       .finally(() => saving.value = false);
 }
 // 更新账户信息
-const update_account = () => {
+const update_account = (ctx: { validateResult: any, firstError?: string }) => {
+  if (ctx.validateResult !== true) {
+    MessagePlugin.warning(ctx.firstError || '表单校验不通过，请检查填写内容');
+    return;
+  }
+
   saving.value = true;
   let data = {
     username: account.value.username,
@@ -161,65 +206,7 @@ const onUploadFail: UploadProps['onFail'] = ({file}) => {
 
 // 是否正在校验中（显示loading）
 const checkingName = ref(false)
-// 防抖定时器
-let debounceTimer: number | null = null
-// 记录上一次校验过的值，重复输入相同值跳过接口请求
-let lastCheckedValue = ''
 
- /**
- * 后端校验接口 - 判断用户名是否存在
- * @param name 用户名
- * @returns true=已占用 false=可用
- */
-async function fetchCheckUserExist(name: string): Promise<boolean> {
-  // 替换为你的真实API请求
-  console.log('发起接口校验用户名：', name)
-  // const res = await api.checkUsername(name)
-  // return res.data.exist
-  return false
-}
-
-/**
- * 输入事件，防抖入口
- */
-const onUserNameInput = (val: string) => {
-  // 清除上一次等待中的定时器
-  if (debounceTimer) {
-    clearTimeout(debounceTimer)
-  }
-  console.info(account.value.username)
-  console.info(val.value)
-  // 输入为空，直接终止校验
-  if (!val.trim()) {
-    checkingName.value = false
-    return
-  }
-
-  debounceTimer = window.setTimeout(async () => {
-    // 和上次校验的值一模一样 → 跳过请求，节约接口
-    if (val === lastCheckedValue) return
-
-    checkingName.value = true
-    try {
-      const isExist = await fetchCheckUserExist(val)
-      lastCheckedValue = val
-
-      if (isExist) {
-        MessagePlugin.warning('该用户名已被占用，请更换')
-      } else {
-        MessagePlugin.success('用户名可用')
-      }
-    } catch (err) {
-      MessagePlugin.error('校验失败，请稍后重试')
-    } finally {
-      checkingName.value = false
-    }
-  }, 1000) // 停顿 1000ms 后触发，可自行改成 800‑1500
-}
-// 组件销毁清除定时器，防止闭包后台继续执行
-onUnmounted(() => {
-  if (debounceTimer) clearTimeout(debounceTimer)
-})
 </script>
 
 <template>
@@ -238,7 +225,8 @@ onUnmounted(() => {
             <t-tabs :default-value="activeKey" animated placement="left" size="large">
               <t-tab-panel :value="1" label="个人资料">
                 <t-typography-title level="h4">个人资料</t-typography-title>
-                <t-form ref="formRef1" :data="account" :rules="rules_account" :colon="true" @submit="update_account">
+                <t-form ref="formRef1" :data="account" :rules="rules_account" :status-icon="true" :colon="true"
+                        @submit="update_account">
                   <t-space direction="vertical">
                     <t-form-item label="头像">
                       <t-upload
@@ -255,20 +243,15 @@ onUnmounted(() => {
                           @success="onUploadSuccess"
                       />
                     </t-form-item>
-                    <t-form-item label="用户名" name="username" :status-icon="true" :success-border="!checkingName">
-                      <t-input v-model="account.username" placeholder="平台唯一标识,不能和其他人相同" @input="onUserNameInput">
+                    <t-form-item label="用户名" name="username">
+                      <t-input v-model="account.username" placeholder="平台唯一标识,不能和其他人相同">
                       </t-input>
-                      <template #statusIcon>
-                        <div style="width: 16px; display: flex; justify-content: center">
-                          <t-loading size="small" v-if="checkingName"/>
-                        </div>
-                      </template>
                     </t-form-item>
-                    <t-form-item label="昵称" name="nick_name" :status-icon="true">
+                    <t-form-item label="昵称" name="nick_name">
                       <t-input v-model:value="account.nick_name"
                                placeholder="用于对外显示的网名,可以和其他人同名"></t-input>
                     </t-form-item>
-                    <t-form-item label="出生日期" name="gmt_birth" :status-icon="true">
+                    <t-form-item label="出生日期" name="gmt_birth">
                       <t-date-picker v-model:value="account.gmt_birth" value-format="YYYY-MM-DD">
                       </t-date-picker>
                     </t-form-item>
