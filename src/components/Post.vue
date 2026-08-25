@@ -151,25 +151,18 @@ const handleDropdownClick = (value: string) => {
         onCancel: () => {
           logger.log('用户取消了');
         },
-        onCloseBtnClick:  () => {
+        onCloseBtnClick: () => {
           logger.log('用户取消了');
         },
       });
       break;
     case '1':
-      const to = 'a@qq.com';
-      const subject = '建议反馈';
-      const body = '你好，我有以下建议：';
-      const href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      const tab = window.open(href, '_blank');
+      feedbackDialogRef.value?.open();
       break;
     default:
       break
   }
 };
-
-const onSelectFace = () => {
-}
 
 onMounted(async () => {
   await appStore.useCacheStore.fetch_account(props.post.account_id);
@@ -184,24 +177,30 @@ const dropdownOptions = computed<DropdownProps['options']>(() => {
   if (isOwner) {
     opts.push({
       value: 0,
-      content: '删除此帖子',
+      content: '删除帖子',
       prefixIcon: () => h(DeleteIcon),
       onClick: () => handleDropdownClick('0')
     });
   } else {
     opts.push({
       value: 1,
-      content: '举报',
+      content: '举报反馈',
       prefixIcon: () => h(StopCircleIcon),
       onClick: () => handleDropdownClick('1')
     });
   }
   return opts;
 });
+
+const feedbackDialogRef = ref();
 </script>
 
 <template>
   <t-watermark :watermark-content="{ text: post.right_status === 0 ? '仅你自己可见' : '' }"
+               :y="120"
+               :x="80"
+               :width="120"
+               :height="60"
   >
     <t-card size="small" style="text-align: left">
       <!-- 用户头部信息 -->
@@ -346,53 +345,48 @@ const dropdownOptions = computed<DropdownProps['options']>(() => {
             </t-button>
           </t-col>
         </t-row>
+
+        <!-- 评论输入区域 -->
+        <t-divider v-if="select_item === 'c'"></t-divider>
+        <t-comment v-if="select_item === 'c'"
+                   :avatar="getResourceUrl(appStore.useAccountStore.account?.avatar)">
+          <template #content>
+            <div class="form-container">
+              <t-textarea v-model="comment_data" placeholder="请输入内容"/>
+              <t-button class="form-submit" @click="handleSubmit">回复</t-button>
+            </div>
+          </template>
+        </t-comment>
+
+        <!-- 评论列表 -->
+        <t-list
+            v-if="select_item === 'c'"
+            :header="`${comments.length} 条评论`"
+            :split="true"
+        >
+          <t-list-item v-for="(item, index) in comments" :key="index">
+            <t-comment
+                :author="user_map[item.account_id]?.nick_name"
+                :avatar="getResourceUrl(user_map[item.account_id]?.avatar)"
+                :content="item.content"
+                :datetime="timestampFormat(item.gmt_created)"
+            />
+          </t-list-item>
+        </t-list>
       </template>
     </t-card>
-
-    <!-- 评论输入区域 -->
-    <t-comment v-if="select_item === 'c'" style="text-align: start;background-color: white">
-      <template #avatar>
-        <t-avatar :src="appStore.useAccountStore.account?.avatar" alt="avatar"/>
-      </template>
-      <template #content>
-        <t-textarea v-model="comment_data" :rows="4"/>
-        <div style="display:flex;justify-content:space-between;margin-top:8px;align-items:center">
-          <t-popup trigger="click" show-arrow>
-            <template #content>
-              <FacePicker @select="onSelectFace"/>
-            </template>
-            <t-tooltip content="表情包">
-              <t-button variant="text" size="large"/>
-              <template #icon>
-                <t-icon name="smille"/>
-              </template>
-            </t-tooltip>
-          </t-popup>
-          <t-button theme="primary" :loading="submitting" @click="handleSubmit">
-            提交评论
-          </t-button>
-        </div>
-      </template>
-    </t-comment>
-
-    <!-- 评论列表 -->
-    <t-list
-        v-if="select_item === 'c'"
-        :data="comments"
-        :header="`${comments.length} 条评论`"
-    >
-      <t-list-item style="text-align: start" v-for="item in comments">
-        <t-comment
-            :author="user_map[item.account_id]?.nick_name"
-            :avatar="user_map[item.account_id]?.avatar"
-            :content="item.content"
-            :datetime="timestampFormat(item.gmt_created)"
-        />
-      </t-list-item>
-    </t-list>
   </t-watermark>
+  <FeedbackDialog ref="feedbackDialogRef"/>
 </template>
 
 <style scoped>
+.form-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 
+  .form-submit {
+    margin-top: 8px;
+  }
+}
 </style>

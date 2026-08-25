@@ -75,17 +75,17 @@ router.beforeEach((to, _) => {
 
     // ==========【新增：人机预检拦截逻辑】==========
     // 访问需要预检的页面，检查本地凭证
-    if (to.meta.need_two_step_verification) {
-        const ok = !! sessionStorage.getItem('two_step_verification_success')
-        if (!ok) {
-            // 没有凭证，跳转到预检页，并记录跳转回来的地址
-            return {
-                name: 'two_step_verification',
-                query: {redirect: to.fullPath},
-                replace: true
-            }
-        }
-    }
+    // if (to.meta.need_two_step_verification) {
+    //     const ok = !! sessionStorage.getItem('two_step_verification_success')
+    //     if (!ok) {
+    //         // 没有凭证，跳转到预检页，并记录跳转回来的地址
+    //         return {
+    //             name: 'two_step_verification',
+    //             query: {redirect: to.fullPath},
+    //             replace: true
+    //         }
+    //     }
+    // }
     // ==========================================
 
     const whiteList = ['login', 'register', 'reset_password', 'post', 'two_step_verification', "test"];

@@ -104,7 +104,7 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
         </div>
       </template>
       <t-form :data="formData" :rules="rules" ref="formRef" @submit="handleRegister">
-        <t-form-item label="电子邮箱" name="email">
+        <t-form-item label="电子邮箱" name="email" :status-icon="true">
           <t-auto-complete filterable :options="emailOptions">
             <template #default>
               <t-input
@@ -118,14 +118,14 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
             </template>
           </t-auto-complete>
         </t-form-item>
-        <t-form-item label="密码" name="password">
+        <t-form-item label="密码" name="password" :status-icon="true">
           <t-input v-model:value="formData.password" placeholder="请输入密码" type="password" autocomplete="password">
             <template #prefix-icon>
               <t-icon name="lock-on"/>
             </template>
           </t-input>
         </t-form-item>
-        <t-form-item label="确认密码" name="confirmPassword">
+        <t-form-item label="确认密码" name="confirmPassword" :status-icon="true">
           <t-input v-model:value="formData.confirmPassword" placeholder="请确认密码" type="password"
                    autocomplete="confirmPassword">
             <template #prefix-icon>
@@ -134,13 +134,13 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
           </t-input>
         </t-form-item>
         <t-divider/>
-        <t-form-item name="nick_name" label="显示名称">
+        <t-form-item name="nick_name" label="显示名称" :status-icon="true">
           <t-input v-model:value="formData.nick_name"></t-input>
         </t-form-item>
-        <t-form-item label="出生日期" name="gmt_birth">
+        <t-form-item label="出生日期" name="gmt_birth" :status-icon="true">
           <t-date-picker v-model:value="formData.gmt_birth" value-format="YYYY-MM-DD" style="width: 100%"/>
         </t-form-item>
-        <t-form-item name="sex" label="性别">
+        <t-form-item name="sex" label="性别" :status-icon="true">
           <t-select v-model:value="formData.sex" :options='sexListOptions'/>
         </t-form-item>
         <t-divider/>

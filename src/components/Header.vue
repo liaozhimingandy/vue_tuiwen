@@ -9,6 +9,7 @@ import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
 import {useDeviceWatcher} from '@/common/device.ts';
 import {getResourceUrl} from "@/common/utils.ts";
+import FeedbackDialog from "@/components/FeedbackDialog.vue";
 
 const {isMobile} = useDeviceWatcher();
 
@@ -49,7 +50,7 @@ const items = ref([
     icon: '',
     label: h('a', {href: '/', target: '_self'}, ''),
     title: '首页',
-  },
+  }
 ]);
 
 
@@ -85,69 +86,58 @@ const handleOpenFeedback = () => {
 </script>
 
 <template>
-  <t-head-menu class="menu-center" v-model:value="current" expand-type="popup" @change="onChangeHandler">
-    <template #logo>
-      <img src="../assets/logo.svg" alt="logo" width="32"/>
-      <!-- 搜索框：大屏展示，移动端隐藏 -->
-      <t-input
-          v-model:value="keyword"
-          placeholder="搜索用户"
-          class="header-search"
-          v-if="!isMobile"
-          @enter="onSearch"
-      >
-        <template #suffixIcon>
-          <search-icon :style="{ cursor: 'pointer' }"/>
-        </template>
-      </t-input>
-    </template>
-    <t-menu-item :value="item.key" v-for="item in items">
-      <template #icon>
-        <t-icon name="home" size="36px"/>
-      </template>
-    </t-menu-item>
-    <template #operations>
-      <t-popup>
-        <template #content>
-          <t-list :split="true" style="width: 200px">
-            <t-list-item v-for="item in notices" :key="item.key">
-              <t-list-item-meta image="imageUrl" title="title" description="desc"/>
-            </t-list-item>
-            <t-empty v-if="notices.length == 0"/>
-          </t-list>
-        </template>
-        <t-button size="large" variant="text">
-          <template #icon>
-            <t-icon name="notification"/>
+  <div>
+    <t-head-menu v-model:value="current" theme="light" @change="onChangeHandler">
+      <template #logo>
+        <img src="../assets/logo.svg" alt="logo" width="32"/>
+        <!-- 搜索框：大屏展示，移动端隐藏 -->
+        <t-input
+            v-model:value="keyword"
+            placeholder="搜索用户"
+            class="header-search"
+            v-if="!isMobile"
+            @enter="onSearch"
+        >
+          <template #suffixIcon>
+            <search-icon :style="{ cursor: 'pointer' }"/>
           </template>
-        </t-button>
-      </t-popup>
-      <t-dropdown :options="options">
-        <t-space direction="horizontal">
-          <t-avatar :image="getResourceUrl(appStore.useAccountStore.account?.avatar)" :hide-on-load-failed="false"/>
-          <span v-if="!isMobile" style="margin-left: 8px;">{{ appStore.useAccountStore.account?.nick_name }}</span>
-        </t-space>
-      </t-dropdown>
-    </template>
-  </t-head-menu>
-  <FeedbackDialog ref="feedbackDialogRef"/>
+        </t-input>
+      </template>
+      <t-menu-item :value="item.key" v-for="(item, index) in items" :key="index">
+        <template #icon>
+          <t-icon name="home"/>
+        </template>
+        {{ item.title }}
+      </t-menu-item>
+      <template #operations>
+        <t-popup>
+          <template #content>
+            <t-list :split="true" style="width: 200px">
+              <t-list-item v-for="(_, index) in notices" :key="index">
+                <t-list-item-meta image="imageUrl" title="title" description="desc"/>
+              </t-list-item>
+              <t-empty v-if="notices.length == 0"/>
+            </t-list>
+          </template>
+          <t-button size="large" variant="text">
+            <template #icon>
+              <t-icon name="notification"/>
+            </template>
+          </t-button>
+        </t-popup>
+        <t-dropdown :options="options">
+          <t-space direction="horizontal">
+            <t-avatar :image="getResourceUrl(appStore.useAccountStore.account?.avatar)" :hide-on-load-failed="false"/>
+            <span v-if="!isMobile" style="margin-left: 8px;">{{ appStore.useAccountStore.account?.nick_name }}</span>
+          </t-space>
+        </t-dropdown>
+      </template>
+    </t-head-menu>
+    <FeedbackDialog ref="feedbackDialogRef"/>
+  </div>
 </template>
 
 <style scoped>
-/* 核心：t-menu-item 的父容器居中 */
-:deep(.menu-center .t-head-menu__content) {
-  display: flex;
-  justify-content: center;
-}
-
-/* 菜单选项间距 */
-:deep(.menu-center .t-head-menu__menu-item) {
-  padding: 0 36px !important;
-}
-
-:deep(.menu-center .t-head-menu__menu-item .t-icon) {
-  font-size: 22px;
-}
 
 /* 搜索框样式 */
 .header-search {
@@ -155,10 +145,11 @@ const handleOpenFeedback = () => {
   margin-left: 16px;
 }
 
-:deep(.t-head-menu__middle) {
-  position: absolute !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  z-index: 1;
+.t-menu__operations {
+  .t-button {
+    margin-left: 8px;
+  }
 }
+
+
 </style>

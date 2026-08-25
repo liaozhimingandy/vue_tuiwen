@@ -99,7 +99,7 @@ async function backgroundDetectTask() {
         const st = recordDetectFail()
         logger.log(`自动探测记录失败，当前连续失败:${st.failCount}，下次探测时间:${new Date(st.nextDetectTimestamp).toLocaleString()}`)
         // ✅累计3次失败：释放遮罩，启动Vue应用，给用户提示
-        if (st.failCount >= 3) {
+        if (st.failCount === 3) {
             await MessagePlugin.error(`已尝试3次连接服务均失败，请检查网络，系统将后台继续重试`)
         }
     } finally {
@@ -142,15 +142,15 @@ async function bootstrap() {
         createBlockingMask()
         try {
             const endpoints = await initEndpoints(true);
+            const healthUrl = `${endpoints.api}${apiUrls.check_health()}`;
             const ok = await checkHealth(healthUrl, 10 * 1000).catch(() => false)
-
             if (!ok) {
                 throw new Error(`最终选中API地址健康校验失败:${healthUrl}`)
             }
-            clearDetectTimer()
-            resetDetectState()
+            clearDetectTimer();
+            resetDetectState();
             logger.log('探测到可用服务地址：', endpoints);
-            message.info('已自动切换可用服务节点，页面即将重载');
+            await MessagePlugin.info('已自动切换可用服务节点，页面即将重载');
             setTimeout(() => location.reload(), 3*1000);
         } catch (err) {
             logger.error('未找到任何可用服务地址', err);

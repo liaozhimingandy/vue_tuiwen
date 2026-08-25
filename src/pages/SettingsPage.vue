@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onMounted, reactive, ref} from "vue";
+import {onMounted, reactive, ref, onUnmounted} from "vue";
 import {MessagePlugin} from 'tdesign-vue-next';
 import Header from "@/components/Header.vue";
 import instance from "@/services";
@@ -158,6 +158,68 @@ const allow_beep = ref<boolean>(true);
 const onUploadFail: UploadProps['onFail'] = ({file}) => {
   MessagePlugin.error(`文件 ${file.name} 上传失败`);
 };
+
+// 是否正在校验中（显示loading）
+const checkingName = ref(false)
+// 防抖定时器
+let debounceTimer: number | null = null
+// 记录上一次校验过的值，重复输入相同值跳过接口请求
+let lastCheckedValue = ''
+
+ /**
+ * 后端校验接口 - 判断用户名是否存在
+ * @param name 用户名
+ * @returns true=已占用 false=可用
+ */
+async function fetchCheckUserExist(name: string): Promise<boolean> {
+  // 替换为你的真实API请求
+  console.log('发起接口校验用户名：', name)
+  // const res = await api.checkUsername(name)
+  // return res.data.exist
+  return false
+}
+
+/**
+ * 输入事件，防抖入口
+ */
+const onUserNameInput = (val: string) => {
+  // 清除上一次等待中的定时器
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+  }
+  console.info(account.value.username)
+  console.info(val.value)
+  // 输入为空，直接终止校验
+  if (!val.trim()) {
+    checkingName.value = false
+    return
+  }
+
+  debounceTimer = window.setTimeout(async () => {
+    // 和上次校验的值一模一样 → 跳过请求，节约接口
+    if (val === lastCheckedValue) return
+
+    checkingName.value = true
+    try {
+      const isExist = await fetchCheckUserExist(val)
+      lastCheckedValue = val
+
+      if (isExist) {
+        MessagePlugin.warning('该用户名已被占用，请更换')
+      } else {
+        MessagePlugin.success('用户名可用')
+      }
+    } catch (err) {
+      MessagePlugin.error('校验失败，请稍后重试')
+    } finally {
+      checkingName.value = false
+    }
+  }, 1000) // 停顿 1000ms 后触发，可自行改成 800‑1500
+}
+// 组件销毁清除定时器，防止闭包后台继续执行
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 </script>
 
 <template>
@@ -193,14 +255,20 @@ const onUploadFail: UploadProps['onFail'] = ({file}) => {
                           @success="onUploadSuccess"
                       />
                     </t-form-item>
-                    <t-form-item label="用户名" name="username">
-                      <t-input :value="account.username" placeholder="平台唯一标识,不能和其他人相同" disabled></t-input>
+                    <t-form-item label="用户名" name="username" :status-icon="true" :success-border="!checkingName">
+                      <t-input v-model="account.username" placeholder="平台唯一标识,不能和其他人相同" @input="onUserNameInput">
+                      </t-input>
+                      <template #statusIcon>
+                        <div style="width: 16px; display: flex; justify-content: center">
+                          <t-loading size="small" v-if="checkingName"/>
+                        </div>
+                      </template>
                     </t-form-item>
-                    <t-form-item label="昵称" name="nick_name">
+                    <t-form-item label="昵称" name="nick_name" :status-icon="true">
                       <t-input v-model:value="account.nick_name"
                                placeholder="用于对外显示的网名,可以和其他人同名"></t-input>
                     </t-form-item>
-                    <t-form-item label="出生日期" name="gmt_birth">
+                    <t-form-item label="出生日期" name="gmt_birth" :status-icon="true">
                       <t-date-picker v-model:value="account.gmt_birth" value-format="YYYY-MM-DD">
                       </t-date-picker>
                     </t-form-item>
@@ -229,21 +297,21 @@ const onUploadFail: UploadProps['onFail'] = ({file}) => {
                         <t-input v-model:value="formData.password_current" placeholder="请输入当前密码" type="password"
                                  autocomplete="current-password">
                           <template #prefix-icon>
-                            <t-icon name="lock-on" />
+                            <t-icon name="lock-on"/>
                           </template>
                         </t-input>
                       </t-form-item>
                       <t-form-item label="新密码" name="password_new" placeholder="请输入新密码">
                         <t-input v-model:value="formData.password_new" type="password" autocomplete="new-password">
                           <template #prefix-icon>
-                           <t-icon name="lock-on" />
+                            <t-icon name="lock-on"/>
                           </template>
                         </t-input>
                       </t-form-item>
                       <t-form-item label="确认密码" name="password_confirm" placeholder="请输入新密码">
                         <t-input v-model:value="formData.password_confirm" type="password" autocomplete="new-password">
                           <template #prefix-icon>
-                            <t-icon name="lock-on" />
+                            <t-icon name="lock-on"/>
                           </template>
                         </t-input>
                       </t-form-item>
@@ -257,8 +325,9 @@ const onUploadFail: UploadProps['onFail'] = ({file}) => {
               <t-tab-panel :value="3" label="通用">
                 <t-typography-title level="h4">通用设置</t-typography-title>
                 <t-form>
-                  <t-form-item label="是否接收系统通知">
-                    <t-switch v-model:value="allow_beep">推送</t-switch>
+                  <t-form-item label="接收通知" name="allow_beep">
+                    <t-switch v-model:value="allow_beep" :label="['开', '关']" size="large">
+                    </t-switch>
                   </t-form-item>
                 </t-form>
               </t-tab-panel>

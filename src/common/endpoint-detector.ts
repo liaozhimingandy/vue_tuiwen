@@ -246,7 +246,7 @@ export async function initEndpoints(force = false): Promise<Record<string, strin
   const result: Record<string, string> = {};
 
   // 开发环境：直接返回代理/默认地址，跳过探测
-  if (import.meta.env.DEV && !force) {
+  if (import.meta.env.VITE_APP_IS_DEBUG && !force) {
     return {
       api: 'http://api.tuiwen.alsoapp.com',
       file: 'http://file.tuiwen.alsoapp.com',

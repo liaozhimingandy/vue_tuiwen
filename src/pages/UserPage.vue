@@ -98,7 +98,7 @@ const onTabChange = async (val: number) => {
 const loading = ref(false);
 const hasMore = ref(true);
 const asyncLoading = computed<ListProps['asyncLoading']>(() => {
- if (loading.value) {
+  if (loading.value) {
     return 'loading';
   }
   if (hasMore.value) {
@@ -137,14 +137,17 @@ const asyncLoading = computed<ListProps['asyncLoading']>(() => {
                   <t-button v-show="!is_self" theme="primary">
                     关注
                   </t-button>
-                  <t-popup trigger="click" header="扫码分享">
+                  <t-popup trigger="hover">
                     <template #content>
-                      <t-qrcode :value="`${apiUrls.share_account_link(user?.account_id)}`" level="H"
-                                style="margin: 0 auto;" type="svg"/>
+                      <t-space direction="vertical">
+                        <t-typography-text level="h4">扫一扫</t-typography-text>
+                        <t-qrcode :value="`${apiUrls.share_account_link(user?.account_id)}`" level="H"
+                                  style="margin: 0 auto;" type="svg"/>
+                      </t-space>
                     </template>
                     <t-button variant="outline">
                       <template #icon>
-                        <ShareIcon/>
+                        <t-icon name="share" />
                       </template>
                       分享
                     </t-button>
