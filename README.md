@@ -1,5 +1,19 @@
-# Vue 3 + TypeScript + Vite
+# 部署方案
+使用cloudeflare的免费服务
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+1. cloudeflare设置
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+菜单: 构建 -> 计算 -> Workers和Pages -> 创建应用 -> 选择 upload you static file
+
+2. 获取生成cloudflare token
+
+菜单:管理账户 -> 账户api令牌 -> 创建令牌 -> 范围选择pages -> 得到token
+
+https://dash.cloudflare.com/【这里一串uuid就是Account‑ID】/home
+
+3. github设置
+在 仓库 → Settings → Secrets and variables → Actions → 新建 2 个存储库密钥
+
+CLOUDFLARE_API_TOKEN
+
+CLOUDFLARE_ACCOUNT_ID

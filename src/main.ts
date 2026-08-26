@@ -48,7 +48,7 @@ function createBlockingMask() {
     mask.innerHTML = `
     <div style="position:relative;width:42px;height:42px;">
     <div style="position:absolute;inset:0;border:3px solid #e8e8e8;border-top:3px solid #027AFF;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-    <img src="/src/assets/logo.svg" style="position:absolute;inset:0;width:24px;height:24px;margin:auto;border-radius:50%;" alt="logo" />
+    <img src="/logo.svg" style="position:absolute;inset:0;width:24px;height:24px;margin:auto;border-radius:50%;" alt="logo" />
   </div>
   <div style="margin-top:8px;">正在自动寻找可用服务节点，请稍候...</div>
   <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
