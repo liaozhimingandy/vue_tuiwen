@@ -140,37 +140,9 @@ const handleFail: UploadProps['onFail'] = ({file}) => {
   MessagePlugin.error(`文件 ${file.name} 上传失败`);
 };
 const disabled = ref(false);
-const uploadAllFilesInOneRequest = ref(false);
 const autoUpload = ref(true);
-const uploadFiles: ButtonProps['onClick'] = () => {
-  // uploadRef1.value.uploadFiles();
-  // uploadRef2.value.uploadFiles();
-  // uploadRef3.value.uploadFiles();
-};
+
 const showUploadButton = ref<CheckboxProps['value']>(true);
-
-const requestMethod1: UploadProps['requestMethod'] = async (file) => {
-  logger.info(file)
-  const formData = new FormData();
-  formData.append("file", uploadFile.raw as File);
-
-  const res = await instance.post(apiUrls.upload_image_url(), formData, {
-    headers: {
-      'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`
-    }
-  });
-  // 返回后端json，onUploadSuccess里就能读到 response.image_url
-  return res.data;
-};
-
-const onSuccess: UploadProps['onSuccess'] = ({file, response}) => {
-  logger.info(file);
-  fileList.value.push({
-    url: getResourceUrl(response.image_url),
-    name: file?.name,
-    status: 'success'
-  });
-};
 
 </script>
 
@@ -250,7 +222,7 @@ const onSuccess: UploadProps['onSuccess'] = ({file, response}) => {
             </t-button>
           </t-dropdown>
           <router-link
-              :to="{ name: 'long' }"
+              :to="{ name: 'article' }"
               target="_blank"
           >
             <t-link>发长文</t-link>

@@ -112,11 +112,11 @@ const handleOpenFeedback = () => {
       <template #operations>
         <t-popup>
           <template #content>
+            <t-empty v-if="notices.length == 0" />
             <t-list :split="true" style="width: 200px">
               <t-list-item v-for="(_, index) in notices" :key="index">
                 <t-list-item-meta image="imageUrl" title="title" description="desc"/>
               </t-list-item>
-              <t-empty v-if="notices.length == 0"/>
             </t-list>
           </template>
           <t-button size="large" variant="text">

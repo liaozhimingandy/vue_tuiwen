@@ -123,7 +123,7 @@ watch(content, () => {
 const onPublish = async () => {
 
   if (editorRef.value.getText().trim() == '') {
-    MessagePlugin.info("内容不能为空!");
+    await MessagePlugin.info("内容不能为空!");
     return
   }
 

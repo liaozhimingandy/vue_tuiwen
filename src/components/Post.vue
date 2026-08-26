@@ -134,7 +134,7 @@ const handleDropdownClick = (value: string) => {
   switch (value) {
     case '0':
       // 删除帖子 confirm
-      DialogPlugin.confirm({
+     const diaglog = DialogPlugin.confirm({
         theme: "warning",
         header: '你确定要执行这个操作吗？',
         body: '删除此帖子后,不可恢复!',
@@ -145,6 +145,7 @@ const handleDropdownClick = (value: string) => {
               .then(() => {
                 MessagePlugin.success(`删除成功`);
                 appStore.usePostStore.delete_post(props.post.post_id);
+                diaglog.destroy();
               })
               .catch((e: any) => MessagePlugin.error(`删除失败${e}`))
         },

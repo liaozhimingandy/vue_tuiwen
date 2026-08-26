@@ -6,6 +6,7 @@ import {MessagePlugin} from 'tdesign-vue-next';
 import Header from "@/components/Header.vue";
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
+import {getResourceUrl} from "@/common/utils.ts";
 
 const route = useRoute()
 
@@ -118,9 +119,9 @@ const asyncLoading = computed<ListProps['asyncLoading']>(() => {
     <t-content>
       <t-row justify="center">
         <t-col :span="8">
-          <t-list split @load-more="onMore" :async-loading="asyncLoading">
-            <t-list-item v-for="item in items" :key="item.key">
-              <t-list-item-meta :image="item.avatar" :title="item.username" :description="item.username"/>
+          <t-list split @load-more="onMore" :async-loading="asyncLoading" style="margin-top: 6px">
+            <t-list-item v-for="(item, index) in items" :key="index">
+              <t-list-item-meta :image="getResourceUrl(item.avatar)" :title="`${item.nick_name}(${item.username})`" :description="item.bio"/>
               <template #action>
                 <t-link theme="primary" :href="`${apiUrls.share_account_link(item.account_id)}`" hover="color" style="margin-left: 16px">查看更多</t-link>
               </template>
