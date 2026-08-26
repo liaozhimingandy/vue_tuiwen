@@ -113,9 +113,9 @@ const handleOpenFeedback = () => {
         <t-popup>
           <template #content>
             <t-empty v-if="notices.length == 0" />
-            <t-list :split="true" style="width: 200px">
-              <t-list-item v-for="(_, index) in notices" :key="index">
-                <t-list-item-meta image="imageUrl" title="title" description="desc"/>
+            <t-list :split="true" size="small" stripe header="系统通知">
+              <t-list-item v-for="(item, index) in notices" :key="index" style="width: 200px">
+                <t-list-item-meta :image="getResourceUrl(item.extra.avator)" :title="item.title" :description="item.content.text"/>
               </t-list-item>
             </t-list>
           </template>

@@ -15,6 +15,7 @@ export interface IPost {
     post_id: string;
     right_status: number;
     status: number;
+
     [property: string]: any;
 }
 
@@ -54,6 +55,7 @@ export interface IAccount {
     sex?: number | null;
     account_type?: number;
     username?: string;
+
     [property: string]: any;
 }
 
@@ -75,16 +77,25 @@ export interface IComment {
 
 // 草稿结构类型统一定义，TS 类型安全
 export interface IPostDraft {
-  /** 文本内容 */
-  text: string
-  /** 已上传的图片链接 */
-  images: string[]
-  /** 创建时间，用于过期校验 */
-  createTime: number
+    /** 文本内容 */
+    text: string
+    /** 已上传的图片链接 */
+    images: string[]
+    /** 创建时间，用于过期校验 */
+    createTime: number
 }
 
 // token信息
 export interface IToken {
-  access_token: string
-  refresh_token: string
+    access_token: string
+    refresh_token: string
+}
+
+
+// follow
+export interface IFollow {
+    follower_count: number,
+    followee_count: number,
+    is_following: boolean,
+    like_count: number
 }

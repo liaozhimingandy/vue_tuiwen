@@ -1,34 +1,24 @@
 <script setup lang="ts">
-import {h, ref, onMounted, computed} from 'vue';
+import {ref, computed, onMounted} from 'vue';
 import {useRoute} from 'vue-router';
-// TDesign 图标替换 antd icons
-import {
-  ShareIcon,
-  SettingIcon,
-  EditIcon,
-  MoreIcon
-} from 'tdesign-icons-vue-next';
+
 import Header from "../components/Header.vue";
-import instance from "@/services";
-import type {IAccount, IPost} from "@/interface";
-import {IdCardH} from "@icon-park/vue-next";
+import type {IAccount, IFollow, IPost} from "@/interface";
 import {sex_code_map} from "@/common/constants.js";
 import {apiUrls, get_accounts_posts, get_posts} from "@/services/api.ts";
 import Post from "@/components/Post.vue";
 import {type ListProps, MessagePlugin} from "tdesign-vue-next";
 import appStore from "@/stores";
-import {getResourceUrl} from "@/common/utils.ts";
+import {getResourceUrl, logger} from "@/common/utils.ts";
+import instance from "@/services";
 
 const activeKey = ref(1);
 const route = useRoute();
 const username = route.params.username;
-const follow = ref({
-  follower_count: 0,
-  followee_count: 0,
-  like_count: 0,
-}); // 关注信息
-// 查询的用户信息
-let user = ref<IAccount>();
+
+// 用户信息
+const user = ref<IAccount>();
+
 const go_back = () => {
   window.history.back();
 }
@@ -36,31 +26,22 @@ const go_back = () => {
 const is_self = computed(() => {
   return user.value?.account_id === appStore.useAccountStore.account.account_id;
 })
+
 const desc = ref<string>('个人简介');
+const follow = ref<IFollow>();
 
 onMounted(() => {
   //   查询用户信息
   instance.get(apiUrls.get_account(username)).then((r: any) => {
-    r.data.sex = r.data.sex + '';
     user.value = r.data as IAccount;
   });
+
   // 查询帐户粉丝情况
-  instance.get(apiUrls.get_account_follow(username)).then((r: any) => follow.value = r.data);
+  instance.get(apiUrls.get_account_follow(username)).then((r: any) => follow.value = r.data as IFollow);
+
 })
 
-const postLoaded = ref(false);
-const postLoading = ref(false);
 const posts = ref<IPost[]>([]);
-
-const handleTabChange = async (key: string) => {
-  // 切换到帖子tab，且未加载过帖子数据
-  if (key === '2' && !postLoaded.value) {
-    postLoading.value = true
-    await onLoadMore();
-    postLoaded.value = true // 标记已加载，下次切换不再请求
-    postLoading.value = false
-  }
-}
 
 const onLoadMore = async () => {
   loading.value = true;
@@ -86,7 +67,6 @@ const onLoadMore = async () => {
   loading.value = false;
 }
 
-
 const onTabChange = async (val: number) => {
 
   // 切换到帖子面板，并且还没加载过数据
@@ -107,6 +87,27 @@ const asyncLoading = computed<ListProps['asyncLoading']>(() => {
   // 全部加载完成，自定义提示文字
   return '没有更多数据了';
 })
+
+const onFollow = async () => {
+  //follower_id: 关注者 followee_id:被关注者
+  if (!follow.value.is_following) {
+    // 如果没有正在关注
+    const data = {
+      follower_id: appStore.useAccountStore.account.account_id,
+      followee_id: username
+    };
+    await instance.post(apiUrls.post_follow(), data);
+    follow.value.is_following = true;
+    follow.value.followee_count++;
+    await MessagePlugin.success('关注成功');
+  } else {
+    instance.delete(apiUrls.delete_follow(appStore.useAccountStore.account.account_id, username)).then(() => {
+      MessagePlugin.success('取消关注成功');
+      follow.value.is_following = false;
+      follow.value.followee_count--;
+    });
+  }
+}
 </script>
 
 <template>
@@ -134,8 +135,8 @@ const asyncLoading = computed<ListProps['asyncLoading']>(() => {
               <t-space direction="vertical">
                 <h2>{{ user?.nick_name }}<span style="font-size: 16px">({{ username }})</span></h2>
                 <t-space>
-                  <t-button v-show="!is_self" theme="primary">
-                    关注
+                  <t-button v-show="!is_self" theme="primary" @click="onFollow">
+                    {{ follow?.is_following ?? false ? '取消关注' : '加关注' }}
                   </t-button>
                   <t-popup trigger="hover">
                     <template #content>
@@ -147,31 +148,22 @@ const asyncLoading = computed<ListProps['asyncLoading']>(() => {
                     </template>
                     <t-button variant="outline">
                       <template #icon>
-                        <t-icon name="share" />
+                        <t-icon name="share"/>
                       </template>
                       分享
                     </t-button>
                   </t-popup>
                 </t-space>
                 <t-space>
-                  <t-statistic :value="follow.followee_count">
-                    <template #suffix>
-                      <span style="font-size: 16px;color: gray">关注</span>
-                    </template>
+                  <t-statistic :value="follow?.follower_count ?? 0" unit="关注">
                   </t-statistic>
-                  <t-statistic :value="follow.follower_count">
-                    <template #suffix>
-                      <span style="font-size: 16px;color: gray">粉丝</span>
-                    </template>
+                  <t-statistic :value="follow?.followee_count?? 0" unit="粉丝">
                   </t-statistic>
-                  <t-statistic :value="follow.like_count">
-                    <template #suffix>
-                      <span style="font-size: 16px;color: gray">获赞</span>
-                    </template>
+                  <t-statistic :value="follow?.like_count ?? 0" unit="赞">
                   </t-statistic>
                 </t-space>
                 <!-- 可编辑段落，保留原逻辑 -->
-                <t-paragraph v-if="false" v-model:content="desc" editable style="width: 40vw"/>
+                <t-paragraph-text v-if="false" v-model:content="desc" editable style="width: 40vw"/>
               </t-space>
             </t-space>
           </t-row>

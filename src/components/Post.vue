@@ -21,16 +21,13 @@ import appStore from "../stores";
 import NineImageGrid from "@/components/NineImageGrid.vue";
 import TextCollapse from "@/components/TextCollapse.vue";
 import {apiUrls} from "@/services/api.ts";
-import {useCacheStore} from "@/stores/app.ts";
 import {storeToRefs} from "pinia";
-import FacePicker from "@/components/FacePicker.vue";
 
 const props = defineProps<{
   post: IPost;
 }>();
 
-const cacheStore = useCacheStore();
-const {account_map} = storeToRefs(cacheStore)
+const {account_map} = storeToRefs(appStore.useCacheStore)
 const account = computed(() => {
   return account_map.value[props.post.account_id] ?? {};
 })
@@ -46,7 +43,7 @@ const submitting = ref<boolean>(false);
 const comment_data = ref<string>('');
 const user_map = ref<Record<string, IAccount>>({});
 
-const handleFollow = () => cacheStore.toggleFollow(account_id, props.post.account_id);
+const handleFollow = () => appStore.useCacheStore.toggleFollow(account_id, props.post.account_id);
 
 const handleLike = (post_id: string) => {
   if (!like?.value.is_liked) {
@@ -117,7 +114,7 @@ const handleComment = async () => {
 const copyLink = async (url: string) => {
   try {
     await navigator.clipboard.writeText(url);
-    MessagePlugin.success('链接已复制到剪贴板');
+    await MessagePlugin.success('链接已复制到剪贴板');
   } catch {
     const input = document.createElement('input');
     input.value = url;
@@ -125,7 +122,7 @@ const copyLink = async (url: string) => {
     input.select();
     document.execCommand('copy');
     document.body.removeChild(input);
-    MessagePlugin.success('链接已复制（兼容模式）');
+    await MessagePlugin.success('链接已复制（兼容模式）');
   }
 };
 

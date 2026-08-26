@@ -170,7 +170,6 @@ export const useCacheStore = defineStore("cache", () => {
             const account = account_map.value[followee_id];
 
             // 登录用户
-            const user = account_map.value[appStore.useAccountStore.account?.account_id];
             if (!account) return;
             if (!account.follow.is_following) {
                 // 如果没有正在关注
@@ -180,16 +179,16 @@ export const useCacheStore = defineStore("cache", () => {
                 };
                 await instance.post(apiUrls.post_follow(), {...data});
                 account.follow.is_following = true;
-                MessagePlugin.success('关注成功');
-                account.follow.follower_count = (account.follower_count ?? 0) + 1;
-                user.followee_count = (user.followee_count ?? 0) + 1;
+                await MessagePlugin.success('关注成功');
+                account.follow.follower_count ++;
+                account_map.value[follower_id].follow.followee_count ++;
 
             } else {
                 instance.delete(apiUrls.delete_follow(follower_id, followee_id)).then(() => {
                     MessagePlugin.success('取消关注成功');
                     account.follow.is_following = false;
-                    account.follow.follower_count = (account.follower_count ?? 0) - 1
-                    user.followee_count = (user.followee_count ?? 0) - 1;
+                    account.follow.follower_count --;
+                    account_map.value[follower_id].follow.followee_count --;
                 });
             }
 
