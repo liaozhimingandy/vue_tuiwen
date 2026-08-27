@@ -1,25 +1,30 @@
 <script setup lang="ts">
-import {watch, computed} from "vue";
+import {watch, onBeforeUnmount, ref, shallowRef} from "vue";
 import {SendIcon, ChevronDownIcon} from 'tdesign-icons-vue-next';
+import {MessagePlugin} from 'tdesign-vue-next';
 import {storeToRefs} from "pinia";
 import appStore from "@/stores";
 import type { DropdownProps } from 'tdesign-vue-next';
-const draftStore = storeToRefs(appStore.useDraftStore);
-
 import '@wangeditor/editor/dist/css/style.css' // 引入 css
-
-import {onBeforeUnmount, ref, shallowRef} from 'vue'
 import {Editor, Toolbar} from '@wangeditor/editor-for-vue'
 import Header from "@/components/Header.vue";
-import {MessagePlugin} from 'tdesign-vue-next';
 import type {IPost} from "@/interface";
 import {post_right_map} from "@/common/constants.js";
 import axios from "axios";
 import {apiUrls, publish_post} from "@/services/api.ts";
+import {logger} from "@/common/utils.ts";
 
+const submitting = ref(false);
+const draftStore = storeToRefs(appStore.useDraftStore);
 const selected_status = ref<number>(1);
+// 组装下拉选项
+const dropdownOptions : DropdownProps['options'] = Object.entries(post_right_map).map(([value, content]) => ({
+    value,
+    content,
+  })) as DropdownProps['options'];
 // 下拉菜单点击
-const handleMenuClick: DropdownProps['onClick'] = (data) => {
+const handleMenuClick: DropdownProps['onClick'] = (data: any) => {
+  logger.info(data)
   selected_status.value = data.value as number;
 };
 
@@ -84,8 +89,9 @@ const editorConfig = {
       // 置空上传地址，阻断本地文件上传逻辑
       server: '',
       // 拦截所有本地文件上传
-      customUpload(file) {
-        alert('暂不支持上传本地视频，请粘贴视频链接')
+      customUpload(file: any) {
+        logger.info(file.name)
+        MessagePlugin.warning('暂不支持上传本地视频，请粘贴视频链接')
         return Promise.reject()
       }
     },
@@ -126,6 +132,7 @@ const onPublish = async () => {
     await MessagePlugin.info("内容不能为空!");
     return
   }
+  submitting.value = true;
 
   let post: IPost = {
     post_id: crypto.randomUUID(),
@@ -141,18 +148,13 @@ const onPublish = async () => {
   // 调发布接口
   await publish_post(post);
 
+  submitting.value = false;
   await MessagePlugin.success("发布成功!");
   editorRef.value.clear();
   appStore.useDraftStore.clearDraft();
 }
 
-// 组装下拉选项
-const dropdownOptions = computed<DropdownProps['options']>(() => {
-  return Object.entries(post_right_map).map(([value, content]) => ({
-    value,
-    content,
-  }));
-});
+
 
 </script>
 
@@ -180,9 +182,9 @@ const dropdownOptions = computed<DropdownProps['options']>(() => {
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <span/>
         <t-space direction="horizontal">
-          <t-button @click="onPublish">
+          <t-button @click="onPublish" :loading="submitting">
             <template #icon>
-              <send-icon :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]'
+              <t-icon v-if="!submitting" name="send" :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]'
                          :stroke-width="2.5"/>
             </template>
             发布

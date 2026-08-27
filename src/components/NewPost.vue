@@ -1,57 +1,52 @@
 <script setup lang="ts">
-import {onMounted, ref, watch, computed} from 'vue';
+import {onMounted, ref, watch} from 'vue';
+import {ChevronDownIcon, ImageAddIcon, SmileIcon} from "tdesign-icons-vue-next";
+import type {DropdownProps, UploadProps, CheckboxProps} from 'tdesign-vue-next';
+import {MessagePlugin} from "tdesign-vue-next";
+
 import type {IPost} from "@/interface";
 import appStore from '@/stores/';
 import {storeToRefs} from 'pinia';
 import {post_right_map} from "@/common/constants.js";
 import {apiUrls, publish_post} from "@/services/api.ts";
-import {getResourceUrl, logger, trimEmptyParagraph} from "@/common/utils.ts";
+import {getResourceUrl,trimEmptyParagraph} from "@/common/utils.ts";
 import FacePicker from "@/components/FacePicker.vue";
-import {MessagePlugin} from "tdesign-vue-next";
-import {ChevronDownIcon, ImageAddIcon, SmileIcon} from "tdesign-icons-vue-next";
-import type {DropdownProps, UploadProps, ButtonProps, CheckboxProps} from 'tdesign-vue-next';
-import instance from "@/services";
 
 const draftStore = storeToRefs(appStore.useDraftStore);
-
-// 内容
-const content = ref("");
-// 上传图片
-const fileList = ref<UploadProps['value']>([]);
+const content = ref("");// 内容
+const fileList = ref<UploadProps['value']>([]);// 上传图片列表
 const is_open_upload_image = ref<boolean>(false); //是否打开上传图片的弹窗
-// 设置图片上传的接口地址
 const is_open = ref<boolean>(false); //输入框是否打开
+const selected_status = ref(1); // 选中的状态，默认 "public"
+const showFacePanel = ref(false);
+const lastCursorPos = ref(0);// 缓存最后一次光标位置
+const abridgeName: UploadProps['abridgeName'] = [6, 6];
+const disabled = ref(false);
+const autoUpload = ref(true);
+const showUploadButton = ref<CheckboxProps['value']>(true);
+const sizeLimit = ref<UploadProps['sizeLimit']>({
+  size: 10240,
+  unit: 'KB',
+});
+const submitting = ref(false);
 
-
-// 选中的状态，默认 "public"
-const selected_status = ref(1);
 // 处理菜单点击事件
 const handleMenuClick: DropdownProps['onClick'] = (data) => {
   selected_status.value = data.value as number;
 };
+
 // 组装下拉选项
-const dropdownOptions = computed<DropdownProps['options']>(() => {
-  return Object.entries(post_right_map).map(([value, content]) => ({
+const dropdownOptions : DropdownProps['options'] = Object.entries(post_right_map).map(([value, content]) => ({
     value,
     content,
-  }));
-});
+  })) as DropdownProps['options'];
+
 // 处理发布博客
 const handlePublish = () => {
-  // 这里你可以把博客内容和上传的图片发送到后端
-  // 如果图片上传成功,获取用户上传的图片链接信息
-  // console.log(fileList.value[0].response);
-  // let post: IPost = {
-  //   account_id: "test",
-  //   content: {content: content.value, content_type: 1},
-  //   from_device: 1,
-  //   post_id: "122465",
-  //   right_status: selected_status.value,
-  //   status: 1
-  // };
+  submitting.value = true;
   // 判断是否有图片上传
   const images = fileList.value
-      .map((file) => (file as any).response?.image_url)
+      .map((file?) => (file as any).response?.image_url)
       .filter(Boolean) as string[]
 
   let post: IPost = {
@@ -71,6 +66,7 @@ const handlePublish = () => {
   is_open.value = false;
   content.value = "";
   fileList.value = [];
+  submitting.value = false;
   MessagePlugin.success("发布成功");
   appStore.useDraftStore.clearDraft();
 };
@@ -85,7 +81,6 @@ onMounted(() => {
 
 
 watch([content, fileList], () => {
-
       window.setTimeout(() => {
         // 空内容直接清空草稿
         if (!content.value.trim()) {
@@ -104,12 +99,6 @@ watch([content, fileList], () => {
     {deep: true}
 )
 
-const showFacePanel = ref(false);
-
-
-// 缓存最后一次光标位置
-const lastCursorPos = ref(0);
-
 // 保存光标位置
 const saveCursor = () => {
   const comp = inputRef.value;
@@ -127,22 +116,12 @@ const onSelectFace = (face: string) => {
 
   // 1. 先更新响应式数据，由 v-model 同步 DOM
   content.value = content.value.slice(0, start) + face + content.value.slice(start);
-
   showFacePanel.value = false;
 }
 
-const sizeLimit = ref<UploadProps['sizeLimit']>({
-  size: 10240,
-  unit: 'KB',
-});
-const abridgeName: UploadProps['abridgeName'] = [6, 6];
 const handleFail: UploadProps['onFail'] = ({file}) => {
   MessagePlugin.error(`文件 ${file.name} 上传失败`);
 };
-const disabled = ref(false);
-const autoUpload = ref(true);
-
-const showUploadButton = ref<CheckboxProps['value']>(true);
 
 </script>
 
@@ -198,6 +177,7 @@ const showUploadButton = ref<CheckboxProps['value']>(true);
             theme="primary"
             @click="handlePublish"
             :disabled="!content.trim()"
+            :loading="submitting"
         >发布
         </t-button>
       </div>

@@ -217,7 +217,7 @@ const checkingName = ref(false)
     </t-header>
     <t-content style="padding-top: 8px">
       <t-row justify="center">
-        <t-col :span="6">
+        <t-col :md="6" :xs="12" :sm="12" >
           <c-scrollbar
               trigger="hover"
               class="content"

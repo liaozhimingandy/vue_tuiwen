@@ -44,21 +44,16 @@ import { ref, reactive } from 'vue';
 import type { FormRules } from 'tdesign-vue-next';
 import { TipsIcon } from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
+
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
+import type {IFeedbackForm} from "@/interface";
 
-const visible = ref(false);
+const visible = ref(false); // 对话框是否可见
 const formRef = ref();
 const submitLoading = ref(false);
 
-interface FeedbackForm {
-  content: string;
-  contact: string;
-  feedback_type: number;
-  level: number;
-}
-
-const formData = reactive<FeedbackForm>({
+const formData = reactive<IFeedbackForm>({
   content: '',
   contact: '',
   feedback_type: 1,
@@ -66,7 +61,7 @@ const formData = reactive<FeedbackForm>({
 });
 
 // 表单校验规则
-const formRules: FormRules<FeedbackForm> = {
+const formRules: FormRules<IFeedbackForm> = {
   content: [
     { required: true, message: '请输入反馈内容', trigger: 'blur' },
     { min: 5, message: '反馈内容至少5个字符', trigger: 'blur' }
@@ -74,9 +69,8 @@ const formRules: FormRules<FeedbackForm> = {
 };
 
 /** 打开弹窗，对外暴露 */
-const open = () => {
-  visible.value = true;
-};
+const open = () => visible.value = true;
+
 
 // 确认提交
 const handleConfirm = async () => {
@@ -105,5 +99,7 @@ const handleClose = () => {
   formRef.value?.reset();
 };
 
+
+// 暴露方法给外部调用
 defineExpose({ open });
 </script>

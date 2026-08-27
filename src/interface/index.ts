@@ -99,3 +99,11 @@ export interface IFollow {
     is_following: boolean,
     like_count: number
 }
+
+// 意见反馈
+export interface IFeedbackForm {
+  content: string;
+  contact: string;
+  feedback_type: number;
+  level: number;
+}

@@ -67,10 +67,9 @@ const onLoadMore = async () => {
   loading.value = false;
 }
 
-const onTabChange = async (val: number) => {
-
+const onTabChange = async (val) => {
   // 切换到帖子面板，并且还没加载过数据
-  if (val === 2 && posts.value.length == 0) {
+  if (parseInt(val) === 2 && posts.value.length == 0) {
     await onLoadMore();
   }
 };
@@ -117,7 +116,7 @@ const onFollow = async () => {
     </t-header>
     <t-content style="padding-top: 8px;">
       <t-row justify="center">
-        <t-col :span="6" style="text-align: start; background-color: white">
+        <t-col :md="6" :xs="12" :sm="12" style="text-align: start; background-color: white">
           <div style="border: 1px solid rgb(235, 237, 240); padding: 16px; display:flex;align-items:center;gap:8px;">
             <t-button variant="text" @click="go_back">← 返回</t-button>
             <div>
@@ -168,10 +167,10 @@ const onFollow = async () => {
             </t-space>
           </t-row>
 
-          <t-tabs :default-value="activeKey" @change="onTabChange">
-            <t-tab-panel :value="1" label="资料">
+          <t-tabs default-value="1" @change="onTabChange">
+            <t-tab-panel value="1" label="资料">
               <t-card>
-                <t-descriptions title="用户信息" bordered :column="2">
+                <t-descriptions title="用户信息" bordered>
                   <t-descriptions-item label="用户名">{{ user?.username }}</t-descriptions-item>
                   <t-descriptions-item label="电子邮箱">{{ user?.email }}</t-descriptions-item>
                   <t-descriptions-item label="账户目前状态" :span="2">
@@ -182,7 +181,7 @@ const onFollow = async () => {
                 </t-descriptions>
               </t-card>
             </t-tab-panel>
-            <t-tab-panel :value="2" label="帖子">
+            <t-tab-panel value="2" label="帖子">
               <t-list split @load-more="onLoadMore" :async-loading="asyncLoading">
                 <t-list-item v-for="item in posts" :key="item.key">
                   <Post :post="item" style="width: 100%"/>

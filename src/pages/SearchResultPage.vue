@@ -3,6 +3,7 @@ import {onMounted, ref, watch, computed} from "vue";
 import {useRoute} from 'vue-router';
 import type { ListProps } from 'tdesign-vue-next';
 import {MessagePlugin} from 'tdesign-vue-next';
+
 import Header from "@/components/Header.vue";
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
@@ -13,9 +14,7 @@ const route = useRoute()
 const initLoading = ref(false);
 const loading = ref(false);
 const items = ref<any[]>([]);
-
-// 分页配置
-const limit = 5;
+const limit = 5; // 分页配置
 const offset = ref(0);
 const hasMore = ref(true); // 是否还有下一页
 
@@ -92,13 +91,6 @@ watch(
     {immediate: true}
 )
 
-onMounted(async () => {
-  if (loading.value || !hasMore.value) return;
-  const q = (route.query.q as string ?? '').trim();
-  if (!q) return;
-  await doSearch(q)
-})
-
 const asyncLoading = computed<ListProps['asyncLoading']>(() => {
  if (loading.value) {
     return 'loading';
@@ -106,8 +98,14 @@ const asyncLoading = computed<ListProps['asyncLoading']>(() => {
   if (hasMore.value) {
     return 'load-more';
   }
-  // 全部加载完成，自定义提示文字
   return '没有更多数据了';
+})
+
+onMounted(async () => {
+  if (loading.value || !hasMore.value) return;
+  const q = (route.query.q as string ?? '').trim();
+  if (!q) return;
+  await doSearch(q)
 })
 </script>
 

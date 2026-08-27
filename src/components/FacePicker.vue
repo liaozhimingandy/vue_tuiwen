@@ -44,7 +44,7 @@ const selectFace = (item: FaceItem) => {
               <t-tooltip :content="item.name" show-arrow>
                 <!-- 自动区分渲染原生字符 / 自定义图片 -->
                 <span v-if="item.type === 'unicode'">{{ item.unicode }}</span>
-                <img
+                <t-image
                     v-else
                     :src="item.src"
                     alt=""

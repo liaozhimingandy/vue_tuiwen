@@ -1,19 +1,16 @@
 <!--这是推文组件,用于展示一条推文（tdesign-vue-next 重构版）-->
 <script setup lang="ts">
 import {h, onMounted, ref, computed} from 'vue';
-// ========== TDesign 图标替换 antd icons ==========
+import {storeToRefs} from "pinia";
 import {
-  ShareIcon,
   DeleteIcon,
-  StopCircleIcon, MailIcon, LogoutIcon,
+  StopCircleIcon
 } from 'tdesign-icons-vue-next';
 import dayjs from 'dayjs';
-// TDesign 全局提示、弹窗确认
 import {MessagePlugin, DialogPlugin, type DropdownProps} from 'tdesign-vue-next';
+import {HeartIcon} from 'tdesign-icons-vue-next';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {ShareNetwork} from 'vue-social-sharing'
-
-dayjs.extend(relativeTime);
 import type {IAccount, IComment, IPost} from "@/interface";
 import {formatMessageToHtml, getResourceUrl, logger, timestampFormat} from "@/common/utils.ts";
 import instance from '../services/';
@@ -21,20 +18,14 @@ import appStore from "../stores";
 import NineImageGrid from "@/components/NineImageGrid.vue";
 import TextCollapse from "@/components/TextCollapse.vue";
 import {apiUrls} from "@/services/api.ts";
-import {storeToRefs} from "pinia";
+
+dayjs.extend(relativeTime);
 
 const props = defineProps<{
   post: IPost;
 }>();
 
-const {account_map} = storeToRefs(appStore.useCacheStore)
-const account = computed(() => {
-  return account_map.value[props.post.account_id] ?? {};
-})
-const follow = computed(() => {
-  return account_map.value[props.post.account_id]?.follow ?? {};
-})
-
+const feedbackDialogRef = ref();
 const account_id = appStore.useAccountStore.account.account_id;
 const select_item = ref<string>('');
 const like = ref();
@@ -42,10 +33,42 @@ const comments = ref<IComment[]>([]);
 const submitting = ref<boolean>(false);
 const comment_data = ref<string>('');
 const user_map = ref<Record<string, IAccount>>({});
+const {account_map} = storeToRefs(appStore.useCacheStore);
+// 构造下拉菜单选项
+const dropdownOptions = computed<DropdownProps['options']>(() => {
+  const opts: DropdownProps['options'] = [];
+  const isOwner = appStore.useAccountStore.account.account_id === props.post.account_id;
+
+  if (isOwner) {
+    opts.push({
+      value: 0,
+      content: '删除帖子',
+      prefixIcon: () => h(DeleteIcon),
+      onClick: () => handleDropdownClick('0')
+    });
+  } else {
+    opts.push({
+      value: 1,
+      content: '举报反馈',
+      prefixIcon: () => h(StopCircleIcon),
+      onClick: () => handleDropdownClick('1')
+    });
+  }
+  return opts;
+});
+
+const account = computed(() => {
+  return account_map.value[props.post.account_id] ?? {};
+})
+const follow = computed(() => {
+  return account_map.value[props.post.account_id]?.follow ?? {};
+})
+
 
 const handleFollow = () => appStore.useCacheStore.toggleFollow(account_id, props.post.account_id);
 
 const handleLike = (post_id: string) => {
+  select_item.value = select_item.value === 'like' ? '' : 'like';
   if (!like?.value.is_liked) {
     let data = {
       obj_id: post_id,
@@ -65,9 +88,6 @@ const handleLike = (post_id: string) => {
     })
   }
 };
-
-const handleShare = () => {
-}
 
 // 提交评论
 const handleSubmit = () => {
@@ -94,11 +114,11 @@ const handleSubmit = () => {
 
 // 加载评论
 const handleComment = async () => {
-  select_item.value = select_item.value === 'c' ? '' : 'c';
+  select_item.value = select_item.value === 'comment' ? '' : 'comment';
   await instance.get(apiUrls.get_comments(props.post.post_id)).then(async (r: any) => {
     let items = comments.value.concat(r.data.items);
     let map = new Map();
-    items.forEach((item) => map.set(item.comment_id, item));
+    items.forEach((item: any) => map.set(item.comment_id, item));
     comments.value = Array.from(map.values());
     comments.value = comments.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
 
@@ -131,7 +151,7 @@ const handleDropdownClick = (value: string) => {
   switch (value) {
     case '0':
       // 删除帖子 confirm
-     const diaglog = DialogPlugin.confirm({
+      const diaglog = DialogPlugin.confirm({
         theme: "warning",
         header: '你确定要执行这个操作吗？',
         body: '删除此帖子后,不可恢复!',
@@ -167,30 +187,6 @@ onMounted(async () => {
   instance.get(apiUrls.get_likes(props.post.post_id)).then((r: any) => like.value = r.data);
 })
 
-// 构造下拉菜单选项
-const dropdownOptions = computed<DropdownProps['options']>(() => {
-  const opts: DropdownProps['options'] = [];
-  const isOwner = appStore.useAccountStore.account.account_id === props.post.account_id;
-
-  if (isOwner) {
-    opts.push({
-      value: 0,
-      content: '删除帖子',
-      prefixIcon: () => h(DeleteIcon),
-      onClick: () => handleDropdownClick('0')
-    });
-  } else {
-    opts.push({
-      value: 1,
-      content: '举报反馈',
-      prefixIcon: () => h(StopCircleIcon),
-      onClick: () => handleDropdownClick('1')
-    });
-  }
-  return opts;
-});
-
-const feedbackDialogRef = ref();
 </script>
 
 <template>
@@ -261,7 +257,6 @@ const feedbackDialogRef = ref();
           </t-space>
         </div>
       </template>
-
       <!-- 推文正文内容 -->
       <div style="margin-bottom: 16px; background-color: white;">
         <t-space direction="vertical" :size="6" style="width: 100%;">
@@ -315,7 +310,7 @@ const feedbackDialogRef = ref();
                   </t-space>
                 </div>
               </template>
-              <t-button variant="text" @click="handleShare">
+              <t-button variant="text" @click="select_item === 'share'? '' : 'share'">
                 <template #icon>
                   <t-icon name="share"/>
                 </template>
@@ -325,7 +320,7 @@ const feedbackDialogRef = ref();
           </t-col>
           <t-col flex="auto" style="display: inline-flex; justify-content: center">
             <t-button
-                :variant="select_item === 'c' ? 'base' : 'text'"
+                :variant="select_item === 'comment' ? 'base' : 'text'"
                 @click="handleComment"
             >
               <template #icon>
@@ -337,16 +332,20 @@ const feedbackDialogRef = ref();
           <t-col flex="auto" style="display: inline-flex; justify-content: center">
             <t-button variant="text" @click="handleLike(post.post_id)">
               <template #icon>
-                <t-icon name="heart"/>
+                <heart-icon
+                    :fill-color="like?.is_liked ? ['red','red'] : ['transparent','transparent']"
+                    :stroke-color="like?.is_liked ? ['red','red'] : ['currentColor','currentColor']"
+                    :stroke-width="2"
+                />
               </template>
-              赞({{ like?.count }})
+              赞<span v-if="like?.count > 0">({{ like?.count }})</span>
             </t-button>
           </t-col>
         </t-row>
 
         <!-- 评论输入区域 -->
-        <t-divider v-if="select_item === 'c'"></t-divider>
-        <t-comment v-if="select_item === 'c'"
+        <t-divider v-if="select_item === 'comment'"></t-divider>
+        <t-comment v-if="select_item === 'comment'"
                    :avatar="getResourceUrl(appStore.useAccountStore.account?.avatar)">
           <template #content>
             <div class="form-container">

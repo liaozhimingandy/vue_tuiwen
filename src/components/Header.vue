@@ -3,6 +3,7 @@ import {h, onMounted, ref} from "vue";
 import {MessagePlugin} from 'tdesign-vue-next';
 import type {DropdownProps, MenuProps} from 'tdesign-vue-next';
 import {LogoutIcon, MailIcon, SearchIcon} from 'tdesign-icons-vue-next';
+
 import appStore from "@/stores";
 import router from "@/router";
 import instance from "@/services";
@@ -11,39 +12,13 @@ import {useDeviceWatcher} from '@/common/device.ts';
 import {getResourceUrl} from "@/common/utils.ts";
 import FeedbackDialog from "@/components/FeedbackDialog.vue";
 
-const {isMobile} = useDeviceWatcher();
-
-const onChangeHandler: MenuProps['onChange'] = (active) => {
-  switch (active) {
-    case 'home':
-      router.push({name: "home"})
-      break
-    default:
-      MessagePlugin.warning('不支持的菜单');
-  }
-};
-
 const props = defineProps<{
   selectedKeys: string;
 }>();
 
-// 系统通知
-const notices = ref([]);
-
-onMounted(async () => {
-  await instance.get(apiUrls.get_system_notices())
-      .then((r: any) => notices.value = r.data.items)
-      .catch((e: any) => MessagePlugin.error(e.data.detail));
-});
-
-// 退出登录
-const onLogout = () => {
-  // 跳转到登录页面
-  router.push('login');
-  appStore.useAccountStore.logout();
-  MessagePlugin.success('您已退出登录')
-}
-
+const feedbackDialogRef = ref();
+const {isMobile} = useDeviceWatcher();
+const notices = ref([]);// 系统通知
 const items = ref([
   {
     key: 'home',
@@ -52,17 +27,9 @@ const items = ref([
     title: '首页',
   }
 ]);
-
-
 // 把字符串selectedKeys转为数组，供 a-menu selectedKeys 使用
 const current = ref(props.selectedKeys);
-
 const keyword = ref('');
-const onSearch = () => {
-  if (keyword.value.trim() === "") return;
-  router.push({name: "search", query: {q: keyword.value}})
-};
-
 const options: DropdownProps['options'] = [
   {
     content: '意见反馈',
@@ -79,17 +46,43 @@ const options: DropdownProps['options'] = [
 ]
 
 
-const feedbackDialogRef = ref();
-const handleOpenFeedback = () => {
-  feedbackDialogRef.value?.open();
+const onChangeHandler: MenuProps['onChange'] = (active) => {
+  switch (active) {
+    case 'home':
+      router.push({name: "home"})
+      break
+    default:
+      MessagePlugin.warning('不支持的菜单');
+  }
 };
+
+// 退出登录
+const onLogout = () => {
+  // 跳转到登录页面
+  router.push('login');
+  appStore.useAccountStore.logout();
+  MessagePlugin.success('您已退出登录')
+}
+
+const onSearch = () => {
+  if (keyword.value.trim() === "") return;
+  router.push({name: "search", query: {q: keyword.value}})
+};
+
+const handleOpenFeedback = () => feedbackDialogRef.value?.open();
+
+onMounted(async () => {
+  await instance.get(apiUrls.get_system_notices())
+      .then((r: any) => notices.value = r.data.items)
+      .catch((e: any) => MessagePlugin.error(e.data.detail));
+});
 </script>
 
 <template>
   <div>
     <t-head-menu v-model:value="current" theme="light" @change="onChangeHandler">
       <template #logo>
-        <img src="../assets/logo.svg" alt="logo" width="32"/>
+        <img src="/logo.svg" alt="logo" />
         <!-- 搜索框：大屏展示，移动端隐藏 -->
         <t-input
             v-model:value="keyword"
