@@ -7,6 +7,7 @@ export const apiUrls = {
     // 用户账号相关
     get_account: (account_id: string) => `/accounts/${account_id}/`,
     check_username: (username: string) => `/accounts/check-username/${username}/`,
+    update_username: () =>  '/accounts/credential/',
     register: () => '/accounts/register/',
     update_password: () => '/accounts/password/change/',
     reset_password: () => "/accounts/password/reset/",

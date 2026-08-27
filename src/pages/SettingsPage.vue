@@ -60,7 +60,8 @@ const validateConfirmPassword = async (
   return {result: true};
 };
 
-import type {FormProps, CustomValidator} from 'tdesign-vue-next';
+import type {CustomValidator} from 'tdesign-vue-next';
+import {assignWith} from "lodash";
 
 const checkUserNameValidator: CustomValidator = async (val, context) => {
   if (!val || !val.trim()) {
@@ -159,16 +160,34 @@ const password_reset = (ctx: { validateResult: any, firstError?: string }) => {
       MessagePlugin.error(err.response.data.detail)))
       .finally(() => saving.value = false);
 }
+
+// 单独修改用户名
+const update_username = async (newUsername: string) => {
+  const payload = {
+    type: "username",
+    new_value: newUsername
+  };
+
+  instance.patch(apiUrls.update_username(), payload)
+    .then((r: IAccount) => {
+      account.value = r.data;
+    })
+
+};
+
 // 更新账户信息
-const update_account = (ctx: { validateResult: any, firstError?: string }) => {
+const update_account = async (ctx: { validateResult: any, firstError?: string }) => {
   if (ctx.validateResult !== true) {
-    MessagePlugin.warning(ctx.firstError || '表单校验不通过，请检查填写内容');
+    await MessagePlugin.warning(ctx.firstError || '表单校验不通过，请检查填写内容');
     return;
   }
 
   saving.value = true;
+  if(username !== account.value.username) {
+   await update_username(account.value.username);
+  }
+
   let data = {
-    username: account.value.username,
     nick_name: account.value.nick_name,
     gmt_birth: account.value.gmt_birth,
     area_code: account.value.area_code,
