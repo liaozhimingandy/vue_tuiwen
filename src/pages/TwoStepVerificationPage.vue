@@ -44,7 +44,7 @@ const onError = (e: any) => {
 <template>
   <div style="min-height: 100vh; display: flex; justify-content: center; align-items: center;">
     <t-space direction="vertical">
-      <t-typography-text>正在人机检测,检测完成后会自动跳转...</t-typography-text>
+      <t-typography-text>本网站使用安全服务防护恶意自动程序。在验证您不是自动程序期间，将显示此页面。</t-typography-text>
       <VueTurnstile
           ref="turnstileRef"
           :site-key="config.TURNSTILE_SITE_KEY"
