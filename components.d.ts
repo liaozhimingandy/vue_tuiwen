@@ -10,6 +10,7 @@ declare module 'vue' {
     FacePicker: typeof import('./src/components/FacePicker.vue')['default']
     FeedbackDialog: typeof import('./src/components/FeedbackDialog.vue')['default']
     Header: typeof import('./src/components/Header.vue')['default']
+    Logo: typeof import('./src/components/Logo.vue')['default']
     NewPost: typeof import('./src/components/NewPost.vue')['default']
     NineImageGrid: typeof import('./src/components/NineImageGrid.vue')['default']
     Post: typeof import('./src/components/Post.vue')['default']
