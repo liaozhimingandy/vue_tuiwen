@@ -82,7 +82,7 @@ onMounted(async () => {
   <div>
     <t-head-menu v-model:value="current" theme="light" @change="onChangeHandler">
       <template #logo>
-        <img src="/logo.svg" alt="logo" />
+        <img src="/logo.svg" width="38" alt="logo" />
         <!-- 搜索框：大屏展示，移动端隐藏 -->
         <t-input
             v-model:value="keyword"

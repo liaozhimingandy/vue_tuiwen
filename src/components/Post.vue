@@ -230,8 +230,7 @@ onMounted(async () => {
                 <t-avatar :image="getResourceUrl(account?.avatar)" size="large"/>
               </router-link>
             </t-popup>
-
-            <div style="margin-left: 12px;">
+            <div>
               <t-typography-text style="margin: 0;"><b>{{ account?.nick_name || post.account_id }}</b>
               </t-typography-text>
               <br/>

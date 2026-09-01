@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { apiUrls } from '@/services/api.ts'
 // 引入assets下的logo作为占位&兜底图
-import logoImg from '@/assets/logo.svg'
+import LogoPlaceHolder from '@/assets/logo‑placeholder.svg'
 
 export type ImageGridProps = {
   /** 图片地址列表 */
@@ -34,8 +34,8 @@ const props = withDefaults(defineProps<ImageGridProps>(), {
   multiMaxWidth: 420,
   borderRadius: 6,
   previewable: true,
-  fallback: logoImg,
-  placeholderImg: logoImg,
+  fallback: LogoPlaceHolder,
+  placeholderImg: LogoPlaceHolder,
 })
 
 const emit = defineEmits(['click'])
