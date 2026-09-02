@@ -4,7 +4,6 @@ import type {IAccount, IPost, IToken} from "@/interface";
 import type {IPostDraft} from "../interface";
 import instance from "../services";
 import {apiUrls} from "../services/api.ts";
-import appStore from "./index.ts";
 import {MessagePlugin} from 'tdesign-vue-next';
 
 // 帖子信息
@@ -14,7 +13,7 @@ export const usePostStore = defineStore("posts", () => {
     // 新增推文数据
     const addPost = (data: IPost) => {
         posts.value.push(data);
-        posts.value = posts.value.sort((a: IPost, b: IPost) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
+        posts.value = posts.value.sort((a: IPost, b: IPost) => new Date(b.create_at).getTime() - new Date(a.create_at).getTime());
     }
     // 新增多份推文数据
     const addPosts = (data: IPost[]) => {
@@ -33,7 +32,7 @@ export const usePostStore = defineStore("posts", () => {
         }
         // 排序：最新在前
         posts.value = Array.from(map.values()).sort((a, b) => {
-            return new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime()
+            return new Date(b.create_at).getTime() - new Date(a.create_at).getTime()
         })
     }
 

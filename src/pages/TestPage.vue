@@ -16,7 +16,10 @@
     >
       <t-button theme="danger" @click="$router.push('/')">关闭树洞</t-button>
       <t-typography-title level="h4" style="color:white;">🌙深夜来一发</t-typography-title>
-      <t-typography-text :class="{warn:isWarningTime}" style="color: white" strong>{{ countDownText }}</t-typography-text>
+      <t-typography-text :class="{warn:isWarningTime}" style="color: white" strong>{{
+          countDownText
+        }}
+      </t-typography-text>
     </t-header>
     <t-content>
       <t-row justify="center">
@@ -34,28 +37,7 @@
 
           <!-- 开放时段 -->
           <div v-else>
-            <t-alert theme="warning" closable>
-              <template #title>天亮即焚 · 匿名树洞</template>
-              所有内容早上6点永久清除，发布不可撤回
-            </t-alert>
-
-            <!-- 发帖卡片 -->
-            <div class="post-card">
-              <div class="tag-row">
-                <t-tag v-for="tag in emotionTags" :key="tag" @click="fillTag(tag)">{{ tag }}</t-tag>
-              </div>
-              <t-textarea v-model="postContent" :autosize="{ minRows: 3, maxRows: 5 }"
-                          placeholder="写下一句深夜心事，天亮就消失..." :maxlength="512"
-                          tips="所有内容早上6点永久清除，发布不可撤回"/>
-              <t-button class="submit-btn" theme="primary" @click="openConfirm">匿名发布</t-button>
-            </div>
-
-            <!-- 快捷玩法入口 -->
-            <div class="fun-btn-row">
-              <t-button variant="outline" size="small" @click="drawRandomPost">🎲随机抽心事</t-button>
-              <t-button variant="outline" size="small">📝今日话题</t-button>
-            </div>
-
+            <t-alert theme="warning" message="天亮即焚·匿名树洞｜所有内容早上6点永久清除，发布不可撤回" close-btn/>
             <!-- 帖子列表 -->
             <div class="post-list">
               <div v-for="item in postList" :key="item.id" class="post-item">
@@ -75,18 +57,53 @@
         </t-col>
       </t-row>
     </t-content>
+    <t-back-top
+        :offset="[20, 0]"
+        :visible-height="0"
+        shape="circle"
+        style="position: absolute; right: 20px; bottom: 20px"
+        theme="primary"
+        @click="visible=!visible"
+    >
+      <template #content>
+        <edit-icon :fill-color='["white","white"]' :stroke-color='["white","white"]' :stroke-width="2.5" size="36px"/>
+      </template>
+    </t-back-top>
   </t-layout>
+  <t-drawer
+      v-model:visible="visible"
+      header="深夜来一发"
+      :show-overlay="false"
+      :on-overlay-click="() => (visible = false)"
+      placement="right"
+      size="400px"
+      @confirm="onConfirm"
+      @cancel="visible = false"
+  >
+    <!-- 发帖卡片 -->
+    <t-space direction="vertical">
+      <t-space direction="horizontal" break-line>
+        <t-tag v-for="tag in emotionTags" :key="tag" @click="fillTag(tag)">{{ tag }}</t-tag>
+      </t-space>
+      <t-textarea v-model="postContent" :autosize="{ minRows: 3, maxRows: 5 }"
+                  placeholder="写下一句深夜心事，天亮就消失..." :maxlength="512"
+                  tips="所有内容早上6点永久清除，发布不可撤回"/>
+    </t-space>
+  </t-drawer>
 </template>
 
 <script setup lang="ts">
 import {ref, computed, onMounted, onUnmounted} from 'vue'
-import {MessagePlugin, DialogPlugin} from 'tdesign-vue-next'
-import { ErrorCircleIcon } from 'tdesign-icons-vue-next';
+import {MessagePlugin} from 'tdesign-vue-next'
+import {ErrorCircleIcon, EditIcon} from 'tdesign-icons-vue-next';
+import instance from "@/services";
+import {apiUrls} from "@/services/api.ts";
 
+const visible = ref(false);
 const isOpen = ref(isLateNightTime())
 let sec = ref(getRemainingSecondsTo6AM())
 const postContent = ref('')
-const emotionTags = ['失眠', '委屈', '心动', '放空', '吐槽', '开心']
+const emotionTags = ['失眠', '委屈', '心动', '放空', '吐槽', '开心', '失眠', '委屈', '心动', '放空', '吐槽', '开心']
 const postList = ref<Array<any>>([])
 let timer: number | null = null
 
@@ -104,24 +121,11 @@ const fillTag = (tag: string) => {
   postContent.value = tag + ': '
 }
 
-const openConfirm = async () => {
-  const confirm = await DialogPlugin.confirm({
-    header: '发布匿名内容',
-    body: '发布后早上6点内容会被永久清除，无法找回，确认发布?'
-  })
-  if (confirm) {
-    MessagePlugin.success('发布成功')
-    postContent.value = ''
-  }
-}
 
 const subscribeRemind = () => {
   MessagePlugin.success('已订阅每晚开板提醒')
 }
 
-const drawRandomPost = () => {
-  MessagePlugin.info('正在抽取一条陌生人心事')
-}
 
 function tick() {
   sec.value = getRemainingSecondsTo6AM()
@@ -159,30 +163,25 @@ function getRemainingSecondsTo6AM(): number {
   const diff = target.getTime() - now.getTime()
   return Math.max(0, Math.floor(diff / 1000))
 }
+
+
+const onConfirm = async () => {
+  const payload = {
+    emotion: 1,
+    content: {
+      text: postContent.value
+    },
+    alias_name: "test"
+  }
+ await instance.post(apiUrls.post_night(), payload)
+      .then(() => MessagePlugin.success("发布成功!"))
+      .finally(() => visible.value = !visible.value)
+
+}
 </script>
 
 <style scoped>
 
-.post-card {
-  margin: 16px 0;
-  padding: 20px;
-  background: #1e1e2f;
-  border-radius: 12px;
-}
-
-.tag-row {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  margin-bottom: 12px;
-}
-
-.fun-btn-row {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  margin-bottom: 16px;
-}
 
 .post-item {
   margin: 12px 0;

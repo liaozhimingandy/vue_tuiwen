@@ -50,6 +50,10 @@ export const apiUrls = {
     get_system_notices: () => "/notices/system/", // 拉取公告通知
     get_account_notices: (account_id: string) => `/notices/accounts/${account_id}/`, // 拉取用户通知
 
+
+    // 天亮即焚
+    post_night: ()=> '/nights/',
+
     // 其它
     check_health: () => "/health-check/", //检查服务健康状态
     static_links: (link: string) => `${config.API_BASE_URL}${link}`,//获取文件链接地址

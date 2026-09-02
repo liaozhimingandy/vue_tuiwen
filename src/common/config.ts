@@ -30,7 +30,7 @@ export const config = {
     API_BASE_URL_ORI: import.meta.env.VITE_APP_API_BASE_URL ||  "https://api.tuiwen.alsoapp.com",
     ENDPOINT_URL: import.meta.env.VITE_APP_ENDPOINT_URL || "https://www.alsoapp.com/static/tuiwen/endpoints.json",
     TURNSTILE_SITE_KEY: import.meta.env.VITE_APP_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
-    CDN_BASE_URL: getStorageUrlItem('tw_endpoint_api') || import.meta.env.CDN_BASE_URL,
+    CDN_BASE_URL: getStorageUrlItem('tw_endpoint_api') || import.meta.env.VITE_CDN_BASE_URL,
     EMAIL_SUFFIX: import.meta.env.VITE_EMAIL_SUFFIX.split(',') || '@qq.com,@163.com,@gmail.com'.split(',')
 
 };

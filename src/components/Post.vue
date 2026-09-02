@@ -109,7 +109,7 @@ const handleSubmit = () => {
     let map = new Map();
     els.forEach((el) => map.set(el.comment_id, el));
     comments.value = Array.from(map.values());
-    comments.value = comments.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
+    comments.value = comments.value.sort((a, b) => new Date(b.create_at).getTime() - new Date(a.create_at).getTime());
   }).finally(() => submitting.value = false);
 }
 
@@ -121,7 +121,7 @@ const handleComment = async () => {
     let map = new Map();
     items.forEach((item: any) => map.set(item.comment_id, item));
     comments.value = Array.from(map.values());
-    comments.value = comments.value.sort((a, b) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
+    comments.value = comments.value.sort((a, b) => new Date(b.create_at).getTime() - new Date(a.create_at).getTime());
 
     const accountIds = Array.from(new Set(comments.value.map(a => a.account_id)));
     await Promise.all(accountIds.map(async id => {
@@ -235,7 +235,7 @@ onMounted(async () => {
               <t-typography-text style="margin: 0;"><b>{{ account?.nick_name || post.account_id }}</b>
               </t-typography-text>
               <br/>
-              <span style="color: #888;">发布于{{ timestampFormat(post.gmt_created) }}</span>
+              <span style="color: #888;">发布于{{ timestampFormat(post.create_at) }}</span>
             </div>
           </t-space>
           <t-space direction="horizontal">

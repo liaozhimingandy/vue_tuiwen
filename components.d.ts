@@ -31,6 +31,7 @@ declare module 'vue' {
     TDescriptionsItem: typeof import('tdesign-vue-next')['DescriptionsItem']
     TDialog: typeof import('tdesign-vue-next')['Dialog']
     TDivider: typeof import('tdesign-vue-next')['Divider']
+    TDrawer: typeof import('tdesign-vue-next')['Drawer']
     TDropdown: typeof import('tdesign-vue-next')['Dropdown']
     TEmpty: typeof import('tdesign-vue-next')['Empty']
     TextCollapse: typeof import('./src/components/TextCollapse.vue')['default']
