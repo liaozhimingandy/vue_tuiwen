@@ -7,6 +7,7 @@ import {apiUrls} from "@/services/api.ts";
 import {getResourceUrl, timestampFormat} from "@/common/utils.ts";
 import NineImageGrid from "@/components/NineImageGrid.vue";
 import {MessagePlugin} from 'tdesign-vue-next';
+import UserAvatar from "@/components/UserAvatar.vue";
 
 const route = useRoute();
 const post_id = route.params.post_id;
@@ -42,7 +43,7 @@ onMounted(async () => {
       <t-row justify="center">
         <t-col :md="8" :xs="11" :sm="12">
           <t-space direction="horizontal">
-            <t-avatar :image="getResourceUrl(account?.avatar)" size="64px"></t-avatar>
+            <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name"/>
             <div style="margin-left: 12px; display: flex; flex-direction: column; justify-content: center; height: 100%;">
               <t-typography-text style="margin: 0;"><b>{{ account?.nick_name || post.account_id }}</b>
               </t-typography-text>

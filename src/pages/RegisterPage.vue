@@ -19,8 +19,7 @@ const formData = ref({
   nick_name: '',
   gmt_birth: "",
   area_code: "CHN",
-  sex: "1",
-  avatar: ""
+  sex: "1"
 });
 
 

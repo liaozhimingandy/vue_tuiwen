@@ -11,6 +11,7 @@ import {apiUrls} from "@/services/api.ts";
 import {useDeviceWatcher} from '@/common/device.ts';
 import {getResourceUrl} from "@/common/utils.ts";
 import FeedbackDialog from "@/components/FeedbackDialog.vue";
+import UserAvatar from "@/components/UserAvatar.vue";
 
 const props = defineProps<{
   selectedKeys: string;
@@ -120,7 +121,7 @@ onMounted(async () => {
         </t-popup>
         <t-dropdown :options="options">
           <t-space direction="horizontal">
-            <t-avatar :image="getResourceUrl(appStore.useAccountStore.account?.avatar)" :hide-on-load-failed="false"/>
+            <UserAvatar :avatar="appStore.useAccountStore.account?.avatar" :nickname="appStore.useAccountStore.account?.nick_name"/>
             <span v-if="!isMobile" style="margin-left: 8px;">{{ appStore.useAccountStore.account?.nick_name }}</span>
           </t-space>
         </t-dropdown>

@@ -18,6 +18,7 @@ import appStore from "../stores";
 import NineImageGrid from "@/components/NineImageGrid.vue";
 import TextCollapse from "@/components/TextCollapse.vue";
 import {apiUrls} from "@/services/api.ts";
+import UserAvatar from "@/components/UserAvatar.vue";
 
 dayjs.extend(relativeTime);
 
@@ -205,7 +206,7 @@ onMounted(async () => {
             <t-popup trigger="hover" show-arrow placement="bottom-left">
               <template #content>
                 <t-space direction="vertical" style="width: 300px">
-                  <t-avatar :image="getResourceUrl(account?.avatar)" size="large"/>
+                  <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name"/>
                   <t-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</t-typography-text>
                   <t-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
                     {{ follow.follower_count }}
@@ -227,7 +228,7 @@ onMounted(async () => {
                 </t-space>
               </template>
               <router-link :to="{ name: 'user', params: { username: post.account_id } }">
-                <t-avatar :image="getResourceUrl(account?.avatar)" size="large"/>
+                <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name"/>
               </router-link>
             </t-popup>
             <div>

@@ -11,6 +11,7 @@ import {post_right_map} from "@/common/constants.js";
 import {apiUrls, publish_post} from "@/services/api.ts";
 import {getResourceUrl,trimEmptyParagraph} from "@/common/utils.ts";
 import FacePicker from "@/components/FacePicker.vue";
+import UserAvatar from "@/components/UserAvatar.vue";
 
 const draftStore = storeToRefs(appStore.useDraftStore);
 const content = ref("");// 内容
@@ -132,7 +133,7 @@ const handleFail: UploadProps['onFail'] = ({file}) => {
       <!-- 第一段：用户头像 + 输入框 -->
       <div style="display: flex; align-items: center; margin-bottom: 16px;">
         <!-- 用户头像 -->
-        <t-avatar :image="getResourceUrl(appStore.useAccountStore.account?.avatar)" size="large"/>
+        <UserAvatar :avatar="appStore.useAccountStore.account?.avatar" :nickname="appStore.useAccountStore.account?.nick_name"/>
         <!-- 输入框 -->
         <t-input
             v-model:value="content"
