@@ -4,10 +4,11 @@ import {md5} from "js-md5";
 import cloneDeep from "lodash/cloneDeep";
 import instance from '@/services'
 import router from "@/router";
-import {sex_code_map, sexListOptions} from "../common/constants.ts"
+import {sexListOptions} from "../common/constants.ts"
 import {apiUrls} from "@/services/api.ts";
 import {MessagePlugin} from 'tdesign-vue-next';
 import type {AutoCompleteProps, FormProps} from 'tdesign-vue-next'
+import {LockOnIcon, MailIcon} from 'tdesign-icons-vue-next';
 import {config} from "@/common/config.ts";
 
 const formRef = ref(null);
@@ -98,7 +99,7 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
       <!-- Logo区域 -->
       <template #title>
         <div style="display:flex;align-items:center;gap:8px">
-          <img src="../assets/logo.svg" alt="logo" width="32"/>
+          <img src="../assets/icons/logo.svg" alt="logo" width="32"/>
           <t-typography-title level="h4" style="margin:0; line-height:16px;">注册</t-typography-title>
         </div>
       </template>
@@ -111,7 +112,7 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
                   placeholder="电子邮箱"
               >
                 <template #prefix-icon>
-                  <t-icon name="mail"/>
+                  <mail-icon />
                 </template>
               </t-input>
             </template>
@@ -120,7 +121,7 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
         <t-form-item label="密码" name="password" :status-icon="true">
           <t-input v-model:value="formData.password" placeholder="请输入密码" type="password" autocomplete="password">
             <template #prefix-icon>
-              <t-icon name="lock-on"/>
+              <lock-on-icon />
             </template>
           </t-input>
         </t-form-item>
@@ -128,7 +129,7 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
           <t-input v-model:value="formData.confirmPassword" placeholder="请确认密码" type="password"
                    autocomplete="confirmPassword">
             <template #prefix-icon>
-              <t-icon name="lock-on"/>
+              <lock-on-icon />
             </template>
           </t-input>
         </t-form-item>

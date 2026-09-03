@@ -16,6 +16,7 @@ declare module 'vue' {
     Post: typeof import('./src/components/Post.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SvgIcon: typeof import('./src/components/SvgIcon.vue')['default']
     TAlert: typeof import('tdesign-vue-next')['Alert']
     TAutoComplete: typeof import('tdesign-vue-next')['AutoComplete']
     TAvatar: typeof import('tdesign-vue-next')['Avatar']

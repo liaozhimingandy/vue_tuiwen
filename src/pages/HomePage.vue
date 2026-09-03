@@ -5,6 +5,7 @@ import {debounce} from "lodash";
 import {useRouter} from "vue-router";
 import type {MenuProps} from 'tdesign-vue-next';
 import {MessagePlugin} from "tdesign-vue-next";
+import {SettingIcon, UserCircleIcon} from 'tdesign-icons-vue-next';
 import {CScrollbar} from 'c-scrollbar'; // 滚动条
 
 import instance from '@/services/';
@@ -180,13 +181,13 @@ const changeHandler: MenuProps['onChange'] = (active) => {
               <t-menu default-value="none" @change="changeHandler" style="width: 100%">
                 <t-menu-item value="user">
                   <template #icon>
-                    <t-icon name="user-circle"/>
+                    <user-circle-icon />
                   </template>
                   用户中心
                 </t-menu-item>
                 <t-menu-item value="setting">
                   <template #icon>
-                    <t-icon name="setting"/>
+                    <setting-icon />
                   </template>
                   设置
                 </t-menu-item>

@@ -9,9 +9,9 @@ import {apiUrls, get_accounts_posts, get_posts} from "@/services/api.ts";
 import Post from "@/components/Post.vue";
 import {type ListProps, MessagePlugin} from "tdesign-vue-next";
 import appStore from "@/stores";
-import {getResourceUrl, logger} from "@/common/utils.ts";
 import instance from "@/services";
 import UserAvatar from "@/components/UserAvatar.vue";
+import {ShareIcon} from 'tdesign-icons-vue-next';
 
 const activeKey = ref(1);
 const route = useRoute();
@@ -145,7 +145,7 @@ const onFollow = async () => {
                     </template>
                     <t-button variant="outline">
                       <template #icon>
-                        <t-icon name="share"/>
+                        <share-icon />
                       </template>
                       分享
                     </t-button>

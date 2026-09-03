@@ -184,7 +184,7 @@ const onPublish = async () => {
         <t-space direction="horizontal">
           <t-button @click="onPublish" :loading="submitting">
             <template #icon>
-              <t-icon v-if="!submitting" name="send" :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]'
+              <send-icon v-if="!submitting" :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]'
                          :stroke-width="2.5"/>
             </template>
             发布

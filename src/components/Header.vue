@@ -2,7 +2,7 @@
 import {h, onMounted, ref} from "vue";
 import {MessagePlugin} from 'tdesign-vue-next';
 import type {DropdownProps, MenuProps} from 'tdesign-vue-next';
-import {LogoutIcon, MailIcon, SearchIcon} from 'tdesign-icons-vue-next';
+import {LogoutIcon, MailIcon, SearchIcon, NotificationIcon, HomeIcon} from 'tdesign-icons-vue-next';
 
 import appStore from "@/stores";
 import router from "@/router";
@@ -99,7 +99,7 @@ onMounted(async () => {
       </template>
       <t-menu-item :value="item.key" v-for="(item, index) in items" :key="index">
         <template #icon>
-          <t-icon name="home"/>
+          <home-icon />
         </template>
         {{ item.title }}
       </t-menu-item>
@@ -115,7 +115,7 @@ onMounted(async () => {
           </template>
           <t-button size="large" variant="text">
             <template #icon>
-              <t-icon name="notification"/>
+              <notification-icon />
             </template>
           </t-button>
         </t-popup>

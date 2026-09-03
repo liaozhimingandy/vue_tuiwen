@@ -15,7 +15,7 @@
     "
     >
       <t-button theme="danger" @click="$router.push('/')">关闭树洞</t-button>
-      <t-typography-title level="h4" style="color:white;">🌙深夜来一发</t-typography-title>
+      <t-typography-title level="h4" style="color:white;"><SvgIcon name="snap" :size="32" color="white"/>深夜来一发</t-typography-title>
       <t-typography-text :class="{warn:isWarningTime}" style="color: white" strong>{{
           countDownText
         }}
@@ -76,7 +76,6 @@
       :show-overlay="false"
       :on-overlay-click="() => (visible = false)"
       placement="right"
-      size="400px"
       @confirm="onConfirm"
       @cancel="visible = false"
   >
@@ -85,7 +84,7 @@
       <t-space direction="horizontal" break-line>
         <t-tag v-for="tag in emotionTags" :key="tag" @click="fillTag(tag)">{{ tag }}</t-tag>
       </t-space>
-      <t-textarea v-model="postContent" :autosize="{ minRows: 3, maxRows: 5 }"
+      <t-textarea v-model="content" :autosize="{ minRows: 3, maxRows: 5 }"
                   placeholder="写下一句深夜心事，天亮就消失..." :maxlength="512"
                   tips="所有内容早上6点永久清除，发布不可撤回"/>
     </t-space>
@@ -98,11 +97,12 @@ import {MessagePlugin} from 'tdesign-vue-next'
 import {ErrorCircleIcon, EditIcon} from 'tdesign-icons-vue-next';
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
+import SvgIcon from '@/components/SvgIcon.vue'
 
 const visible = ref(false);
 const isOpen = ref(isLateNightTime())
 let sec = ref(getRemainingSecondsTo6AM())
-const postContent = ref('')
+const content = ref('')
 const emotionTags = ['失眠', '委屈', '心动', '放空', '吐槽', '开心', '失眠', '委屈', '心动', '放空', '吐槽', '开心']
 const postList = ref<Array<any>>([])
 let timer: number | null = null
@@ -118,7 +118,7 @@ const countDownText = computed(() => {
 })
 
 const fillTag = (tag: string) => {
-  postContent.value = tag + ': '
+  content.value = tag + ': '
 }
 
 
@@ -169,7 +169,7 @@ const onConfirm = async () => {
   const payload = {
     emotion: 1,
     content: {
-      text: postContent.value
+      text: content.value
     },
     alias_name: "test"
   }

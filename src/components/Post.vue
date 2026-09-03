@@ -8,7 +8,7 @@ import {
 } from 'tdesign-icons-vue-next';
 import dayjs from 'dayjs';
 import {MessagePlugin, DialogPlugin, type DropdownProps} from 'tdesign-vue-next';
-import {HeartIcon} from 'tdesign-icons-vue-next';
+import {HeartIcon, LinkIcon, LogoTwitterIcon, ChatDoubleIcon, ShareIcon, MoreIcon} from 'tdesign-icons-vue-next';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {ShareNetwork} from 'vue-social-sharing'
 import type {IAccount, IComment, IPost} from "@/interface";
@@ -250,7 +250,7 @@ onMounted(async () => {
             <t-dropdown :options="dropdownOptions">
               <t-button variant="text">
                 <template #icon>
-                  <t-icon name="more"/>
+                  <more-icon />
                 </template>
               </t-button>
             </t-dropdown>
@@ -288,13 +288,13 @@ onMounted(async () => {
                   <t-space style="margin-top:12px">
                     <t-button theme="primary" @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`)">
                       <template #icon>
-                        <t-icon name="link"/>
+                        <link-icon />
                       </template>
                       复制链接
                     </t-button>
                     <t-button theme="primary">
                       <template #icon>
-                        <t-icon name="logo-twitter"/>
+                        <logo-twitter-icon />
                       </template>
                       <ShareNetwork
                           network="Weibo"
@@ -312,7 +312,7 @@ onMounted(async () => {
               </template>
               <t-button variant="text" @click="select_item === 'share'? '' : 'share'">
                 <template #icon>
-                  <t-icon name="share"/>
+                  <share-icon />
                 </template>
                 分享
               </t-button>
@@ -324,7 +324,7 @@ onMounted(async () => {
                 @click="handleComment"
             >
               <template #icon>
-                <t-icon name="chat-bubble"/>
+                <chat-double-icon />
               </template>
               评论
             </t-button>

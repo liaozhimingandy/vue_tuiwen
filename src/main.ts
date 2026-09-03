@@ -12,6 +12,7 @@ import {config} from "./common/config.ts";
 import {apiUrls} from "./services/api.ts";
 import {MessagePlugin} from 'tdesign-vue-next';
 import {canAutoDetect, getDetectState, recordDetectFail, resetDetectState} from "./common/detectPersist.ts";
+import 'virtual:svg-icons-register';
 
 let app: ReturnType<typeof createApp>
 let detectingLock = false // 探测锁，防止并发重复探测

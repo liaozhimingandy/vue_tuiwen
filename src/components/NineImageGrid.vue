@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { apiUrls } from '@/services/api.ts'
 // 引入assets下的logo作为占位&兜底图
-import LogoPlaceHolder from '@/assets/logo‑placeholder.svg'
+import LogoPlaceHolder from '@/assets/icons/logo‑placeholder.svg'
 
 export type ImageGridProps = {
   /** 图片地址列表 */

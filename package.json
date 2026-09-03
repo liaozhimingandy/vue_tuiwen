@@ -37,6 +37,7 @@
     "unplugin-vue-components": "^0.27.5",
     "vite": "^8.2.0",
     "vite-plugin-remove-console": "^2.2.0",
+    "vite-plugin-svg-icons": "^2.0.1",
     "vue-tsc": "^2.2.0"
   }
 }

@@ -2,6 +2,7 @@
 import {ref, getCurrentInstance, onMounted} from 'vue';
 import {MessagePlugin} from 'tdesign-vue-next';
 import type {FormProps} from 'tdesign-vue-next';
+import {LockOnIcon, SettingIcon, UserIcon} from 'tdesign-icons-vue-next';
 import {md5} from 'js-md5';
 
 import instance from '../services/';
@@ -131,7 +132,7 @@ const onSearch = async (val: string) => {
         <!-- Logo区域 -->
         <template #title>
           <div style="display:flex;align-items:center;gap:8px">
-            <img src="../assets/logo.svg" alt="logo" width="32"/>
+            <img src="../assets/icons/logo.svg" alt="logo" width="32"/>
             <t-typography-title level="h4" style="margin:0; line-height:16px;">请登录</t-typography-title>
           </div>
         </template>
@@ -139,7 +140,7 @@ const onSearch = async (val: string) => {
           <t-tooltip content="如果默认后端地址不可用时,可以自行修改可用地址">
             <t-button variant="text" @click="setApiConfig">
               <template #icon>
-                <t-icon name="setting" />
+               <setting-icon />
               </template>
             </t-button>
           </t-tooltip>
@@ -148,14 +149,14 @@ const onSearch = async (val: string) => {
           <t-form-item label="用户名" name="username">
             <t-input v-model:value="formData.username" placeholder="请输入用户名">
               <template #prefix-icon>
-                <t-icon name="user"/>
+                <user-icon />
               </template>
             </t-input>
           </t-form-item>
           <t-form-item label="密  码" name="password">
             <t-input v-model:value="formData.password" placeholder="请输入密码" type="password" autocomplete="password">
               <template #prefix-icon>
-                <t-icon name="lock-on"/>
+                <lock-on-icon />
               </template>
             </t-input>
           </t-form-item>

@@ -14,6 +14,7 @@ import {storeToRefs} from "pinia";
 import type {IAccount} from "@/interface";
 import router from "@/router";
 import type {UploadProps} from 'tdesign-vue-next';
+import {LockOnIcon} from 'tdesign-icons-vue-next';
 import {getResourceUrl, logger} from "@/common/utils.ts";
 
 const activeKey = ref(1);
@@ -299,21 +300,21 @@ const checkingName = ref(false)
                         <t-input v-model:value="formData.password_current" placeholder="请输入当前密码" type="password"
                                  autocomplete="current-password">
                           <template #prefix-icon>
-                            <t-icon name="lock-on"/>
+                            <lock-on-icon />
                           </template>
                         </t-input>
                       </t-form-item>
                       <t-form-item label="新密码" name="password_new" placeholder="请输入新密码">
                         <t-input v-model:value="formData.password_new" type="password" autocomplete="new-password">
                           <template #prefix-icon>
-                            <t-icon name="lock-on"/>
+                            <lock-on-icon />
                           </template>
                         </t-input>
                       </t-form-item>
                       <t-form-item label="确认密码" name="password_confirm" placeholder="请输入新密码">
                         <t-input v-model:value="formData.password_confirm" type="password" autocomplete="new-password">
                           <template #prefix-icon>
-                            <t-icon name="lock-on"/>
+                            <lock-on-icon />
                           </template>
                         </t-input>
                       </t-form-item>
