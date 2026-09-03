@@ -3,12 +3,14 @@
     v-if="avatarUrl && !loadError"
     :image="avatarUrl"
     v-bind="$attrs"
+    :size="size"
     :hide-on-load-failed="false"
     @error="handleError"
   />
   <t-avatar
     v-else
     v-bind="$attrs"
+    :size="size"
     :style="{backgroundColor: bgColor}"
   >
     {{displayChar}}
@@ -16,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue'
+import {ref, computed, withDefaults} from 'vue'
 import {getResourceUrl} from "@/common/utils.ts";
 
 interface Props {
@@ -24,17 +26,21 @@ interface Props {
   avatar?: string
   /** 用户昵称，生成首字母 */
   nickname?: string
+  /** 头像尺寸，支持数字 / 'small' | 'medium' | 'large' */
+  size?: number | 'small' | 'medium' | 'large'
 }
 
-const props = defineProps<Props>()
-// 接收 t‑avatar 所有事件、属性透传
+// ✅ withDefaults 设置默认值
+const props = withDefaults(defineProps<Props>(), {
+  size: 'large'
+})
+
 defineOptions({
   inheritAttrs: true
 })
 
 const loadError = ref(false)
 
-// 低饱和柔和配色池，社交头像专用
 const COLOR_POOL = [
   '#E1F0FF',
   '#E8F3FF',
@@ -45,17 +51,14 @@ const COLOR_POOL = [
   '#F3E8FF'
 ]
 
-// 最终头像url
 const avatarUrl = computed(() => getResourceUrl(props.avatar))
 
-// 获取首字符
 const displayChar = computed(() => {
   const name = props.nickname ?? ''
   if(!name) return '?'
   return name.charAt(0)
 })
 
-// 昵称哈希 → 固定背景色
 const bgColor = computed(() => {
   const name = props.nickname ?? ''
   let hash = 0

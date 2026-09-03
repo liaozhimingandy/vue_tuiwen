@@ -12,6 +12,7 @@ import {useDeviceWatcher} from '@/common/device.ts';
 import {getResourceUrl} from "@/common/utils.ts";
 import FeedbackDialog from "@/components/FeedbackDialog.vue";
 import UserAvatar from "@/components/UserAvatar.vue";
+import SvgIcon from "@/components/SvgIcon.vue";
 
 const props = defineProps<{
   selectedKeys: string;
@@ -23,9 +24,14 @@ const notices = ref([]);// 系统通知
 const items = ref([
   {
     key: 'home',
-    icon: '',
-    label: h('a', {href: '/', target: '_self'}, ''),
+    icon: h(HomeIcon),
     title: '首页',
+  },
+    {
+    key: 'snap',
+    icon: h(SvgIcon, { name: 'snap', size: 28, color: 'red' }),
+    label: h('a', {href: '/test/', target: '_blank'}, ''),
+    title: '天亮即焚',
   }
 ]);
 // 把字符串selectedKeys转为数组，供 a-menu selectedKeys 使用
@@ -51,6 +57,9 @@ const onChangeHandler: MenuProps['onChange'] = (active) => {
   switch (active) {
     case 'home':
       router.push({name: "home"})
+      break
+    case 'snap':
+      router.push({name: "snap"})
       break
     default:
       MessagePlugin.warning('不支持的菜单');
@@ -97,10 +106,7 @@ onMounted(async () => {
           </template>
         </t-input>
       </template>
-      <t-menu-item :value="item.key" v-for="(item, index) in items" :key="index">
-        <template #icon>
-          <home-icon />
-        </template>
+      <t-menu-item :value="item.key" v-for="(item, index) in items" :key="index" :icon="item.icon">
         {{ item.title }}
       </t-menu-item>
       <template #operations>

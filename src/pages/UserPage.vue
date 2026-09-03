@@ -128,7 +128,7 @@ const onFollow = async () => {
 
           <t-row style="margin-top:16px">
             <t-space>
-              <UserAvatar :avatar="user?.avatar" :nickname="user?.nick_name"/>
+              <UserAvatar :avatar="user?.avatar" :nickname="user?.nick_name" size="120px"/>
               <t-space direction="vertical">
                 <h2>{{ user?.nick_name }}<span style="font-size: 16px">({{ username }})</span></h2>
                 <t-space>

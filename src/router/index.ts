@@ -17,6 +17,7 @@ import appStore from "../stores";
 import {MessagePlugin} from 'tdesign-vue-next';
 import SearchResultPage from "../pages/SearchResultPage.vue";
 import TwoStepVerificationPage from "../pages/TwoStepVerificationPage.vue";
+import SnapPage from "../pages/SnapPage.vue";
 
 NProgress.inc(0.2)
 // 进度条配置（可选）
@@ -33,13 +34,19 @@ const routes: RouteRecordRaw[] = [
     {path: '/', name: 'home', component: HomePage, meta: {title: "首页"}},
     {path: '/two_step_verification/authentication/', name: 'two_step_verification', component: TwoStepVerificationPage},
     {path: '/login/', name: 'login', component: LoginPage, meta: {title: "登录", need_two_step_verification: true}},
-    {path: '/register/', name: 'register', component: RegisterPage, meta: {title: "注册", need_two_step_verification: true}},
+    {
+        path: '/register/',
+        name: 'register',
+        component: RegisterPage,
+        meta: {title: "注册", need_two_step_verification: true}
+    },
     {path: '/settings/', name: 'settings', component: SettingsPage, meta: {title: "设置"}},
     {path: '/search/result/', name: 'search', component: SearchResultPage, meta: {title: "搜索结果"}},
     {path: '/friends/', name: 'friends', component: FriendsPage, meta: {title: "朋友"}},
     {path: '/hot/', name: 'hot', component: HotPage, meta: {title: "热点"}},
     {path: '/logo/', name: 'logo', component: () => import("@/pages/LogoPage.vue"), meta: {title: "logo"}},
-     {path: '/test/', name: 'test', component: TestPage, meta: {title: "测试"}},
+    {path: '/snaps/', name: 'snap', component: SnapPage, meta: {title: "天亮即焚"}},
+    {path: '/test/', name: 'test', component: TestPage, meta: {title: "测试"}},
     {path: '/articles/', name: 'article', component: () => import("@/pages/ArticlePage.vue"), meta: {title: "发长文"}},
     {path: '/s/:post_id/', name: 'post', component: () => import("@/pages/SharePage.vue"), meta: {title: "分享帖子"}},
     {path: '/u/:username/', name: 'user', component: UserPage, meta: {title: "用户中心"}},
@@ -77,7 +84,7 @@ router.beforeEach((to, _) => {
     // ==========【新增：人机预检拦截逻辑】==========
     // 访问需要预检的页面，检查本地凭证
     if (to.meta.need_two_step_verification) {
-        const ok = !! sessionStorage.getItem('two_step_verification_success')
+        const ok = !!sessionStorage.getItem('two_step_verification_success')
         if (!ok) {
             // 没有凭证，跳转到预检页，并记录跳转回来的地址
             return {
@@ -89,7 +96,7 @@ router.beforeEach((to, _) => {
     }
     // ==========================================
 
-    const whiteList = ['login', 'register', 'reset_password', 'post', 'two_step_verification', "test"];
+    const whiteList = ['login', 'register', 'reset_password', 'post', 'two_step_verification', "test", 'snap'];
     const isWhiteList = whiteList.includes(to.name as string);
     const hasToken = !!appStore.useAccountStore.token?.access_token;
 

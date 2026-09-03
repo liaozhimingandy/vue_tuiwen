@@ -140,7 +140,6 @@ const onPublish = async () => {
     right_status: Number(selected_status.value),
     content: {"text": content.value, "images": []},
     post_type: 2,
-    from_ip: "localhost",
     from_device: 9,
     status: 1
   }

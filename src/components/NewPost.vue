@@ -56,7 +56,6 @@ const handlePublish = () => {
     right_status: Number(selected_status.value),
     content: {"text": content.value, "images": images},
     post_type: 1,
-    from_ip: "string",
     from_device: 9,
     status: 1
   }
