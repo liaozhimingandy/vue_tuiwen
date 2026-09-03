@@ -170,7 +170,7 @@ const onFollow = async () => {
               <t-card>
                 <t-descriptions title="用户信息" bordered>
                   <t-descriptions-item label="用户名">{{ user?.username }}</t-descriptions-item>
-                  <t-descriptions-item label="电子邮箱">{{ user?.email }}</t-descriptions-item>
+                  <t-descriptions-item label="电子邮箱">{{ user?.mail }}</t-descriptions-item>
                   <t-descriptions-item label="账户目前状态" :span="2">
                     正常
                   </t-descriptions-item>

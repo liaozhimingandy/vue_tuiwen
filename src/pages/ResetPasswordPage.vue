@@ -15,7 +15,7 @@ const formRef1 = ref();
 const formRef2 = ref();
 
 const formData1 = ref({
-  email: ''
+  mail: ''
 })
 const formData2 = ref({
   code: "",
@@ -36,12 +36,12 @@ const handleSendCode: FormProps['onSubmit'] = async ({validateResult, firstError
   }
 
   const form = unref(formData1);
-  if (!form.email) return
+  if (!form.mail) return
 
   sending.value = true
   const data = {
-    "channel": "email",
-    "account": form.email,
+    "channel": "mail",
+    "account": form.mail,
     "scene": "reset_pwd",
   };
   try {
@@ -64,13 +64,13 @@ const handleResetPassword: FormProps['onSubmit'] = async ({validateResult, first
     await MessagePlugin.warning(firstError || '');
     return;
   }
-  const {email} = unref(formData1);
+  const {mail} = unref(formData1);
   const {code, password} = unref(formData2);
-  if (!email || !code || !password) return;
+  if (!mail || !code || !password) return;
   resetting.value = true;
   try {
     const params = {
-      username: email,
+      username: mail,
       code,
       password: md5(password),
     }
@@ -98,7 +98,7 @@ const goLogin = () => {
  * 邮箱自动填入
  */
 const emailOptions = computed<AutoCompleteProps['options']>(() => {
-  const emailPrefix = formData1.value.email.split('@')[0];
+  const emailPrefix = formData1.value.mail.split('@')[0];
   if (!emailPrefix) return [];
   return config.EMAIL_SUFFIX.map((suffix) => emailPrefix + suffix);
 });
@@ -140,10 +140,10 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
               <t-form-item
                   label="电子邮箱"
                   name="email"
-                  :rules="[{required: true, message: '请输入电子邮箱', trigger: 'blur' },{email: {ignore_max_length: true,}}]"
+                  :rules="[{required: true, message: '请输入电子邮箱', trigger: 'blur' },{mail: {ignore_max_length: true,}}]"
               >
                 <t-auto-complete
-                    v-model:value="formData1.email"
+                    v-model:value="formData1.mail"
                     placeholder="注册时填写的电子邮箱"
                     :options="emailOptions"
                 />

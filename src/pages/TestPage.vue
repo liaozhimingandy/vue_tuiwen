@@ -173,7 +173,7 @@ const onConfirm = async () => {
     },
     alias_name: "test"
   }
- await instance.post(apiUrls.post_night(), payload)
+ await instance.post(apiUrls.post_snap(), payload)
       .then(() => MessagePlugin.success("发布成功!"))
       .finally(() => visible.value = !visible.value)
 

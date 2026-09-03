@@ -14,7 +14,7 @@ import {config} from "@/common/config.ts";
 const formRef = ref(null);
 // 注册表单数据
 const formData = ref({
-  email: '',
+  mail: '',
   password: '',
   confirmPassword: '',
   nick_name: '',
@@ -39,10 +39,10 @@ const validateConfirmPassword = async (
 };
 
 const rules = {
-  email: [
+  mail: [
     {required: true, message: '请输入电子邮箱', trigger: 'blur'},
     {
-      email: {
+      mail: {
         ignore_max_length: true,
       },
     },

@@ -44,7 +44,7 @@ export interface IAccount {
     allow_vibration?: boolean;
     area_code?: string;
     avatar?: string;
-    email?: null | string;
+    mail?: null | string;
     gmt_birth?: string;
     gmt_created?: string;
     im_id?: null | string;

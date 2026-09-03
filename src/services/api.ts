@@ -52,7 +52,9 @@ export const apiUrls = {
 
 
     // 天亮即焚
-    post_night: ()=> '/nights/',
+    post_snap: ()=> '/snaps/',
+    get_snap_latest: () => '/snaps/latest/',
+    get_snaps: () => '/snaps/',
 
     // 其它
     check_health: () => "/health-check/", //检查服务健康状态
