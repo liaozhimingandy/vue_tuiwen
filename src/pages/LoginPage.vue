@@ -166,7 +166,7 @@ const onSearch = async (val: string) => {
           </t-divider>
         </t-form>
         <t-space direction="horizontal" align="center" size="large">
-          <t-button theme="primary" type="submit">登录</t-button>
+          <t-button theme="primary" @click="handleLogin">登录</t-button>
           <t-button theme="default" @click="handleRegister">注册</t-button>
           <t-button theme="danger" href="/snaps/">
             <template #icon>
