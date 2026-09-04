@@ -164,17 +164,17 @@ const onSearch = async (val: string) => {
           <t-divider>
             <t-link @click="goResetPwd">忘记密码？点此重置</t-link>
           </t-divider>
+          <t-space direction="horizontal" align="center" size="large">
+            <t-button theme="primary" type="submit">登录</t-button>
+            <t-button theme="default" @click="handleRegister">注册</t-button>
+            <t-button theme="danger" href="/snaps/">
+              <template #icon>
+                <SvgIcon name="snap" color="white"/>
+              </template>
+              天亮即焚-无需登录
+            </t-button>
+          </t-space>
         </t-form>
-        <t-space direction="horizontal" align="center" size="large">
-          <t-button theme="primary" @click="handleLogin">登录</t-button>
-          <t-button theme="default" @click="handleRegister">注册</t-button>
-          <t-button theme="danger" href="/snaps/">
-            <template #icon>
-              <SvgIcon name="snap" color="white"/>
-            </template>
-            天亮即焚-无需登录
-          </t-button>
-        </t-space>
       </t-card>
     </div>
   </div>
