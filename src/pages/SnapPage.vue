@@ -66,7 +66,7 @@
         @click="visible=!visible"
     >
       <template #content>
-        <edit-icon :fill-color='["white","white"]' :stroke-color='["white","white"]' :stroke-width="2.5" size="36px"/>
+        <edit-2-icon :fill-color='["white","white"]' :stroke-color='["white","white"]' :stroke-width="2.5" size="36px"/>
       </template>
     </t-back-top>
   </t-layout>
@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import {ref, computed, onMounted, onUnmounted} from 'vue'
 import {MessagePlugin} from 'tdesign-vue-next'
-import {ErrorCircleIcon, EditIcon} from 'tdesign-icons-vue-next';
+import {ErrorCircleIcon, Edit2Icon} from 'tdesign-icons-vue-next';
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
 import SvgIcon from '@/components/SvgIcon.vue'
