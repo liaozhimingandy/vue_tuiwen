@@ -8,7 +8,7 @@ export const sex_code_map = {
     };
 
 export const sexListOptions = Object.entries(sex_code_map).map(([k, v]) => {
-  return {"value": Number(k[0]), "label": v}
+  return {"value": Number(k), "label": v}
 });
 
 export const post_right_map = {
@@ -34,5 +34,23 @@ export const emotions = {
     15: "抱有期待"
 };
 export const emotionsOptions = Object.entries(emotions).map(([k, v]) => {
-  return {"value": Number(k[0]), "label": v}
+  return {"value": Number(k), "label": v}
 });
+
+export const emotionBgColor: Record<number, string> = {
+  1: "rgba(0, 82, 204, 0.08)",
+  2: "rgba(222, 53, 11, 0.08)",
+  3: "rgba(0, 135, 90, 0.08)",
+  4: "transparent",
+  5: "rgba(255, 140, 0, 0.08)",
+  6: "rgba(0, 135, 90, 0.08)",
+  7: "rgba(222, 53, 11, 0.08)",
+  8: "rgba(0, 82, 204, 0.08)",
+  9: "rgba(255, 140, 0, 0.08)",
+  10: "transparent",
+  11: "rgba(222, 53, 11, 0.08)",
+  12: "transparent",
+  13: "rgba(0, 135, 90, 0.08)",
+  14: "rgba(255, 140, 0, 0.08)",
+  15: "rgba(0, 82, 204, 0.08)"
+}

@@ -20,7 +20,7 @@ const formData = ref({
   nick_name: '',
   gmt_birth: "",
   area_code: "CHN",
-  sex: "1"
+  sex: 1
 });
 
 
@@ -85,11 +85,10 @@ const handleRegister: FormProps['onSubmit'] = async ({validateResult, firstError
 };
 
 const handleLogin = () => window.location.replace('/login/');
-const emailSuffix = ['@qq.com', '@163.com', '@gmail.com'];
-const emailOptions = computed<AutoCompleteProps['options']>(() => {
-  const emailPrefix = formData.value.email.split('@')[0];
-  if (!emailPrefix) return [];
-  return config.EMAIL_SUFFIX.map((suffix) => emailPrefix + suffix);
+const mailOptions = computed<AutoCompleteProps['options']>(() => {
+  const mailPrefix = formData.value.mail.split('@')[0];
+  if (!mailPrefix) return [];
+  return config.MAIL_SUFFIX.map((suffix: string) => mailPrefix + suffix);
 });
 </script>
 
@@ -104,11 +103,11 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
         </div>
       </template>
       <t-form :data="formData" :rules="rules" ref="formRef" @submit="handleRegister">
-        <t-form-item label="电子邮箱" name="email" :status-icon="true">
-          <t-auto-complete filterable :options="emailOptions">
+        <t-form-item label="电子邮箱" name="mail" :status-icon="true">
+          <t-auto-complete filterable :options="mailOptions" v-model="formData.mail">
             <template #default>
               <t-input
-                  v-model="formData.email"
+                  v-model="formData.mail"
                   placeholder="电子邮箱"
               >
                 <template #prefix-icon>

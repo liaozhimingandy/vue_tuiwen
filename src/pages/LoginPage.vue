@@ -11,6 +11,7 @@ import {apiUrls, update_self_account} from "@/services/api.ts";
 import appStore from "@/stores";
 import {config} from "../common/config.ts";
 import axios from "axios";
+import SvgIcon from "../components/SvgIcon.vue";
 
 const proxy = getCurrentInstance();
 const formRef = ref(null);
@@ -140,7 +141,7 @@ const onSearch = async (val: string) => {
           <t-tooltip content="如果默认后端地址不可用时,可以自行修改可用地址">
             <t-button variant="text" @click="setApiConfig">
               <template #icon>
-               <setting-icon />
+                <setting-icon/>
               </template>
             </t-button>
           </t-tooltip>
@@ -149,27 +150,31 @@ const onSearch = async (val: string) => {
           <t-form-item label="用户名" name="username">
             <t-input v-model:value="formData.username" placeholder="请输入用户名">
               <template #prefix-icon>
-                <user-icon />
+                <user-icon/>
               </template>
             </t-input>
           </t-form-item>
           <t-form-item label="密  码" name="password">
             <t-input v-model:value="formData.password" placeholder="请输入密码" type="password" autocomplete="password">
               <template #prefix-icon>
-                <lock-on-icon />
+                <lock-on-icon/>
               </template>
             </t-input>
           </t-form-item>
           <t-divider>
             <t-link @click="goResetPwd">忘记密码？点此重置</t-link>
           </t-divider>
-          <t-form-item>
-            <t-space direction="horizontal" align="center" size="large">
-              <t-button theme="primary" type="submit" >登录</t-button>
-              <t-button theme="default" @click="handleRegister">注册</t-button>
-            </t-space>
-          </t-form-item>
         </t-form>
+        <t-space direction="horizontal" align="center" size="large">
+          <t-button theme="primary" type="submit">登录</t-button>
+          <t-button theme="default" @click="handleRegister">注册</t-button>
+          <t-button theme="danger" href="/snaps/">
+            <template #icon>
+              <SvgIcon name="snap" color="white"/>
+            </template>
+            天亮即焚-无需登录
+          </t-button>
+        </t-space>
       </t-card>
     </div>
   </div>

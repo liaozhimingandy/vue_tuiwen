@@ -55,6 +55,7 @@ export const apiUrls = {
     post_snap: ()=> '/snaps/',
     get_snap_latest: () => '/snaps/latest/',
     get_snaps: () => '/snaps/',
+    like_snap:(id: number) => `/snaps/${id}/like/`,
 
     // 其它
     check_health: () => "/health-check/", //检查服务健康状态

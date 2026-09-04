@@ -48,9 +48,8 @@
                 ref="list"
                 style="flex: 1;"
                 :async-loading="asyncLoading" split @load-more="loadMore"
-                :scroll="{ type: 'virtual', rowHeight: 80, bufferSize: 10, threshold: 10 }"
             >
-              <t-list-item v-for="(item, index) in snaps" :key="index">
+              <t-list-item v-for="(item, index) in snaps" :key="index" :style="{backgroundColor: emotionBgColor[item.emotion]}">
                 <t-list-item-meta :title="item.alias_name" :description="item.content.text">
                   <template #image>
                     <div
@@ -62,6 +61,15 @@
                     </div>
                   </template>
                 </t-list-item-meta>
+                <template #action>
+                  <t-badge :count="item.like">
+                    <t-button size="large" variant="text" shape="square" @click="()=>likeSnap(item.id)">
+                      <template #icon>
+                        <heart-icon size="32px"/>
+                      </template>
+                    </t-button>
+                  </t-badge>
+                </template>
               </t-list-item>
             </t-list>
           </div>
@@ -94,7 +102,7 @@
       <!-- 发帖卡片 -->
       <t-space direction="vertical">
         <t-space direction="horizontal" break-line>
-          <t-tag v-for="(item, index) in emotionsOptions" :key="index" @click="fillTag(item)">{{ item.label }}</t-tag>
+          <t-check-tag v-for="(item, index) in emotionsOptions" :checked="emotion == item.value" :key="index" @click="fillTag(item)">{{ item.label }}</t-check-tag>
         </t-space>
         <t-textarea v-model="content" :autosize="{ minRows: 3, maxRows: 5 }"
                     placeholder="写下一句深夜心事，天亮就消失..." :maxlength="512"
@@ -114,12 +122,12 @@
 <script setup lang="ts">
 import {ref, computed, onMounted, onUnmounted, watch} from 'vue'
 import {MessagePlugin} from 'tdesign-vue-next'
-import {ErrorCircleIcon, Edit2Icon} from 'tdesign-icons-vue-next';
+import {ErrorCircleIcon, Edit2Icon, HeartIcon} from 'tdesign-icons-vue-next';
 import type {ListProps, ListItemMetaProps} from 'tdesign-vue-next';
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
 import SvgIcon from '@/components/SvgIcon.vue'
-import {emotionsOptions} from "../common/constants.ts";
+import {emotionBgColor, emotionsOptions} from "../common/constants.ts";
 import {generateRandomAlias} from "../common/utils.ts";
 import UserAvatar from "../components/UserAvatar.vue";
 
@@ -136,7 +144,7 @@ let timer: number | null = null
 // 帖子轮询定时器
 let pollTimer: number | null = null
 // 轮询间隔：3000ms = 3秒，可自行调整
-const POLL_INTERVAL = 3000
+const POLL_INTERVAL = 5000
 
 // 5点55之后进入红色预警
 const isWarningTime = computed(() => sec.value <= 300)
@@ -149,7 +157,6 @@ const countDownText = computed(() => {
 })
 
 const fillTag = (tag: any) => {
-  content.value = tag.label + ': ';
   emotion.value = tag.value;
 }
 
@@ -192,11 +199,16 @@ async function fetch_snap_latest() {
 async function fetchSnaps() {
   try {
     loading.value = true;
-    let last_cursor = 1;
+    let last_cursor = snaps.value.length;
+    if (last_cursor == 0) {
+      await fetch_snap_latest();
+      return;
+    }
     if (snaps.value.length > 0) {
       last_cursor = snaps.value.at(-1).id;
     }
     const res = await instance.get(apiUrls.get_snaps(), {params: {limit: 10, cursor: last_cursor}});
+    hasMore.value = res.data.total > 9;
     const combined = [...snaps.value, ...res.data.items]
 
     // Map 去重（保留最后出现的那条）
@@ -298,8 +310,14 @@ const onConfirm = async () => {
 }
 
 // 点赞函数，你后续再实现
-const likePost = (id: number) => {
-  console.log('点赞帖子', id)
+const likeSnap = async (id: number) => {
+  await instance.get(apiUrls.like_snap(id))
+      .then(r => {
+        MessagePlugin.success("点赞成功!");
+        const snap = snaps.value.find((item) => item.id == id);
+        snap.like = r.data.like;
+
+      })
 }
 
 const loading = ref(false);

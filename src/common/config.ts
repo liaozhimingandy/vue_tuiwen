@@ -31,6 +31,5 @@ export const config = {
     ENDPOINT_URL: import.meta.env.VITE_APP_ENDPOINT_URL || "https://www.alsoapp.com/static/tuiwen/endpoints.json",
     TURNSTILE_SITE_KEY: import.meta.env.VITE_APP_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
     CDN_BASE_URL: getStorageUrlItem('tw_endpoint_api') || import.meta.env.VITE_CDN_BASE_URL,
-    EMAIL_SUFFIX: import.meta.env.VITE_EMAIL_SUFFIX.split(',') || '@qq.com,@163.com,@gmail.com'.split(',')
-
+    MAIL_SUFFIX: import.meta.env.VITE_MAIL_SUFFIX.split(',') || '@qq.com,@163.com,@gmail.com'.split(',')
 };
