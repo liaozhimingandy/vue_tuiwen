@@ -108,3 +108,26 @@ export function getResourceUrl(path?: string): string {
   return `${base}${relPath}`
 }
 
+/**
+ * 随机生成树洞匿名昵称
+ * 当用户别名输入为空/全空格时调用
+ */
+export function generateRandomAlias(): string {
+    const prefix = [
+        "晚风", "星河", "雾里", "月下", "深海", "孤岛", "晚风", "拾光",
+        "星落", "云边", "野渡", "浅梦", "寒屿", "枕月", "观雾", "寻风",
+        "青梧", "南柯", "渡川", "孤舟", "晚叙", "眠星", "暮野", "山隐"
+    ];
+    const suffix = [
+        "旅人", "过客", "信使", "拾梦者", "摆渡人", "守望者", "流浪客", "寄信人",
+        "追光者", "渡客", "闲人", "访客", "听风人", "观月客", "寻路人", "夜游者"
+    ];
+    // 随机 4位数字后缀，降低重名概率
+    const randomNum = Math.floor(Math.random() * 9000 + 1000);
+
+    const r1 = prefix[Math.floor(Math.random() * prefix.length)];
+    const r2 = suffix[Math.floor(Math.random() * suffix.length)];
+
+    return `${r1}${r2}${randomNum}`;
+}
+

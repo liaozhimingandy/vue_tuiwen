@@ -2,28 +2,33 @@
   <t-layout style="height: 100vh">
     <!-- 自定义顶部头部 -->
     <t-header style="
-      height: 56px;
-      background: rgba(20, 20, 35, 0.95);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 20px;
-      position: sticky;
-      top: 0;
-      z-index: 99;
-      color: white;
-    "
+       height: 56px;
+        background: rgba(20, 20, 35, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 99;
+        color: white;
+     "
     >
       <t-button theme="danger" @click="$router.push('/')">关闭树洞</t-button>
-      <t-typography-title level="h4" style="color:white;"><SvgIcon name="snap" :size="32" color="white"/>深夜来一发</t-typography-title>
+      <t-typography-title level="h4" style="color:white;">
+        <SvgIcon name="snap" :size="32" color="white"/>
+        深夜来一发
+      </t-typography-title>
       <t-typography-text :class="{warn:isWarningTime}" style="color: white" strong>{{
           countDownText
         }}
       </t-typography-text>
     </t-header>
-    <t-content>
-      <t-row justify="center">
-        <t-col :md="7" :xs="11" :sm="12">
+    <t-content style="flex: 1; overflow: hidden; padding: 60px 0 0 0;">
+      <t-row justify="center" style="height: 100%">
+        <t-col :md="7" :xs="11" :sm="12" style="height:100%; display:flex; flex-direction:column">
           <!-- 非开放时段 -->
           <div v-if="!isOpen" class="closed-wrap">
             <t-empty description="板块休息中,每日23:00‑次日06:00开放" size="large">
@@ -36,23 +41,29 @@
           </div>
 
           <!-- 开放时段 -->
-          <div v-else>
+          <div v-else style="display:flex; flex-direction:column; flex:1; overflow:hidden">
             <t-alert theme="warning" message="天亮即焚·匿名树洞｜所有内容早上6点永久清除，发布不可撤回" close-btn/>
             <!-- 帖子列表 -->
-            <div class="post-list">
-              <div v-for="item in postList" :key="item.id" class="post-item">
-                <div class="post-header">
-                  <span class="code-name">{{ item.aliasName }}</span>
-                </div>
-                <div class="emoji-sticker">{{ item.emotion }}</div>
-                <div class="text">{{ item.content }}</div>
-                <div class="post-footer">
-                  <span>{{ item.relativeTime }}</span>
-                  <t-icon name="heart" @click="likePost(item.id)"/>
-                  <t-icon name="more"/>
-                </div>
-              </div>
-            </div>
+            <t-list
+                ref="list"
+                style="flex: 1;"
+                :async-loading="asyncLoading" split @load-more="loadMore"
+                :scroll="{ type: 'virtual', rowHeight: 80, bufferSize: 10, threshold: 10 }"
+            >
+              <t-list-item v-for="(item, index) in snaps" :key="index">
+                <t-list-item-meta :title="item.alias_name" :description="item.content.text">
+                  <template #image>
+                    <div
+                        style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                      <UserAvatar
+                          :nickname="item.alias_name"
+                          style="width: 100%; height: 100%;"
+                      />
+                    </div>
+                  </template>
+                </t-list-item-meta>
+              </t-list-item>
+            </t-list>
           </div>
         </t-col>
       </t-row>
@@ -69,43 +80,63 @@
         <edit-2-icon :fill-color='["white","white"]' :stroke-color='["white","white"]' :stroke-width="2.5" size="36px"/>
       </template>
     </t-back-top>
-  </t-layout>
-  <t-drawer
-      v-model:visible="visible"
-      header="深夜来一发"
-      :show-overlay="false"
-      :on-overlay-click="() => (visible = false)"
-      placement="right"
-      @confirm="onConfirm"
-      @cancel="visible = false"
-  >
-    <!-- 发帖卡片 -->
-    <t-space direction="vertical">
-      <t-space direction="horizontal" break-line>
-        <t-tag v-for="tag in emotionTags" :key="tag" @click="fillTag(tag)">{{ tag }}</t-tag>
+
+    <t-drawer
+        v-model:visible="visible"
+        header="深夜来一发"
+        :show-overlay="false"
+        :on-overlay-click="() => (visible = false)"
+        placement="right"
+        @confirm="onConfirm"
+        :confirm-btn="isOpen ? '发布' : null"
+        @cancel="visible = false"
+    >
+      <!-- 发帖卡片 -->
+      <t-space direction="vertical">
+        <t-space direction="horizontal" break-line>
+          <t-tag v-for="(item, index) in emotionsOptions" :key="index" @click="fillTag(item)">{{ item.label }}</t-tag>
+        </t-space>
+        <t-textarea v-model="content" :autosize="{ minRows: 3, maxRows: 5 }"
+                    placeholder="写下一句深夜心事，天亮就消失..." :maxlength="512"
+                    tips="所有内容早上6点永久清除，发布不可撤回"/>
+        <t-input
+            v-model="alias_name"
+            placeholder="填写你的匿名昵称（选填）"
+            maxlength="20"
+            clearable
+            tips="您的网名,我们不会记录你的名字,可能会和其他人重复"
+        />
       </t-space>
-      <t-textarea v-model="content" :autosize="{ minRows: 3, maxRows: 5 }"
-                  placeholder="写下一句深夜心事，天亮就消失..." :maxlength="512"
-                  tips="所有内容早上6点永久清除，发布不可撤回"/>
-    </t-space>
-  </t-drawer>
+    </t-drawer>
+  </t-layout>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onUnmounted} from 'vue'
+import {ref, computed, onMounted, onUnmounted, watch} from 'vue'
 import {MessagePlugin} from 'tdesign-vue-next'
 import {ErrorCircleIcon, Edit2Icon} from 'tdesign-icons-vue-next';
+import type {ListProps, ListItemMetaProps} from 'tdesign-vue-next';
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
 import SvgIcon from '@/components/SvgIcon.vue'
+import {emotionsOptions} from "../common/constants.ts";
+import {generateRandomAlias} from "../common/utils.ts";
+import UserAvatar from "../components/UserAvatar.vue";
 
 const visible = ref(false);
 const isOpen = ref(isLateNightTime())
-let sec = ref(getRemainingSecondsTo6AM())
+let sec = ref(getRemainingSecondsTo6AM());
+const alias_name = ref(generateRandomAlias());
+const emotion = ref(0);
 const content = ref('')
-const emotionTags = ['失眠', '委屈', '心动', '放空', '吐槽', '开心', '失眠', '委屈', '心动', '放空', '吐槽', '开心']
-const postList = ref<Array<any>>([])
+const snaps = ref<Array<any>>([])
+
+// 倒计时定时器
 let timer: number | null = null
+// 帖子轮询定时器
+let pollTimer: number | null = null
+// 轮询间隔：3000ms = 3秒，可自行调整
+const POLL_INTERVAL = 3000
 
 // 5点55之后进入红色预警
 const isWarningTime = computed(() => sec.value <= 300)
@@ -117,28 +148,110 @@ const countDownText = computed(() => {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 })
 
-const fillTag = (tag: string) => {
-  content.value = tag + ': '
+const fillTag = (tag: any) => {
+  content.value = tag.label + ': ';
+  emotion.value = tag.value;
 }
-
 
 const subscribeRemind = () => {
   MessagePlugin.success('已订阅每晚开板提醒')
 }
-
 
 function tick() {
   sec.value = getRemainingSecondsTo6AM()
   isOpen.value = isLateNightTime()
 }
 
+async function fetch_snap_latest() {
+  try {
+    loading.value = true;
+    const res = await instance.get(apiUrls.get_snap_latest());
+    const combined = [...snaps.value, ...res.data.items]
+
+    // Map 去重（保留最后出现的那条）
+    const map = new Map()
+    for (const item of combined) {
+      map.set(item.id, item)
+    }
+    // 排序：最新在前
+    snaps.value = Array.from(map.values()).sort((a, b) => {
+      return new Date(b.create_at).getTime() - new Date(a.create_at).getTime()
+    })
+  } catch (err) {
+    // 请求失败静默跳过，不打断轮询
+    console.error('获取帖子失败', err)
+  } finally {
+    loading.value = false;
+  }
+}
+
+
+/**
+ * 拉取帖子列表
+ */
+async function fetchSnaps() {
+  try {
+    loading.value = true;
+    let last_cursor = 1;
+    if (snaps.value.length > 0) {
+      last_cursor = snaps.value.at(-1).id;
+    }
+    const res = await instance.get(apiUrls.get_snaps(), {params: {limit: 10, cursor: last_cursor}});
+    const combined = [...snaps.value, ...res.data.items]
+
+    // Map 去重（保留最后出现的那条）
+    const map = new Map()
+    for (const item of combined) {
+      map.set(item.id, item)
+    }
+    // 排序：最新在前
+    snaps.value = Array.from(map.values()).sort((a, b) => {
+      return new Date(b.create_at).getTime() - new Date(a.create_at).getTime()
+    })
+  } catch (err) {
+    // 请求失败静默跳过，不打断轮询
+    console.error('获取帖子失败', err)
+  } finally {
+    loading.value = false;
+  }
+}
+
+/** 开启帖子轮询 */
+function startPoll() {
+  // 先清除旧定时器，防止重复开启
+  stopPoll()
+  // 立刻拉一次，不用等3秒
+  fetch_snap_latest();
+  pollTimer = window.setInterval(fetch_snap_latest, POLL_INTERVAL)
+}
+
+/** 停止帖子轮询 */
+function stopPoll() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+// 监听开放状态，开板启动轮询、关板停止轮询
+watch(isOpen, (newVal) => {
+  if (newVal) {
+    startPoll()
+  } else {
+    stopPoll()
+    // 关闭板块清空列表
+    snaps.value = []
+  }
+}, {immediate: true})
+
 onMounted(() => {
   timer = window.setInterval(tick, 1000)
 })
+
 onUnmounted(() => {
   if (timer) clearInterval(timer)
+  stopPoll()
 })
-
 
 /**
  * 判断当前是否属于深夜来一发开放时段：23:00 ~ 次日 06:00
@@ -146,7 +259,7 @@ onUnmounted(() => {
 function isLateNightTime(): boolean {
   const hour = new Date().getHours()
   // 23点之后 或者 0‑6点
-  return hour >= 11 || hour < 6
+  return hour >= 15 || hour < 6
 }
 
 /**
@@ -164,39 +277,49 @@ function getRemainingSecondsTo6AM(): number {
   return Math.max(0, Math.floor(diff / 1000))
 }
 
-
 const onConfirm = async () => {
+  if (content.value == '') return;
   const payload = {
-    emotion: 1,
+    emotion: emotion.value,
     content: {
       text: content.value
     },
-    alias_name: "test"
+    alias_name: alias_name.value == '' ? generateRandomAlias() : alias_name.value
   }
- await instance.post(apiUrls.post_snap(), payload)
-      .then(() => MessagePlugin.success("发布成功!"))
+  await instance.post(apiUrls.post_snap(), payload)
+      .then(() => {
+        emotion.value = 0;
+        content.value = '';
+        MessagePlugin.success("发布成功!");
+        // 发布成功后立刻刷新列表，不需要等轮询
+        fetch_snap_latest();
+      })
       .finally(() => visible.value = !visible.value)
-
 }
+
+// 点赞函数，你后续再实现
+const likePost = (id: number) => {
+  console.log('点赞帖子', id)
+}
+
+const loading = ref(false);
+const hasMore = ref(true);
+const loadMore: ListProps['onLoadMore'] = () => {
+  if (loading.value || !hasMore.value) return;
+  fetchSnaps();
+};
+const asyncLoading = computed<ListProps['asyncLoading']>(() => {
+  if (loading.value) {
+    return 'loading';
+  }
+  if (hasMore.value) {
+    return 'load-more';
+  }
+  return '没有更多数据了';
+});
 </script>
 
 <style scoped>
-
-
-.post-item {
-  margin: 12px 0;
-  padding: 20px;
-  background: #1e1e2f;
-  border-radius: 12px;
-}
-
-.post-footer {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 12px;
-  color: #aaa;
-}
-
 .closed-wrap {
   margin-top: 120px;
   text-align: center;

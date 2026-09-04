@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, withDefaults} from 'vue'
+import {ref, computed} from 'vue'
 import {getResourceUrl} from "@/common/utils.ts";
 
 interface Props {

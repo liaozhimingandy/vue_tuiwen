@@ -82,7 +82,7 @@
     <!-- 发帖卡片 -->
     <t-space direction="vertical">
       <t-space direction="horizontal" break-line>
-        <t-tag v-for="tag in emotionTags" :key="tag" @click="fillTag(tag)">{{ tag }}</t-tag>
+        <t-tag v-for="(item, index) in emotionsOptions" :key="index" @click="fillTag(item.value)">{{ item.label }}</t-tag>
       </t-space>
       <t-textarea v-model="content" :autosize="{ minRows: 3, maxRows: 5 }"
                   placeholder="写下一句深夜心事，天亮就消失..." :maxlength="512"
@@ -98,12 +98,12 @@ import {ErrorCircleIcon, EditIcon} from 'tdesign-icons-vue-next';
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
 import SvgIcon from '@/components/SvgIcon.vue'
+import {emotionsOptions} from "../common/constants.ts";
 
 const visible = ref(false);
 const isOpen = ref(isLateNightTime())
 let sec = ref(getRemainingSecondsTo6AM())
 const content = ref('')
-const emotionTags = ['失眠', '委屈', '心动', '放空', '吐槽', '开心', '失眠', '委屈', '心动', '放空', '吐槽', '开心']
 const postList = ref<Array<any>>([])
 let timer: number | null = null
 
