@@ -231,17 +231,13 @@ const checkingName = ref(false)
 
 <template>
   <t-layout style="min-height: 100vh; text-align: center;">
-    <t-header ref="headerRef" :style="{width: '100%',
-      'background-color': 'white'}">
+    <t-header ref="headerRef" :style="{width: '100%', 'background-color': 'white'}">
       <Header selected-keys="none"/>
     </t-header>
     <t-content style="padding-top: 8px">
       <t-row justify="center">
         <t-col :md="6" :xs="12" :sm="12" >
-          <c-scrollbar
-              trigger="hover"
-              class="content"
-          >
+          <c-scrollbar trigger="hover" class="content">
             <t-tabs :default-value="activeKey" animated placement="left" size="large">
               <t-tab-panel :value="1" label="个人资料">
                 <t-typography-title level="h4">个人资料</t-typography-title>
@@ -325,7 +321,7 @@ const checkingName = ref(false)
                   </t-form>
                 </t-space>
               </t-tab-panel>
-              <t-tab-panel :value="3" label="通用">
+              <t-tab-panel :value="3" label="通用设置">
                 <t-typography-title level="h4">通用设置</t-typography-title>
                 <t-form>
                   <t-form-item label="接收通知" name="allow_beep">

@@ -26,7 +26,7 @@
           v-model:value="formData.content"
           placeholder="请详细描述你的问题或建议，不少于5个字符"
           :maxlength="500"
-          :rows="8"
+          :autosize="{ minRows: 3, maxRows: 5 }"
         />
       </t-form-item>
       <t-form-item label="联系方式" name="contact">
@@ -70,7 +70,6 @@ const formRules: FormRules<IFeedbackForm> = {
 
 /** 打开弹窗，对外暴露 */
 const open = () => visible.value = true;
-
 
 // 确认提交
 const handleConfirm = async () => {

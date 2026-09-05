@@ -62,6 +62,9 @@ const dropdownOptions = computed<DropdownProps['options']>(() => {
 });
 
 const account = computed(() => {
+  if(!account_map.value[props.post.account_id]){
+      appStore.useCacheStore.fetch_account(props.post.account_id);
+  }
   return account_map.value[props.post.account_id] ?? {};
 })
 const follow = computed(() => {

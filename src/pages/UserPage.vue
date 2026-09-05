@@ -11,9 +11,8 @@ import {type ListProps, MessagePlugin} from "tdesign-vue-next";
 import appStore from "@/stores";
 import instance from "@/services";
 import UserAvatar from "@/components/UserAvatar.vue";
-import {ShareIcon} from 'tdesign-icons-vue-next';
+import {ShareIcon, RollbackIcon} from 'tdesign-icons-vue-next';
 
-const activeKey = ref(1);
 const route = useRoute();
 const username = route.params.username;
 
@@ -119,7 +118,12 @@ const onFollow = async () => {
       <t-row justify="center">
         <t-col :md="6" :xs="12" :sm="12" style="text-align: start; background-color: white">
           <div style="border: 1px solid rgb(235, 237, 240); padding: 16px; display:flex;align-items:center;gap:8px;">
-            <t-button variant="text" @click="go_back">← 返回</t-button>
+            <t-button variant="text" @click="go_back">
+              <template #icon>
+                <rollback-icon/>
+              </template>
+              返回
+            </t-button>
             <div>
               <div style="font-size: 18px; font-weight:bold">用户中心</div>
               <div style="color:#666;font-size:14px">可以查看用户资料</div>
@@ -145,7 +149,7 @@ const onFollow = async () => {
                     </template>
                     <t-button variant="outline">
                       <template #icon>
-                        <share-icon />
+                        <share-icon/>
                       </template>
                       分享
                     </t-button>

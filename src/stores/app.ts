@@ -17,11 +17,6 @@ export const usePostStore = defineStore("posts", () => {
     }
     // 新增多份推文数据
     const addPosts = (data: IPost[]) => {
-        // let els = posts.value.concat(data);
-        // let map = new Map();
-        // els.forEach((item: IPost) => map.set(item.post_id, item));
-        // posts.value = Array.from(map.values());
-        // posts.value = posts.value.sort((a: IPost, b: IPost) => new Date(b.gmt_created).getTime() - new Date(a.gmt_created).getTime());
         // 合并现有 + 新数据
         const combined = [...posts.value, ...data]
 

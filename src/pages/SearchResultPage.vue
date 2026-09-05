@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import {onMounted, ref, watch, computed} from "vue";
 import {useRoute} from 'vue-router';
-import type { ListProps } from 'tdesign-vue-next';
+import type {ListProps} from 'tdesign-vue-next';
 import {MessagePlugin} from 'tdesign-vue-next';
 
 import Header from "@/components/Header.vue";
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
 import {getResourceUrl} from "@/common/utils.ts";
+import UserAvatar from "../components/UserAvatar.vue";
 
 const route = useRoute()
 
@@ -92,7 +93,7 @@ watch(
 )
 
 const asyncLoading = computed<ListProps['asyncLoading']>(() => {
- if (loading.value) {
+  if (loading.value) {
     return 'loading';
   }
   if (hasMore.value) {
@@ -119,9 +120,18 @@ onMounted(async () => {
         <t-col :span="8">
           <t-list split @load-more="onMore" :async-loading="asyncLoading" style="margin-top: 6px">
             <t-list-item v-for="(item, index) in items" :key="index">
-              <t-list-item-meta :image="getResourceUrl(item.avatar)" :title="`${item.nick_name}(${item.username})`" :description="item.bio"/>
+              <t-list-item-meta :title="`${item.nick_name}(${item.username})`" :description="item.bio">
+                <template #image>
+                  <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                    <UserAvatar :avatar="item?.avatar" :nickname="item?.nick_name" style="width: 100%; height: 100%;"
+                    />
+                  </div>
+                </template>
+              </t-list-item-meta>
               <template #action>
-                <t-link theme="primary" :href="`${apiUrls.share_account_link(item.account_id)}`" hover="color" style="margin-left: 16px">查看更多</t-link>
+                <t-link theme="primary" :href="`${apiUrls.share_account_link(item.account_id)}`" hover="color"
+                        style="margin-left: 16px">查看更多
+                </t-link>
               </template>
             </t-list-item>
             <t-empty v-if="items.length == 0"/>
@@ -129,7 +139,7 @@ onMounted(async () => {
         </t-col>
       </t-row>
     </t-content>
-    <t-footer>  © {{ new Date().getFullYear() }} -tuiwen </t-footer>
+    <t-footer> © {{ new Date().getFullYear() }} -tuiwen</t-footer>
   </t-layout>
 </template>
 
