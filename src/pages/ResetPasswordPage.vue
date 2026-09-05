@@ -7,6 +7,7 @@ import {md5} from "js-md5";
 import type {FormProps, AutoCompleteProps} from 'tdesign-vue-next';
 import {MessagePlugin} from 'tdesign-vue-next'
 import {config} from "@/common/config.ts";
+import {isMobileDevice} from "../common/device.ts";
 
 const current = ref<number>(0);
 
@@ -112,7 +113,7 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
           <t-space direction="vertical" style="width: 100%">
             <t-typography-title>密码重置</t-typography-title>
             <t-divider></t-divider>
-            <t-steps layout="horizontal" :current="current" status="process">
+            <t-steps :layout="isMobileDevice() ? 'vertical' : 'horizontal'" :current="current" status="process">
               <t-step-item title="步骤1" content="填写邮箱">
                 <template v-if="current === 0" #extra>
                   <t-button size="small" variant="base" @click="current++"> 下一步</t-button>

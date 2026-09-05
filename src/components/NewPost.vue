@@ -192,7 +192,7 @@ const handleFail: UploadProps['onFail'] = ({file}) => {
       <t-space direction="vertical" style="width: 100%">
         <!-- 用户头像 -->
         <div style="display:flex; align-items:center; gap:16px;">
-          <t-avatar :image="getResourceUrl(appStore.useAccountStore.account?.avatar)" size="large"/>
+          <UserAvatar :avatar="appStore.useAccountStore.account?.avatar" :nickname="appStore.useAccountStore.account?.nick_name"/>
           <t-dropdown :options="dropdownOptions" @click="handleMenuClick">
             <t-button variant="text">
               {{ post_right_map[selected_status] }}

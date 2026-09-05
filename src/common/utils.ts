@@ -131,3 +131,5 @@ export function generateRandomAlias(): string {
     return `${r1}${r2}${randomNum}`;
 }
 
+
+export const formatter = new Intl.NumberFormat('zh-CN', {'notation':'compact','compactDisplay':'long'})

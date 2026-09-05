@@ -49,7 +49,8 @@
                 v-else
                 ref="list"
                 style="flex: 1;"
-                :async-loading="asyncLoading" split @load-more="loadMore"
+                :async-loading="asyncLoading"
+                split @load-more="loadMore"
             >
               <t-list-item v-for="(item, index) in snaps" :key="index"
                            :style="{backgroundColor: emotionBgColor[item.emotion]}">
@@ -65,13 +66,19 @@
                   </template>
                 </t-list-item-meta>
                 <template #action>
-                  <t-badge :count="item.like">
-                    <t-button size="large" variant="text" shape="square" @click="()=>likeSnap(item.id)">
-                      <template #icon>
-                        <heart-icon size="32px"/>
-                      </template>
-                    </t-button>
-                  </t-badge>
+                  <t-button size="large" variant="text" style="width:auto" shape="square" @click="()=>likeSnap(item.id)">
+                    <template #icon>
+                      <heart-icon size="32px"/>
+                    </template>
+                    <Ticker
+                        v-if="item.like > 0"
+                        :value="item.like"
+                        :duration="800"
+                        easing="linear"
+                        direction="ANY"
+                        :number-format="formatter"
+                      />
+                  </t-button>
                 </template>
               </t-list-item>
             </t-list>
@@ -88,7 +95,7 @@
         @click="visible=!visible"
     >
       <template #content>
-        <edit-2-icon :fill-color='["white","white"]' :stroke-color='["white","white"]' :stroke-width="2.5" size="36px"/>
+        <edit-2-icon :fill-color='["white","white"]' :stroke-color='["white","white"]' :stroke-width="2.5" size="28px"/>
       </template>
     </t-back-top>
 
@@ -142,15 +149,17 @@
 
 <script setup lang="ts">
 import {ref, computed, onMounted, onUnmounted, watch} from 'vue'
-import {type FormProps, MessagePlugin} from 'tdesign-vue-next'
+import {MessagePlugin} from 'tdesign-vue-next'
 import {ErrorCircleIcon, Edit2Icon, HeartIcon} from 'tdesign-icons-vue-next';
-import type {ListProps, ListItemMetaProps} from 'tdesign-vue-next';
+import type {ListProps} from 'tdesign-vue-next';
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
 import SvgIcon from '@/components/SvgIcon.vue'
 import {emotionBgColor, emotionsOptions} from "../common/constants.ts";
-import {generateRandomAlias} from "../common/utils.ts";
+import {formatter, generateRandomAlias} from "../common/utils.ts";
 import UserAvatar from "../components/UserAvatar.vue";
+import {Ticker} from '@tombcato/smart-ticker/vue';
+import '@tombcato/smart-ticker/style.css';
 
 const visible = ref(false);
 const isOpen = ref(isLateNightTime())
@@ -400,8 +409,8 @@ watch(visible, (newVal) => {
   }
 })
 // 监听昵称输入框，修改立刻同步缓存
-watch(()=>formData.value.alias_name, (newName)=>{
-  if(newName?.trim()){
+watch(() => formData.value.alias_name, (newName) => {
+  if (newName?.trim()) {
     alias_name.value = newName.trim()
   }
 })

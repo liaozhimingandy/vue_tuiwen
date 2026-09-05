@@ -19,6 +19,9 @@ import NineImageGrid from "@/components/NineImageGrid.vue";
 import TextCollapse from "@/components/TextCollapse.vue";
 import {apiUrls} from "@/services/api.ts";
 import UserAvatar from "@/components/UserAvatar.vue";
+import {Ticker} from '@tombcato/smart-ticker/vue';
+import '@tombcato/smart-ticker/style.css';
+import {formatter} from "../common/utils.ts";
 
 dayjs.extend(relativeTime);
 
@@ -250,7 +253,7 @@ onMounted(async () => {
             <t-dropdown :options="dropdownOptions">
               <t-button variant="text">
                 <template #icon>
-                  <more-icon />
+                  <more-icon/>
                 </template>
               </t-button>
             </t-dropdown>
@@ -288,13 +291,13 @@ onMounted(async () => {
                   <t-space style="margin-top:12px">
                     <t-button theme="primary" @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`)">
                       <template #icon>
-                        <link-icon />
+                        <link-icon/>
                       </template>
                       复制链接
                     </t-button>
                     <t-button theme="primary">
                       <template #icon>
-                        <logo-twitter-icon />
+                        <logo-twitter-icon/>
                       </template>
                       <ShareNetwork
                           network="Weibo"
@@ -312,7 +315,7 @@ onMounted(async () => {
               </template>
               <t-button variant="text" @click="select_item === 'share'? '' : 'share'">
                 <template #icon>
-                  <share-icon />
+                  <share-icon/>
                 </template>
                 分享
               </t-button>
@@ -324,13 +327,13 @@ onMounted(async () => {
                 @click="handleComment"
             >
               <template #icon>
-                <chat-double-icon />
+                <chat-double-icon/>
               </template>
               评论
             </t-button>
           </t-col>
-          <t-col flex="auto" style="display: inline-flex; justify-content: center">
-            <t-button variant="text" @click="handleLike(post.post_id)">
+          <t-col flex="auto" style="with: auto">
+            <t-button variant="text" style="width: auto;" @click="handleLike(post.post_id)">
               <template #icon>
                 <heart-icon
                     :fill-color="like?.is_liked ? ['red','red'] : ['transparent','transparent']"
@@ -338,8 +341,21 @@ onMounted(async () => {
                     :stroke-width="2"
                 />
               </template>
-              赞<span v-if="like?.count > 0">({{ like?.count }})</span>
+              <div style="display: inline-flex; align-items: center; gap: 4px;">
+                <span>赞</span>
+                <Ticker
+                    v-if="like?.count > 0"
+                    :value="like?.count"
+                    :duration="800"
+                    easing="linear"
+                    direction="ANY"
+                    prefix="("
+                    suffix=")"
+                    :number-format="formatter"
+                />
+              </div>
             </t-button>
+
           </t-col>
         </t-row>
 
