@@ -61,6 +61,8 @@ declare module 'vue' {
     TSelect: typeof import('tdesign-vue-next')['Select']
     TSpace: typeof import('tdesign-vue-next')['Space']
     TStatistic: typeof import('tdesign-vue-next')['Statistic']
+    TStepItem: typeof import('tdesign-vue-next')['StepItem']
+    TSteps: typeof import('tdesign-vue-next')['Steps']
     TSwitch: typeof import('tdesign-vue-next')['Switch']
     TTabPanel: typeof import('tdesign-vue-next')['TabPanel']
     TTabs: typeof import('tdesign-vue-next')['Tabs']

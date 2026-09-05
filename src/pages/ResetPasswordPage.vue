@@ -100,7 +100,7 @@ const goLogin = () => {
 const emailOptions = computed<AutoCompleteProps['options']>(() => {
   const emailPrefix = formData1.value.mail.split('@')[0];
   if (!emailPrefix) return [];
-  return config.EMAIL_SUFFIX.map((suffix) => emailPrefix + suffix);
+  return config.MAIL_SUFFIX.map((suffix: string) => emailPrefix + suffix);
 });
 </script>
 
@@ -139,7 +139,7 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
             >
               <t-form-item
                   label="电子邮箱"
-                  name="email"
+                  name="mail"
                   :rules="[{required: true, message: '请输入电子邮箱', trigger: 'blur' },{mail: {ignore_max_length: true,}}]"
               >
                 <t-auto-complete

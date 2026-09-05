@@ -75,13 +75,12 @@ const handleRegister: FormProps['onSubmit'] = async ({validateResult, firstError
   // 在此处理注册逻辑
   let data = cloneDeep(formData.value);
   data.password = md5(data.password);
-  data.sex = parseInt(data.sex);
 
   // 调用注册接口
-  instance.post(apiUrls.register(), JSON.stringify(data)).then(() => {
+  instance.post(apiUrls.register(), data).then(() => {
     MessagePlugin.success("注册成功,请登录!")
     router.push({name: "login"});
-  })
+  }).catch((err: any) => MessagePlugin.error(err.response.data.detail))
 };
 
 const handleLogin = () => window.location.replace('/login/');
@@ -111,7 +110,7 @@ const mailOptions = computed<AutoCompleteProps['options']>(() => {
                   placeholder="电子邮箱"
               >
                 <template #prefix-icon>
-                  <mail-icon />
+                  <mail-icon/>
                 </template>
               </t-input>
             </template>
@@ -120,7 +119,7 @@ const mailOptions = computed<AutoCompleteProps['options']>(() => {
         <t-form-item label="密码" name="password" :status-icon="true">
           <t-input v-model:value="formData.password" placeholder="请输入密码" type="password" autocomplete="password">
             <template #prefix-icon>
-              <lock-on-icon />
+              <lock-on-icon/>
             </template>
           </t-input>
         </t-form-item>
@@ -128,7 +127,7 @@ const mailOptions = computed<AutoCompleteProps['options']>(() => {
           <t-input v-model:value="formData.confirmPassword" placeholder="请确认密码" type="password"
                    autocomplete="confirmPassword">
             <template #prefix-icon>
-              <lock-on-icon />
+              <lock-on-icon/>
             </template>
           </t-input>
         </t-form-item>
@@ -143,12 +142,10 @@ const mailOptions = computed<AutoCompleteProps['options']>(() => {
           <t-select v-model:value="formData.sex" :options='sexListOptions'/>
         </t-form-item>
         <t-divider/>
-        <t-form-item>
-          <div style="display:flex;gap:24px;justify-content:space-evenly;">
-            <t-button type="submit">注册</t-button>
-            <t-button theme="default" @click="handleLogin">已有账号？登录</t-button>
-          </div>
-        </t-form-item>
+        <div style="display:flex;gap:24px;justify-content:space-evenly;">
+          <t-button type="submit">注册</t-button>
+          <t-button theme="default" @click="handleLogin">已有账号？登录</t-button>
+        </div>
       </t-form>
     </t-card>
   </div>
