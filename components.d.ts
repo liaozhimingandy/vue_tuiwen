@@ -7,6 +7,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    DcfCalculatorOptimized: typeof import('./src/components/DcfCalculatorOptimized.vue')['default']
     FacePicker: typeof import('./src/components/FacePicker.vue')['default']
     FeedbackDialog: typeof import('./src/components/FeedbackDialog.vue')['default']
     Header: typeof import('./src/components/Header.vue')['default']
@@ -47,6 +48,7 @@ declare module 'vue' {
     TImage: typeof import('tdesign-vue-next')['Image']
     TImageViewer: typeof import('tdesign-vue-next')['ImageViewer']
     TInput: typeof import('tdesign-vue-next')['Input']
+    TInputNumber: typeof import('tdesign-vue-next')['InputNumber']
     TLayout: typeof import('tdesign-vue-next')['Layout']
     TLink: typeof import('tdesign-vue-next')['Link']
     TList: typeof import('tdesign-vue-next')['List']
@@ -55,8 +57,11 @@ declare module 'vue' {
     TLoading: typeof import('tdesign-vue-next')['Loading']
     TMenu: typeof import('tdesign-vue-next')['Menu']
     TMenuItem: typeof import('tdesign-vue-next')['MenuItem']
+    TOption: typeof import('tdesign-vue-next')['Option']
     TPopup: typeof import('tdesign-vue-next')['Popup']
     TQrcode: typeof import('tdesign-vue-next')['QRCode']
+    TRadio: typeof import('tdesign-vue-next')['Radio']
+    TRadioGroup: typeof import('tdesign-vue-next')['RadioGroup']
     TRow: typeof import('tdesign-vue-next')['Row']
     TSelect: typeof import('tdesign-vue-next')['Select']
     TSpace: typeof import('tdesign-vue-next')['Space']
@@ -64,6 +69,7 @@ declare module 'vue' {
     TStepItem: typeof import('tdesign-vue-next')['StepItem']
     TSteps: typeof import('tdesign-vue-next')['Steps']
     TSwitch: typeof import('tdesign-vue-next')['Switch']
+    TTable: typeof import('tdesign-vue-next')['Table']
     TTabPanel: typeof import('tdesign-vue-next')['TabPanel']
     TTabs: typeof import('tdesign-vue-next')['Tabs']
     TTag: typeof import('tdesign-vue-next')['Tag']

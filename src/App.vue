@@ -43,7 +43,11 @@ onMounted(async () => {
 
 <template>
 
-  <t-config-provider>
+  <t-config-provider :global-config="{
+      font: {
+        family: 'Roboto, -apple-system-font, BlinkMacSystemFont, Microsoft YaHei, Microsoft YaHei UI, Helvetica Neue, PingFang SC, Hiragino Sans GB, Arial, sans-serif'
+      }
+    }">
     <!-- 全屏加载容器 -->
     <div class="app-loading" v-if="is_loading" >
       <t-loading indicator loading preventScrollThrough text="页面加载中..." size="large" :delay="500"/>

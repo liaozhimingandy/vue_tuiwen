@@ -54,6 +54,7 @@ const routes: RouteRecordRaw[] = [
         path: '/reset_password/', name: 'reset_password', component: () => import("@/pages/ResetPasswordPage.vue"),
         meta: {title: "密码重置", need_two_step_verification: true}
     },
+    {path: '/models/dcf/', name: 'dcf', component: () => import("@/pages/DCFModelPage.vue"), meta: {title: "DCF企业自由现金流估值模型"}},
     {path: '/:catchALL(.*)/', component: NotFoundPage, name: 'not-fond', meta: {title: "Not Found"}},
 ]
 
@@ -96,7 +97,7 @@ router.beforeEach((to, _) => {
     }
     // ==========================================
 
-    const whiteList = ['login', 'register', 'reset_password', 'post', 'two_step_verification', "test", 'snap'];
+    const whiteList = ['login', 'register', 'reset_password', 'post', 'two_step_verification', "test", 'snap', 'models/dcf'];
     const isWhiteList = whiteList.includes(to.name as string);
     const hasToken = !!appStore.useAccountStore.token?.access_token;
 

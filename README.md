@@ -17,3 +17,7 @@ https://dash.cloudflare.com/【这里一串uuid就是Account‑ID】/home
 CLOUDFLARE_API_TOKEN
 
 CLOUDFLARE_ACCOUNT_ID
+
+
+## ticker文档链接
+https://tombcato.github.io/smart-ticker/?lang=en

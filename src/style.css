@@ -16,3 +16,20 @@
   left: 0;
   width: 100%;
 }
+
+/* -------- 第二步：覆盖TDesign官方字体主题变量【官方标准方案】 -------- */
+:root {
+  --td-font-family: 'Roboto', -apple-system-font, BlinkMacSystemFont, "Microsoft YaHei",
+  "Microsoft YaHei UI", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
+  Arial, sans-serif;
+
+  --td-font-family-medium: 'Roboto', -apple-system-font, BlinkMacSystemFont, "Microsoft YaHei",
+  "Microsoft YaHei UI", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
+  Arial, sans-serif;
+}
+
+/* -------- 第三步：页面普通文字兜底 -------- */
+html,
+body {
+  font-family: var(--td-font-family);
+}
