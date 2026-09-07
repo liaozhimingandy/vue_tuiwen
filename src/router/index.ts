@@ -97,7 +97,7 @@ router.beforeEach((to, _) => {
     }
     // ==========================================
 
-    const whiteList = ['login', 'register', 'reset_password', 'post', 'two_step_verification', "test", 'snap', 'models/dcf'];
+    const whiteList = ['login', 'register', 'reset_password', 'post', 'two_step_verification', "test", 'snap', 'dcf'];
     const isWhiteList = whiteList.includes(to.name as string);
     const hasToken = !!appStore.useAccountStore.token?.access_token;
 

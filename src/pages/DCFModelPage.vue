@@ -1,9 +1,7 @@
 <template>
   <t-layout>
     <t-content style="margin: 0 60px">
-      <t-typography-title>
-        DCF企业自由现金流估值模型
-      </t-typography-title>
+      <t-typography-title>DCF企业自由现金流估值模型</t-typography-title>
       <!-- =========================
            估值模式
       ========================== -->

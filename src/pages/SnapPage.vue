@@ -1,5 +1,5 @@
 <template>
-  <t-layout style="height: 100vh">
+  <t-layout style="height: 100vh; background-color: #F7F7FA">
     <!-- 自定义顶部头部 -->
     <t-header style="
        height: 56px;
@@ -42,7 +42,7 @@
 
           <!-- 开放时段 -->
           <div v-else style="display:flex; flex-direction:column; flex:1; overflow:hidden">
-            <t-alert theme="warning" message="天亮即焚·匿名树洞｜所有内容早上6点永久清除，发布不可撤回" close-btn/>
+            <t-alert theme="warning" message="🌙今夜的话,只属于今晚,所有内容将在6:00消失" close-btn/>
             <t-empty v-if="snaps.length == 0"/>
             <!-- 帖子列表 -->
             <t-list
@@ -66,19 +66,27 @@
                   </template>
                 </t-list-item-meta>
                 <template #action>
-                  <t-button size="large" variant="text" style="width:auto" shape="square" @click="()=>likeSnap(item.id)">
-                    <template #icon>
-                      <heart-icon size="32px"/>
-                    </template>
-                    <Ticker
-                        v-if="item.like > 0"
-                        :value="item.like"
-                        :duration="800"
-                        easing="linear"
-                        direction="ANY"
-                        :number-format="formatter"
+                  <t-space>
+                    <t-button size="large" variant="text" style="width:auto" shape="square"
+                              @click="()=>likeSnap(item.id)">
+                      <template #icon>
+                        <browse-icon/>
+                      </template>
+                      <Ticker
+                          v-if="item.like > 0"
+                          :value="item.like"
+                          :duration="800"
+                          easing="linear"
+                          direction="ANY"
+                          :number-format="formatter"
                       />
-                  </t-button>
+                    </t-button>
+                    <t-button size="large" variant="text" style="width:auto" shape="square">
+                      <template #icon>
+                        <time-icon/>
+                      </template>
+                    </t-button>
+                  </t-space>
                 </template>
               </t-list-item>
             </t-list>
@@ -144,13 +152,26 @@
         </t-form-item>
       </t-form>
     </t-drawer>
+    <t-sticky-tool
+        placement="right-center"
+        shape="round"
+        :offset="[-50, -24]"
+        @click="onHandleClick"
+    >
+      <t-sticky-item label="意见反馈">
+        <template #icon>
+          <chat-double-icon/>
+        </template>
+      </t-sticky-item>
+    </t-sticky-tool>
+    <FeedbackDialog ref="feedbackDialogRef"/>
   </t-layout>
 </template>
 
 <script setup lang="ts">
 import {ref, computed, onMounted, onUnmounted, watch} from 'vue'
 import {MessagePlugin} from 'tdesign-vue-next'
-import {ErrorCircleIcon, Edit2Icon, HeartIcon} from 'tdesign-icons-vue-next';
+import {ErrorCircleIcon, Edit2Icon, BrowseIcon, ChatDoubleIcon, TimeIcon} from 'tdesign-icons-vue-next';
 import type {ListProps} from 'tdesign-vue-next';
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
@@ -160,6 +181,7 @@ import {formatter, generateRandomAlias} from "../common/utils.ts";
 import UserAvatar from "../components/UserAvatar.vue";
 import {Ticker} from '@tombcato/smart-ticker/vue';
 import '@tombcato/smart-ticker/style.css';
+import FeedbackDialog from "../components/FeedbackDialog.vue";
 
 const visible = ref(false);
 const isOpen = ref(isLateNightTime())
@@ -414,6 +436,21 @@ watch(() => formData.value.alias_name, (newName) => {
     alias_name.value = newName.trim()
   }
 })
+
+// 用户反馈功能
+import type {StickyToolProps} from 'tdesign-vue-next';
+
+const feedbackDialogRef = ref();
+const onHandleClick: StickyToolProps['onClick'] = (context) => {
+  console.log('click', context);
+  switch (context.item.label) {
+    case '意见反馈':
+      feedbackDialogRef.value?.open();
+      break;
+    default:
+      break;
+  }
+};
 </script>
 
 <style scoped>
