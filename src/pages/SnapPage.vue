@@ -16,7 +16,7 @@
         color: white;
      "
     >
-      <t-button theme="danger" @click="$router.push('/')">关闭树洞</t-button>
+      <t-button theme="danger" @click="$router.push('/')">退出树洞</t-button>
       <t-typography-title level="h4" style="color:white;">
         <SvgIcon name="snap" :size="32" color="white"/>
         深夜来一发
@@ -42,7 +42,7 @@
 
           <!-- 开放时段 -->
           <div v-else style="display:flex; flex-direction:column; flex:1; overflow:hidden">
-            <t-alert theme="warning" message="🌙今夜的话,只属于今晚,所有内容将在6:00消失" close-btn/>
+            <t-alert theme="warning" message="🌙今夜所有动态早上6点全部永久清除,不留痕迹,放心倾诉" close-btn/>
             <t-empty v-if="snaps.length == 0"/>
             <!-- 帖子列表 -->
             <t-list
@@ -54,7 +54,20 @@
             >
               <t-list-item v-for="(item, index) in snaps" :key="index"
                            :style="{backgroundColor: emotionBgColor[item.emotion]}">
-                <t-list-item-meta :title="item.alias_name" :description="item.content.text">
+                <t-list-item-meta :title="item.alias_name">
+                  <template #description>
+                    <TextCollapse>
+                      <div v-html="item.content.text" ></div>
+                    </TextCollapse>
+<!--                    <LineClamp :text="item.content.text" :max-lines="2"-->
+<!--                              :expanded="snap_id_expanded == item.id">-->
+<!--                      <template #after="{ clamped }">-->
+<!--                        <t-link v-if="clamped || snap_id_expanded==item.id" theme="primary" @click="() => snap_id_expanded = clamped ? item.id : null">-->
+<!--                          {{ clamped ? "展开" : "收起" }}-->
+<!--                        </t-link>-->
+<!--                      </template>-->
+<!--                    </LineClamp>-->
+                  </template>
                   <template #image>
                     <div
                         style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
@@ -70,7 +83,7 @@
                     <t-button size="large" variant="text" style="width:auto" shape="square"
                               @click="()=>likeSnap(item.id)">
                       <template #icon>
-                        <browse-icon/>
+                        <heart-icon/>
                       </template>
                       <Ticker
                           v-if="item.like > 0"
@@ -85,6 +98,7 @@
                       <template #icon>
                         <time-icon/>
                       </template>
+                      {{ timestampFormat(item.create_at) }}
                     </t-button>
                   </t-space>
                 </template>
@@ -109,12 +123,12 @@
 
     <t-drawer
         v-model:visible="visible"
-        header="深夜来一发"
+        header="今晚想说什么?"
         :show-overlay="false"
         :on-overlay-click="() => (visible = false)"
         placement="right"
         @confirm="onConfirm"
-        :confirm-btn="isOpen ? '发布' : null"
+        :confirm-btn="isOpen ? '说出来' : null"
         @cancel="onCancel"
     >
       <t-form ref="formRef" :data="formData" :rules="formRules" label-align="top">
@@ -153,6 +167,7 @@
       </t-form>
     </t-drawer>
     <t-sticky-tool
+        v-if="!isMobileDevice()"
         placement="right-center"
         shape="round"
         :offset="[-50, -24]"
@@ -171,13 +186,13 @@
 <script setup lang="ts">
 import {ref, computed, onMounted, onUnmounted, watch} from 'vue'
 import {MessagePlugin} from 'tdesign-vue-next'
-import {ErrorCircleIcon, Edit2Icon, BrowseIcon, ChatDoubleIcon, TimeIcon} from 'tdesign-icons-vue-next';
+import {ErrorCircleIcon, Edit2Icon, HeartIcon, ChatDoubleIcon, TimeIcon, MoonIcon} from 'tdesign-icons-vue-next';
 import type {ListProps} from 'tdesign-vue-next';
 import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
 import SvgIcon from '@/components/SvgIcon.vue'
 import {emotionBgColor, emotionsOptions} from "../common/constants.ts";
-import {formatter, generateRandomAlias} from "../common/utils.ts";
+import {formatter, generateRandomAlias, timestampFormat} from "../common/utils.ts";
 import UserAvatar from "../components/UserAvatar.vue";
 import {Ticker} from '@tombcato/smart-ticker/vue';
 import '@tombcato/smart-ticker/style.css';
@@ -439,6 +454,8 @@ watch(() => formData.value.alias_name, (newName) => {
 
 // 用户反馈功能
 import type {StickyToolProps} from 'tdesign-vue-next';
+import {isMobileDevice} from "../common/device.ts";
+import TextCollapse from "../components/TextCollapse.vue";
 
 const feedbackDialogRef = ref();
 const onHandleClick: StickyToolProps['onClick'] = (context) => {
@@ -451,6 +468,9 @@ const onHandleClick: StickyToolProps['onClick'] = (context) => {
       break;
   }
 };
+
+
+const snap_id_expanded = ref<number>()
 </script>
 
 <style scoped>

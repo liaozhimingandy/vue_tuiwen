@@ -12,16 +12,16 @@ import {HeartIcon, LinkIcon, LogoTwitterIcon, ChatDoubleIcon, ShareIcon, MoreIco
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {ShareNetwork} from 'vue-social-sharing'
 import type {IAccount, IComment, IPost} from "@/interface";
-import {formatMessageToHtml, getResourceUrl, logger, timestampFormat} from "@/common/utils.ts";
+import {getClampPreviewHtml, getResourceUrl, logger, timestampFormat} from "@/common/utils.ts";
 import instance from '../services/';
 import appStore from "../stores";
 import NineImageGrid from "@/components/NineImageGrid.vue";
-import TextCollapse from "@/components/TextCollapse.vue";
 import {apiUrls} from "@/services/api.ts";
 import UserAvatar from "@/components/UserAvatar.vue";
 import {Ticker} from '@tombcato/smart-ticker/vue';
 import '@tombcato/smart-ticker/style.css';
-import {formatter} from "../common/utils.ts";
+import {formatMessageToHtml, formatter} from "../common/utils.ts";
+import {config} from "../common/config.ts";
 
 dayjs.extend(relativeTime);
 
@@ -62,8 +62,8 @@ const dropdownOptions = computed<DropdownProps['options']>(() => {
 });
 
 const account = computed(() => {
-  if(!account_map.value[props.post.account_id]){
-      appStore.useCacheStore.fetch_account(props.post.account_id);
+  if (!account_map.value[props.post.account_id]) {
+    appStore.useCacheStore.fetch_account(props.post.account_id);
   }
   return account_map.value[props.post.account_id] ?? {};
 })
@@ -194,6 +194,10 @@ onMounted(async () => {
   instance.get(apiUrls.get_likes(props.post.post_id)).then((r: any) => like.value = r.data);
 })
 
+// 帖子展开或收起
+//const expanded = ref<boolean>(false);
+
+//const html = getClampPreviewHtml(cleanHtml, config.CDN_BASE_URL)// `<div class="rich-content-wrapper">${getClampPreviewHtml(cleanHtml, config.CDN_BASE_URL)}</div>`;
 </script>
 
 <template>
@@ -266,9 +270,19 @@ onMounted(async () => {
       <!-- 推文正文内容 -->
       <div style="margin-bottom: 16px; background-color: white;">
         <t-space direction="vertical" :size="6" style="width: 100%;">
-          <TextCollapse>
-            <div v-html="formatMessageToHtml(post.content.text)"></div>
-          </TextCollapse>
+                    <TextCollapse>
+                      <div v-html="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"></div>
+                    </TextCollapse>
+<!--          <RichLineClamp v-model:expanded="expanded"-->
+<!--                         :html="html"-->
+<!--                         :max-lines="2"-->
+<!--                         boundary="word">-->
+<!--            <template #after="{clamped}">-->
+<!--              <t-link v-if="clamped || expanded" theme="primary" @click="()=>expanded = !expanded">-->
+<!--                {{ expanded ? "收起" : "展开" }}-->
+<!--              </t-link>-->
+<!--            </template>-->
+<!--          </RichLineClamp>-->
           <NineImageGrid
               :image-list="props.post.content.images"
               :single-max-width="160"
@@ -404,5 +418,21 @@ onMounted(async () => {
   .form-submit {
     margin-top: 8px;
   }
+}
+
+:deep(.rich-content-wrapper) {
+  line-height: 1.7;
+}
+
+:deep(.rich-content-wrapper img) {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  /* 限制超长竖图最大高度，不需要就删掉 */
+  max-height: 600px;
+}
+
+:deep(.rich-content-wrapper p) {
+  margin: 0.6em 0;
 }
 </style>

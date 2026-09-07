@@ -175,7 +175,7 @@ defineExpose({ calcOverflow, toggleExpand })
   overflow-wrap: break-word;
 
   display: -webkit-box;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 2;
   /*! autoprefixer: off */
   -webkit-box-orient: vertical;
   /*! autoprefixer: on */

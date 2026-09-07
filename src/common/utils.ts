@@ -133,3 +133,40 @@ export function generateRandomAlias(): string {
 
 
 export const formatter = new Intl.NumberFormat('zh-CN', {'notation':'compact','compactDisplay':'long'})
+
+/**
+ * 将html中img标签 /static 开头相对src替换为CDN绝对地址
+ * ✅只处理 /static 相对路径；http/https已经是完整域名的链接直接跳过不改动
+ * @param html 原始富文本
+ * @param cdnPrefix CDN域名，不要末尾斜杠，示例：https://cdn.yourdomain
+ * @returns 处理后html
+ */
+export function rewriteImgCdnPrefix(html: string, cdnPrefix: string): string {
+  if (!html) return ''
+  // 负向预查 (?!https?:)：排除已经 http / https 开头的src
+  return html.replace(
+    /(<img[^>]+src=(["']))(?!https?:)(\/static[^"']*)\2/gi,
+    `$1${cdnPrefix}$3$2`
+  )
+}
+
+
+/**
+ * 生成预览阶段html，用于RichLineClamp截断
+ * 无论帖子是纯文本 / 富文本，统一走这个函数
+ * 展开时直接使用原始 post.content.text，不做处理
+ */
+export const getClampPreviewHtml = (rawHtml: string, cdnPrefix = "https://cdn.yourdomain"): string => {
+  if (!rawHtml) return ''
+  let html = rawHtml
+  // 合并连续空段落 <p><br></p>
+  html = html.replace(/(<p>\s*<br\s*\/?>\s*<\/p>){2,}/gi, '<br>')
+  // 把<p>块级标签降级成 <br>，消除p标签自带margin上下间距
+  html = html.replace(/<\/p>\s*<p>/gi, '<br>')
+  html = html.replace(/<p>/gi, '')
+  html = html.replace(/<\/p>/gi, '')
+
+  // 匹配 src="/static/xxx"，把 /static 前面拼接cdn前缀
+  html = rewriteImgCdnPrefix(html, cdnPrefix);
+  return html;
+}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {useRoute} from "vue-router";
-import {onMounted, ref} from "vue";
+import {computed, onMounted, ref} from "vue";
 import type {IPost, IAccount} from "@/interface";
 import instance from "@/services"
 import {apiUrls} from "@/services/api.ts";
@@ -8,6 +8,8 @@ import {getResourceUrl, timestampFormat} from "@/common/utils.ts";
 import NineImageGrid from "@/components/NineImageGrid.vue";
 import {MessagePlugin} from 'tdesign-vue-next';
 import UserAvatar from "@/components/UserAvatar.vue";
+import {rewriteImgCdnPrefix} from "../common/utils.ts";
+import {config} from "../common/config.ts";
 
 const route = useRoute();
 const post_id = route.params.post_id;
@@ -33,6 +35,9 @@ onMounted(async () => {
     loading.value = false;
   }
 })
+
+const html = computed(()=>rewriteImgCdnPrefix(post.value?.content?.text, config.CDN_BASE_URL));
+
 </script>
 
 <template>
@@ -54,7 +59,7 @@ onMounted(async () => {
       </t-row>
       <t-row justify="center">
         <t-col :md="8" :xs="11" :sm="12">
-          <div v-html="post?.content?.text" v-if="post?.post_type==2" class="rich-wrap"/>
+          <div v-html="html" v-if="post?.post_type==2" class="rich-wrap"/>
           <t-typography-text v-if="post?.post_type==1">
             {{ post?.content?.text }}
           </t-typography-text>
