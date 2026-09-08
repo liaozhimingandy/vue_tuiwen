@@ -134,12 +134,13 @@ function openPreview(index: number) {
       </div>
     </div>
 
-    <!-- 全局预览弹窗（统一图集预览，等价 antd previewGroup） -->
+    <!-- 全局预览弹窗（统一图集预览 -->
     <t-image-viewer
       v-if="previewable"
       :visible="viewerVisible"
       :images="fullPreviewImages"
       :index="viewerIndex"
+      @indexChange="(index) => viewerIndex = index"
       @close="viewerVisible = false"
     />
   </div>
@@ -239,8 +240,8 @@ function openPreview(index: number) {
 .grid-count-9 {
   grid-template-columns: repeat(3, 1fr);
   max-width: var(--multi-max-width);
-  margin-left: auto;
-  margin-right: auto;
+  //margin-left: auto;
+  //margin-right: auto;
 }
 
 :is(.grid-count-2, .grid-count-3, .grid-count-4, .grid-count-5, .grid-count-6, .grid-count-7, .grid-count-8, .grid-count-9) .grid-item {

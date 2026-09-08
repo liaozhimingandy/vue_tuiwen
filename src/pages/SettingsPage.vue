@@ -275,7 +275,7 @@ const checkingName = ref(false)
                       <t-select v-model:value="account.sex" :options='sexListOptions'/>
                     </t-form-item>
                     <t-form-item>
-                      <t-button theme="primary" type="submit" style="width: 100%" :disable="saving">保存</t-button>
+                      <t-button theme="primary" type="submit" block :disable="saving">保存</t-button>
                     </t-form-item>
                   </t-space>
                 </t-form>
@@ -315,7 +315,7 @@ const checkingName = ref(false)
                         </t-input>
                       </t-form-item>
                       <t-form-item>
-                        <t-button theme="primary" type="submit" :disabled="saving">保存</t-button>
+                        <t-button theme="primary" type="submit" block :disabled="saving">保存</t-button>
                       </t-form-item>
                     </t-space>
                   </t-form>

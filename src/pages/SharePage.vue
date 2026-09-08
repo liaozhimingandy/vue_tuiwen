@@ -136,33 +136,11 @@ const html = computed(() => {
   background-color: white;
 }
 
-.loading-wrap {
-  padding: 48px 0;
-}
-
 /* 作者头部 */
 .article-header {
   padding-bottom: 20px;
   border-bottom: 1px solid #eee;
   margin-bottom: 24px;
-}
-
-.author-info {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.author-name {
-  font-size: 16px;
-  color: #111;
-  font-weight: 500;
-}
-
-.publish-time {
-  font-size: 13px;
-  color: #888;
-  margin-top: 3px;
 }
 
 /* 文章主体，公众号阅读参数 */
