@@ -170,3 +170,20 @@ export const getClampPreviewHtml = (rawHtml: string, cdnPrefix = "https://cdn.yo
   html = rewriteImgCdnPrefix(html, cdnPrefix);
   return html;
 }
+
+
+// 复制链接
+export const copyLink = async (url: string, MessagePlugin: any) => {
+  try {
+    await navigator.clipboard.writeText(url);
+    await MessagePlugin.success('链接已复制到剪贴板');
+  } catch {
+    const input = document.createElement('input');
+    input.value = url;
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    document.body.removeChild(input);
+    await MessagePlugin.success('链接已复制（兼容模式）');
+  }
+};

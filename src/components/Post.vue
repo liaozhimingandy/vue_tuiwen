@@ -20,7 +20,7 @@ import {apiUrls} from "@/services/api.ts";
 import UserAvatar from "@/components/UserAvatar.vue";
 import {Ticker} from '@tombcato/smart-ticker/vue';
 import '@tombcato/smart-ticker/style.css';
-import {formatMessageToHtml, formatter} from "../common/utils.ts";
+import {copyLink, formatMessageToHtml, formatter} from "../common/utils.ts";
 import {config} from "../common/config.ts";
 
 dayjs.extend(relativeTime);
@@ -136,23 +136,6 @@ const handleComment = async () => {
     }))
   });
 }
-
-// 复制链接
-const copyLink = async (url: string) => {
-  try {
-    await navigator.clipboard.writeText(url);
-    await MessagePlugin.success('链接已复制到剪贴板');
-  } catch {
-    const input = document.createElement('input');
-    input.value = url;
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand('copy');
-    document.body.removeChild(input);
-    await MessagePlugin.success('链接已复制（兼容模式）');
-  }
-};
-
 // 下拉菜单点击事件
 const handleDropdownClick = (value: string) => {
   switch (value) {
@@ -306,7 +289,7 @@ onMounted(async () => {
                       style="margin: 0 auto;"
                   />
                   <t-space style="margin-top:12px">
-                    <t-button theme="primary" @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`)">
+                    <t-button theme="primary" @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`, MessagePlugin)">
                       <template #icon>
                         <link-icon/>
                       </template>

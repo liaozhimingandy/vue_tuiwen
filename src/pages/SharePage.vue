@@ -1,30 +1,34 @@
 <script setup lang="ts">
 import {useRoute} from "vue-router";
-import {computed, onMounted, ref} from "vue";
+import {computed, onMounted, ref, watch} from "vue";
 import type {IPost, IAccount} from "@/interface";
-import instance from "@/services"
+import instance from "@/services";
 import {apiUrls} from "@/services/api.ts";
-import {getResourceUrl, timestampFormat} from "@/common/utils.ts";
+import {timestampFormat} from "@/common/utils.ts";
 import NineImageGrid from "@/components/NineImageGrid.vue";
 import {MessagePlugin} from 'tdesign-vue-next';
 import UserAvatar from "@/components/UserAvatar.vue";
-import {rewriteImgCdnPrefix} from "../common/utils.ts";
+import {copyLink, rewriteImgCdnPrefix} from "../common/utils.ts";
 import {config} from "../common/config.ts";
+import {LinkIcon} from "tdesign-icons-vue-next";
 
 const route = useRoute();
-const post_id = route.params.post_id;
-const post = ref<IPost>(null);
-const account = ref<IAccount>(null);
+const post_id = computed(() => route.params.post_id as string);
+
+const post = ref<IPost | null>(null);
+const account = ref<IAccount | null>(null);
 const loading = ref(true);
 
-onMounted(async () => {
+async function loadPostDetail() {
+  if (!post_id.value) return;
   try {
     loading.value = true;
-    // 获取帖子
-    const resPost = await instance.get(apiUrls.get_s_post(post_id));
+    post.value = null;
+    account.value = null;
+
+    const resPost = await instance.get(apiUrls.get_s_post(post_id.value));
     post.value = resPost.data as IPost;
 
-    // 获取用户信息
     if (post.value?.account_id) {
       const resAccount = await instance.get(apiUrls.get_account(post.value.account_id));
       account.value = resAccount.data as IAccount;
@@ -34,101 +38,254 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-})
+}
 
-const html = computed(()=>rewriteImgCdnPrefix(post.value?.content?.text, config.CDN_BASE_URL));
+onMounted(() => loadPostDetail());
+watch(post_id, () => loadPostDetail());
 
+const html = computed(() => {
+  if (!post.value?.content?.text) return '';
+  return rewriteImgCdnPrefix(post.value.content.text, config.CDN_BASE_URL);
+});
 </script>
 
 <template>
-  <t-empty v-if="!post" description="帖子不存在或已删除!">
-  </t-empty>
-  <t-layout v-else style="min-height: 50vh">
+  <t-layout class="post-detail-layout" style="min-height: 65vh;">
     <t-content>
-      <t-row justify="center">
-        <t-col :md="8" :xs="11" :sm="12">
-          <t-space direction="horizontal">
-            <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name"/>
-            <div style="margin-left: 12px; display: flex; flex-direction: column; justify-content: center; height: 100%;">
-              <t-typography-text style="margin: 0;"><b>{{ account?.nick_name || post.account_id }}</b>
-              </t-typography-text>
-              <span style="color: #888;">发布于{{ timestampFormat(post.gmt_created) }}</span>
+      <!-- Loading骨架屏，使用t‑row/t‑col居中 -->
+      <t-row v-if="loading" justify="center">
+        <t-col :md="5" :xs="11" :sm="12">
+          <t-skeleton theme="avatar-text"/>
+          <t-skeleton theme="article"/>
+        </t-col>
+      </t-row>
+
+      <!-- 帖子不存在 -->
+      <t-row v-else-if="!post" justify="center">
+        <t-col :md="6" :xs="11" :sm="12">
+          <t-empty description="帖子不存在或已删除!"/>
+        </t-col>
+      </t-row>
+
+      <template v-else>
+        <!-- 作者头部信息 -->
+        <t-row justify="center">
+          <t-col :md="{offset: 0, span: 5 }" :xs="11" :sm="11" class="article-header">
+            <t-space size="small">
+              <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name"/>
+              <t-space direction="vertical" :size="1">
+                <t-typography-text strong>{{ account?.nick_name || post.account_id }}</t-typography-text>
+                <t-typography-text theme="secondary">{{ timestampFormat(post.create_at) }}</t-typography-text>
+              </t-space>
+            </t-space>
+          </t-col>
+        </t-row>
+
+        <!-- 文章主体内容 -->
+        <t-row justify="center">
+          <t-col :md="{offset: 0, span: 5 }" :xs="11" :sm="11">
+            <div class="article-body">
+              <!-- 富文本文章 post_type=2 -->
+              <div
+                  v-if="post.post_type === 2"
+                  v-html="html"
+                  class="rich-article"
+              />
+              <!-- 普通文本帖子 post_type=1 -->
+              <div v-if="post.post_type === 1" class="plain-article">
+                {{ post?.content?.text }}
+              </div>
+
+              <!-- 九宫格图片 -->
+              <NineImageGrid
+                  v-if="post?.post_type === 1 && post?.content?.images?.length"
+                  :image-list="post.content.images"
+                  :single-max-width="100"
+                  :two-col-max-width="100"
+                  :three-col-max-width="100"
+              />
             </div>
+          </t-col>
+        </t-row>
+      </template>
+    </t-content>
+
+    <!-- t‑layout原生 t‑footer -->
+    <t-footer v-if="!loading && post">
+      <t-row justify="center">
+        <t-col :md="{offset: 0, span: 5 }" :xs="11" :sm="11">
+          <t-space class="article-footer">
+            <t-typography-text theme="secondary"> © {{
+                new Date().getFullYear()
+              }}-{{ account?.nick_name }}
+            </t-typography-text>
+            <t-button theme="default" variant="text" @click="copyLink(`${apiUrls.share_post_link(post_id)}`, MessagePlugin)">
+              <template #icon><link-icon/></template>
+              分享
+            </t-button>
           </t-space>
         </t-col>
       </t-row>
-      <t-row justify="center">
-        <t-col :md="8" :xs="11" :sm="12">
-          <div v-html="html" v-if="post?.post_type==2" class="rich-wrap"/>
-          <t-typography-text v-if="post?.post_type==1">
-            {{ post?.content?.text }}
-          </t-typography-text>
-          <NineImageGrid v-if="post?.post_type==1" :image-list="post.content.images" :single-max-width="160"
-                         :two-col-max-width="200"
-                         :three-col-max-width="360"/>
-        </t-col>
-      </t-row>
-    </t-content>
-    <t-footer style="text-align: center">
-      © {{ new Date().getFullYear() }} - {{ account?.nick_name }}
     </t-footer>
   </t-layout>
 </template>
 
 <style scoped>
-.custom-header {
-  background: #f5f5f5; /* 你想要的颜色 */
-  color: #333; /* 文字颜色 */
-  line-height: 64px; /* 保持垂直居中 */
+.post-detail-layout {
+  padding: 24px 0;
+  background-color: white;
 }
 
-/* 限制富文本内 图片、表格、iframe、大区块全部自适应 */
-/* 核心容器：防止整体溢出 */
-.rich-wrap {
+.loading-wrap {
+  padding: 48px 0;
+}
+
+/* 作者头部 */
+.article-header {
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 24px;
+}
+
+.author-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.author-name {
+  font-size: 16px;
+  color: #111;
+  font-weight: 500;
+}
+
+.publish-time {
+  font-size: 13px;
+  color: #888;
+  margin-top: 3px;
+}
+
+/* 文章主体，公众号阅读参数 */
+.article-body {
+  font-size: 17px;
+  line-height: 1.75;
+  color: #222;
+  word-break: break-word;
+}
+
+.plain-article {
+  white-space: pre-wrap;
+}
+
+/* t‑footer 覆写样式 */
+.article-footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+  text-align: center;
+  font-size: 13px;
+  color: #999;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* =========富文本自适应规则========= */
+.rich-article {
   width: 100%;
-  overflow-x: hidden; /* 最后一道防线：如果有东西非要溢出去，直接切掉并显示滚动条（或者hidden隐藏） */
+  overflow-x: hidden;
 }
 
-/* 1. 媒体资源与块级元素限制 */
-.rich-wrap :deep(img),
-.rich-wrap :deep(video),
-.rich-wrap :deep(iframe),
-.rich-wrap :deep(svg),
-.rich-wrap :deep(canvas) {
+.rich-article :deep(img),
+.rich-article :deep(video),
+.rich-article :deep(svg),
+.rich-article :deep(canvas) {
   max-width: 100% !important;
   height: auto !important;
-  display: block; /* 消除图片底部的微小间隙 */
+  display: block;
+  border-radius: 8px;
+  margin: 16px auto;
 }
 
-/* 2. 代码块与预格式化文本 */
-.rich-wrap :deep(pre),
-.rich-wrap :deep(code) {
-  white-space: pre-wrap !important; /* 允许代码自动换行 */
-  word-break: break-all !important;
+.rich-article :deep(iframe) {
   max-width: 100% !important;
-  overflow-x: auto; /* 代码块太宽时，允许它自己出现滚动条，而不是撑破页面 */
+  height: auto;
+  display: block;
+  margin: 16px 0;
 }
 
-/* 3. 表格特殊处理 */
-.rich-wrap :deep(table) {
-  table-layout: fixed !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  word-break: break-all !important;
+.rich-article :deep(p) {
+  margin: 1em 0;
 }
 
-/* 4. 通用文本换行 */
-.rich-wrap :deep(p),
-.rich-wrap :deep(span),
-.rich-wrap :deep(li),
-.rich-wrap :deep(a) {
-  word-break: break-word; /* 优先在单词间换行，break-all 是最后手段 */
-  word-wrap: break-word;
+.rich-article :deep(h1),
+.rich-article :deep(h2),
+.rich-article :deep(h3),
+.rich-article :deep(h4) {
+  margin: 1.2em 0 0.6em;
+  font-weight: 600;
+}
+
+.rich-article :deep(li) {
+  margin: 0.5em 0;
+}
+
+.rich-article :deep(pre) {
   max-width: 100%;
+  overflow-x: auto;
+  background: #f6f7f8;
+  padding: 14px;
+  border-radius: 6px;
+  white-space: pre-wrap !important;
 }
 
-/* 5. 兜底：防止未知元素撑开 */
-.rich-wrap :deep(*) {
+.rich-article :deep(code) {
+  background: #f6f7f8;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.rich-article :deep(table) {
+  width: 100%;
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.rich-article :deep(th),
+.rich-article :deep(td) {
+  border: 1px solid #ddd;
+  padding: 6px 10px;
+}
+
+.rich-article :deep(p),
+.rich-article :deep(span),
+.rich-article :deep(li),
+.rich-article :deep(a) {
+  word-break: break-word;
+}
+
+.rich-article :deep(*) {
   box-sizing: border-box !important;
+}
+
+/* 移动端响应式 */
+@media (max-width: 768px) {
+  .post-detail-layout {
+    padding: 16px 0;
+  }
+
+  .article-body {
+    font-size: 16px;
+    line-height: 1.8;
+  }
+
+  .article-header {
+    margin-bottom: 18px;
+    padding-bottom: 16px;
+  }
+
+  .rich-article :deep(img) {
+    margin: 12px auto;
+  }
 }
 </style>
