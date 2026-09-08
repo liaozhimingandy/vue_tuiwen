@@ -106,9 +106,9 @@ instance.interceptors.response.use(
                 // message.error(detail || '参数错误');
                 break;
             case 401:
-                const accountStore = appStore.useAccountStore;
+                const accountStore = appStore.useAccountStore();
                 const token: IToken = accountStore.token;
-                // 没有 refresh_token 直接跳登录
+                // 没有刷新令牌：直接登录，return阻断后续刷新逻辑
                 if (!token?.refresh_token) {
                     const currentPath = router.currentRoute.value.fullPath;
                     router.push({
@@ -117,15 +117,19 @@ instance.interceptors.response.use(
                             redirect: currentPath
                         }
                     });
+                    return Promise.reject(error); // 终止promise链
                 }
-
                 // 如果正在刷新，把请求加入队列
                 if (isRefreshing) {
-                    return new Promise(resolve => {
+                    return new Promise((resolve, reject) => {
                         requestQueue.push((newToken) => {
-                            config.headers.Authorization = `Bearer ${newToken}`;
-                            resolve(instance(config));
+                            // 生成新config，不要直接修改原config对象
+                            const newReqConfig = {...config};
+                            newReqConfig.headers.Authorization = `Bearer ${newToken}`;
+                            resolve(instance(newReqConfig));
                         });
+                        // 保存reject函数，失败时调用
+                        (requestQueue as any)._lastReject = reject;
                     });
                 }
                 isRefreshing = true;
@@ -142,23 +146,30 @@ instance.interceptors.response.use(
                                 Authorization: `Bearer ${token.refresh_token}`
                             }
                         });
+                    const latestAccessToken = refreshRes.data.access_token;
                     // 同步到本地数据
-                    accountStore.update_token("access_token", refreshRes.data.access_token);
+                    accountStore.update_token("access_token", latestAccessToken);
                     // 重试队列里的所有请求
                     requestQueue.forEach(cb => cb(accountStore.token.access_token));
                     requestQueue = [];
 
-                    // 重试当前请求
-                    config.headers.Authorization = `Bearer ${accountStore.token.access_token}`;
-                    return instance(config);
+                    // ⭐重试当前失败请求，clone config，禁止直接修改原error.config
+                    const retryConfig = {...config};
+                    retryConfig.headers.Authorization = `Bearer ${latestAccessToken}`;
+                    return instance(retryConfig);
 
                 } catch (e) {
                     // 1. 代表 refresh_token 过期/无效/被拉黑
                     // 2. 清空队列、停止刷新
                     // 3. 清空本地 token（必须）
                     // 4. 跳转到登录页（带 redirect）
+                    logger.info("refresh token 刷新失败", e);
+                    const rejectFn = (requestQueue as any)._lastReject;
+                    requestQueue.forEach((_, idx) => {
+                        if (idx === 0 && rejectFn) rejectFn(e);
+                    });
                     requestQueue = [];
-                    logger.info(e);
+                    delete (requestQueue as any)._lastReject;
                     accountStore.logout();
                     const currentPath = router.currentRoute.value.fullPath;
                     router.push({
@@ -167,10 +178,10 @@ instance.interceptors.response.use(
                             redirect: currentPath
                         }
                     });
+                    return Promise.reject(e);
                 } finally {
                     isRefreshing = false;
                 }
-                break;
             case 403:
                 await MessagePlugin.error("登录过期，权限不足，请重新登录");
                 break;
