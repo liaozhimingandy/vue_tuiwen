@@ -32,7 +32,7 @@ import {
 import {
   EMOJI_ANIMATION_MAP,
   isSupportedSingleEmoji,
-} from '@/constants/emoji'
+} from '@/common/emoji'
 
 /**
  * 支持的动画类型
