@@ -24,6 +24,8 @@ import {copyLink, formatMessageToHtml, formatter} from "../common/utils.ts";
 import {config} from "../common/config.ts";
 import ImageGallery from "./ImageGallery/ImageGallery.vue";
 import RichTextCollapse from "./RichTextCollapse.vue";
+import {isSupportedSingleEmoji} from "../common/emoji.ts";
+import SingleEmoji from "./SingleEmoji.vue";
 
 dayjs.extend(relativeTime);
 
@@ -40,6 +42,9 @@ const submitting = ref<boolean>(false);
 const comment_data = ref<string>('');
 const user_map = ref<Record<string, IAccount>>({});
 const {account_map} = storeToRefs(appStore.useCacheStore);
+const isSingleEmoji = computed(() => {
+  return isSupportedSingleEmoji(props.post?.content.text)
+})
 // 构造下拉菜单选项
 const dropdownOptions = computed<DropdownProps['options']>(() => {
   const opts: DropdownProps['options'] = [];
@@ -255,28 +260,32 @@ onMounted(async () => {
       <!-- 推文正文内容 -->
       <div style="margin-bottom: 16px; background-color: white;">
         <t-space direction="vertical" :size="6" style="width: 100%;">
-<!--                    <TextCollapse>-->
-<!--                      <div v-html="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"></div>-->
-<!--                    </TextCollapse>-->
-              <RichTextCollapse mode="auto" :lines="2"
-                                :content="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)" />
-<!--          <RichLineClamp v-model:expanded="expanded"-->
-<!--                         :html="html"-->
-<!--                         :max-lines="2"-->
-<!--                         boundary="word">-->
-<!--            <template #after="{clamped}">-->
-<!--              <t-link v-if="clamped || expanded" theme="primary" @click="()=>expanded = !expanded">-->
-<!--                {{ expanded ? "收起" : "展开" }}-->
-<!--              </t-link>-->
-<!--            </template>-->
-<!--          </RichLineClamp>-->
-<!--          <NineImageGrid-->
-<!--              :image-list="props.post.content.images"-->
-<!--              :single-max-width="160"-->
-<!--              :two-col-max-width="200"-->
-<!--              :three-col-max-width="360"-->
-<!--          />-->
-          <ImageGallery :image-list="props.post.content.images" />
+          <!--                    <TextCollapse>-->
+          <!--                      <div v-html="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"></div>-->
+          <!--                    </TextCollapse>-->
+          <SingleEmoji
+              v-if="isSingleEmoji"
+              :content="post.content.text"
+          />
+          <RichTextCollapse mode="auto" :lines="2"
+                            :content="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"/>
+          <!--          <RichLineClamp v-model:expanded="expanded"-->
+          <!--                         :html="html"-->
+          <!--                         :max-lines="2"-->
+          <!--                         boundary="word">-->
+          <!--            <template #after="{clamped}">-->
+          <!--              <t-link v-if="clamped || expanded" theme="primary" @click="()=>expanded = !expanded">-->
+          <!--                {{ expanded ? "收起" : "展开" }}-->
+          <!--              </t-link>-->
+          <!--            </template>-->
+          <!--          </RichLineClamp>-->
+          <!--          <NineImageGrid-->
+          <!--              :image-list="props.post.content.images"-->
+          <!--              :single-max-width="160"-->
+          <!--              :two-col-max-width="200"-->
+          <!--              :three-col-max-width="360"-->
+          <!--          />-->
+          <ImageGallery :image-list="props.post.content.images"/>
         </t-space>
       </div>
 
@@ -294,7 +303,8 @@ onMounted(async () => {
                       style="margin: 0 auto;"
                   />
                   <t-space style="margin-top:12px">
-                    <t-button theme="primary" @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`, MessagePlugin)">
+                    <t-button theme="primary"
+                              @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`, MessagePlugin)">
                       <template #icon>
                         <link-icon/>
                       </template>
