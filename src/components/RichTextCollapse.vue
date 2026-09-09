@@ -1,37 +1,34 @@
 <template>
-  <div
-    class="rich-text"
-    :class="{
-      'rich-text--collapsible': isCollapsible,
-      'rich-text--expanded': isExpanded,
-    }"
-  >
+  <div class="rich-text">
+    <!-- 富文本内容 -->
     <div
       ref="contentRef"
       class="rich-text__content"
       :class="{
-        'is-collapsed': isCollapsed,
-        'is-expanded': isCollapsible && isExpanded && !isMeasuring,
+        'rich-text__content--collapsed':
+          shouldCollapse,
       }"
       :style="contentStyle"
     >
-      <!-- content 优先 -->
-      <div
-        v-if="content != null"
-        class="rich-text__html"
-        v-html="content"
-      />
+      <!-- HTML -->
+      <template v-if="content !== undefined && content !== null">
+        <div
+          class="rich-text__html"
+          v-html="content"
+        />
+      </template>
 
-      <!-- 没有 content 时使用 slot -->
+      <!-- Slot -->
       <slot v-else />
     </div>
 
+    <!-- 展开 / 收起 -->
     <button
-      v-if="shouldShowToggle"
+      v-if="showToggleButton"
       type="button"
       class="rich-text__toggle"
       :aria-expanded="isExpanded"
-      @click="toggle"
+      @click.stop="toggle"
     >
       {{ isExpanded ? collapseText : expandText }}
     </button>
@@ -48,52 +45,30 @@ import {
   watch,
 } from 'vue'
 
-/**
- * =========================================================
- * Types
- * =========================================================
- */
-
-type RichTextMode =
-  | 'auto'
-  | 'collapse'
-  | 'full'
-
-type ScrollContainer =
-  | string
-  | HTMLElement
-  | null
+type Mode = 'auto' | 'collapse' | 'full'
 
 interface Props {
   /**
-   * HTML 富文本内容
-   *
-   * 注意：
-   * content 优先于 slot
+   * 富文本 HTML
    */
   content?: string | null
 
   /**
    * 展示模式
    *
-   * auto：
-   * 根据 collapsible 决定
-   *
-   * collapse：
-   * 强制开启折叠能力
-   *
-   * full：
-   * 永远完整展示
+   * auto：自动
+   * collapse：支持折叠
+   * full：完整展示
    */
-  mode?: RichTextMode
+  mode?: Mode
 
   /**
-   * auto 模式下是否允许折叠
+   * auto 模式是否允许折叠
    */
   collapsible?: boolean
 
   /**
-   * 折叠显示行数
+   * 折叠行数
    */
   lines?: number
 
@@ -108,39 +83,20 @@ interface Props {
   collapseText?: string
 
   /**
-   * 是否自动监听内容变化
-   */
-  autoObserve?: boolean
-
-  /**
-   * 滚动容器
-   *
-   * 默认 window
-   *
-   * 支持：
-   * - HTMLElement
-   * - CSS selector
-   */
-  scrollContainer?: ScrollContainer
-
-  /**
-   * 是否显示展开/收起按钮
+   * 是否显示按钮
    */
   showToggle?: boolean
 
   /**
+   * 是否监听内容变化
+   */
+  autoObserve?: boolean
+
+  /**
    * 受控展开状态
-   *
-   * v-model:expanded
    */
   expanded?: boolean
 }
-
-/**
- * =========================================================
- * Props
- * =========================================================
- */
 
 const props = withDefaults(
   defineProps<Props>(),
@@ -150,37 +106,16 @@ const props = withDefaults(
     lines: 5,
     expandText: '展开全文',
     collapseText: '收起',
-    autoObserve: true,
-    scrollContainer: null,
     showToggle: true,
+    autoObserve: true,
+    expanded: undefined,
   },
 )
 
-/**
- * =========================================================
- * Emits
- * =========================================================
- */
-
 const emit = defineEmits<{
-  /**
-   * v-model:expanded
-   */
   'update:expanded': [value: boolean]
-
-  /**
-   * 展开
-   */
   expand: []
-
-  /**
-   * 收起
-   */
   collapse: []
-
-  /**
-   * 展开状态变化
-   */
   'expanded-change': [value: boolean]
 }>()
 
@@ -190,36 +125,24 @@ const emit = defineEmits<{
  * =========================================================
  */
 
-const contentRef =
-  ref<HTMLElement | null>(null)
+const contentRef = ref<HTMLElement | null>(null)
 
 /**
- * 非受控模式下的内部状态
+ * 内部展开状态
  */
 const internalExpanded = ref(false)
 
 /**
- * 是否发生溢出
+ * 是否内容溢出
  */
 const isOverflow = ref(false)
 
 /**
- * 是否正在测量
- *
- * 测量时强制使用折叠状态，
- * 但不修改真实 expanded 状态。
- */
-const isMeasuring = ref(false)
-
-/**
  * =========================================================
- * Mode
+ * Collapse Mode
  * =========================================================
  */
 
-/**
- * 当前是否允许折叠
- */
 const isCollapsible = computed(() => {
   if (props.mode === 'full') {
     return false
@@ -233,14 +156,14 @@ const isCollapsible = computed(() => {
 })
 
 /**
- * 是否受控
+ * 是否受控模式
  */
 const isControlled = computed(() => {
   return props.expanded !== undefined
 })
 
 /**
- * 最终展开状态
+ * 实际展开状态
  */
 const isExpanded = computed(() => {
   if (!isCollapsible.value) {
@@ -248,27 +171,10 @@ const isExpanded = computed(() => {
   }
 
   if (isControlled.value) {
-    return Boolean(props.expanded)
+    return props.expanded === true
   }
 
   return internalExpanded.value
-})
-
-/**
- * 当前是否处于折叠状态
- *
- * 注意：
- * isMeasuring 时也必须使用折叠样式，
- * 用于准确计算 overflow。
- */
-const isCollapsed = computed(() => {
-  return (
-    isCollapsible.value &&
-    (
-      !isExpanded.value ||
-      isMeasuring.value
-    )
-  )
 })
 
 /**
@@ -281,16 +187,26 @@ const normalizedLines = computed(() => {
     return 5
   }
 
-  return Math.max(
-    1,
-    Math.floor(value),
+  return Math.max(1, Math.floor(value))
+})
+
+/**
+ * 是否真正折叠
+ *
+ * ⚠️ 这是控制 CSS 的唯一地方
+ */
+const shouldCollapse = computed(() => {
+  return (
+    isCollapsible.value &&
+    isOverflow.value &&
+    !isExpanded.value
   )
 })
 
 /**
- * 是否显示展开按钮
+ * 是否显示按钮
  */
-const shouldShowToggle = computed(() => {
+const showToggleButton = computed(() => {
   return (
     isCollapsible.value &&
     props.showToggle &&
@@ -302,434 +218,171 @@ const shouldShowToggle = computed(() => {
  * CSS Variables
  */
 const contentStyle = computed(() => ({
-  '--rich-text-lines':
-    normalizedLines.value,
+  '--rich-text-lines': normalizedLines.value,
 }))
 
 /**
  * =========================================================
- * Browser
+ * Recalculate Overflow
  * =========================================================
  */
 
-const isBrowser = () => {
-  return typeof window !== 'undefined'
-}
-
-/**
- * =========================================================
- * Timer
- * =========================================================
- */
-
-let calculationTimer:
-  | ReturnType<typeof setTimeout>
-  | null = null
-
-let calculating = false
-
-let calculationPending = false
-
-/**
- * =========================================================
- * RAF
- * =========================================================
- */
-
-const animationFrames = new Set<number>()
-
-const requestFrame = (
-  callback: FrameRequestCallback,
-) => {
-  if (!isBrowser()) {
-    return
-  }
-
-  const id = requestAnimationFrame(
-    time => {
-      animationFrames.delete(id)
-
-      callback(time)
-    },
-  )
-
-  animationFrames.add(id)
-}
-
-const cancelAllFrames = () => {
-  animationFrames.forEach(id => {
-    cancelAnimationFrame(id)
-  })
-
-  animationFrames.clear()
-}
-
-/**
- * =========================================================
- * Scroll
- * =========================================================
- */
-
-const getScrollElement = ():
-  | Window
-  | HTMLElement => {
-  const container =
-    props.scrollContainer
-
-  if (!container) {
-    return window
-  }
-
-  if (typeof container === 'string') {
-    return (
-      document.querySelector<HTMLElement>(
-        container,
-      ) || window
-    )
-  }
-
-  return container
-}
-
-const getScrollTop = () => {
-  const element =
-    getScrollElement()
-
-  if (element === window) {
-    return (
-      window.scrollY ||
-      window.pageYOffset ||
-      document.documentElement.scrollTop ||
-      document.body.scrollTop ||
-      0
-    )
-  }
-
-  return element.scrollTop
-}
-
-const setScrollTop = (
-  value: number,
-) => {
-  const element =
-    getScrollElement()
-
-  if (element === window) {
-    window.scrollTo({
-      top: value,
-      behavior: 'auto',
-    })
-
-    return
-  }
-
-  element.scrollTop = value
-}
-
-const getContentTop = () => {
-  return (
-    contentRef.value
-      ?.getBoundingClientRect()
-      .top ?? 0
-  )
-}
-
-/**
- * =========================================================
- * Overflow Calculation
- * =========================================================
- */
-
-const recalculate = async () => {
-  /**
-   * Full 模式完全跳过
-   */
-  if (!isCollapsible.value) {
-    isOverflow.value = false
-    return
-  }
-
-  /**
-   * 防止重复计算
-   */
-  if (calculating) {
-    calculationPending = true
-    return
-  }
-
-  calculating = true
-
-  try {
-    /**
-     * 强制切换到测量状态
-     *
-     * 注意：
-     * 这里只改变 Vue 状态，
-     * 不再直接 classList 操作 DOM。
-     */
-    isMeasuring.value = true
-
-    await nextTick()
-
-    const el = contentRef.value
-
-    if (!el) {
-      isOverflow.value = false
-      return
-    }
-
-    /**
-     * 强制浏览器布局
-     */
-    void el.offsetHeight
-
-    /**
-     * 判断是否溢出
-     */
-    isOverflow.value =
-      el.scrollHeight >
-      el.clientHeight + 1
-  } finally {
-    /**
-     * 恢复真实展示状态
-     */
-    isMeasuring.value = false
-
-    calculating = false
-
-    /**
-     * 如果计算期间又触发了计算，
-     * 再执行一次
-     */
-    if (calculationPending) {
-      calculationPending = false
-
-      scheduleRecalculate()
-    }
-  }
-}
-
-/**
- * =========================================================
- * Schedule Recalculate
- * =========================================================
- */
+let timer: ReturnType<typeof setTimeout> | null = null
 
 const scheduleRecalculate = (
-  delay = 100,
+  delay = 50,
 ) => {
   if (!isCollapsible.value) {
     return
   }
 
-  if (calculationTimer) {
-    clearTimeout(calculationTimer)
+  if (timer) {
+    clearTimeout(timer)
   }
 
-  calculationTimer = setTimeout(() => {
-    calculationTimer = null
-
+  timer = setTimeout(() => {
+    timer = null
     void recalculate()
   }, delay)
 }
 
 /**
- * =========================================================
- * Media Observe
- * =========================================================
+ * 判断是否溢出
+ *
+ * 注意：
+ * 必须临时添加 collapsed class
+ * 但绝对不修改 isExpanded
  */
-
-const observedImages =
-  new WeakSet<HTMLImageElement>()
-
-const observedVideos =
-  new WeakSet<HTMLVideoElement>()
-
-const observedIframes =
-  new WeakSet<HTMLIFrameElement>()
-
-/**
- * Image
- */
-
-const observeImage = (
-  image: HTMLImageElement,
-) => {
-  if (observedImages.has(image)) {
+const recalculate = async () => {
+  if (!isCollapsible.value) {
+    isOverflow.value = false
     return
   }
 
-  observedImages.add(image)
+  await nextTick()
 
-  const handleChange = () => {
-    scheduleRecalculate(30)
+  const el = contentRef.value
+
+  if (!el) {
+    isOverflow.value = false
+    return
   }
 
-  image.addEventListener(
-    'load',
-    handleChange,
-    { once: true },
-  )
+  /**
+   * 保存当前 class
+   */
+  const wasCollapsed =
+    el.classList.contains(
+      'rich-text__content--collapsed',
+    )
 
-  image.addEventListener(
-    'error',
-    handleChange,
-    { once: true },
+  /**
+   * 临时强制折叠测量
+   */
+  el.classList.add(
+    'rich-text__content--measuring',
   )
 
   /**
-   * 图片已经加载完成
+   * 强制浏览器重新布局
    */
-  if (image.complete) {
-    if (
-      typeof image.decode === 'function'
-    ) {
-      image
-        .decode()
-        .catch(() => {})
-        .finally(() => {
-          scheduleRecalculate(30)
-        })
-    } else {
-      scheduleRecalculate(30)
-    }
+  void el.offsetHeight
+
+  /**
+   * 测量
+   */
+  const overflow =
+    el.scrollHeight >
+    el.clientHeight + 1
+
+  isOverflow.value = overflow
+
+  /**
+   * 删除测量状态
+   */
+  el.classList.remove(
+    'rich-text__content--measuring',
+  )
+
+  /**
+   * 恢复 Vue 控制的状态
+   */
+  if (!wasCollapsed) {
+    await nextTick()
   }
-}
-
-const observeImages = () => {
-  const el = contentRef.value
-
-  if (!el) {
-    return
-  }
-
-  el
-    .querySelectorAll<HTMLImageElement>(
-      'img',
-    )
-    .forEach(observeImage)
 }
 
 /**
- * Video
+ * =========================================================
+ * Expanded State
+ * =========================================================
  */
 
-const observeVideo = (
-  video: HTMLVideoElement,
+const setExpanded = (
+  value: boolean,
 ) => {
-  if (observedVideos.has(video)) {
+  /**
+   * 非折叠模式
+   */
+  if (!isCollapsible.value) {
     return
   }
 
-  observedVideos.add(video)
-
-  const handleChange = () => {
-    scheduleRecalculate(30)
+  /**
+   * 当前状态相同
+   */
+  if (value === isExpanded.value) {
+    return
   }
 
-  video.addEventListener(
-    'loadedmetadata',
-    handleChange,
-    { once: true },
-  )
+  /**
+   * 受控模式
+   */
+  if (isControlled.value) {
+    emit('update:expanded', value)
+  } else {
+    /**
+     * 非受控模式
+     */
+    internalExpanded.value = value
+  }
 
-  video.addEventListener(
-    'loadeddata',
-    handleChange,
-    { once: true },
-  )
+  emit('expanded-change', value)
 
-  video.addEventListener(
-    'error',
-    handleChange,
-    { once: true },
-  )
-
-  if (video.readyState >= 1) {
-    scheduleRecalculate(30)
+  if (value) {
+    emit('expand')
+  } else {
+    emit('collapse')
   }
 }
 
-const observeVideos = () => {
-  const el = contentRef.value
-
-  if (!el) {
+const expand = () => {
+  if (!isOverflow.value) {
     return
   }
 
-  el
-    .querySelectorAll<HTMLVideoElement>(
-      'video',
-    )
-    .forEach(observeVideo)
+  setExpanded(true)
 }
 
-/**
- * Iframe
- */
+const collapse = () => {
+  setExpanded(false)
+}
 
-const observeIframe = (
-  iframe: HTMLIFrameElement,
-) => {
-  if (observedIframes.has(iframe)) {
-    return
-  }
-
-  observedIframes.add(iframe)
-
-  iframe.addEventListener(
-    'load',
-    () => {
-      scheduleRecalculate(50)
+const toggle = () => {
+  console.log(
+    '[RichTextCollapse]',
+    {
+      isExpanded: isExpanded.value,
+      isOverflow: isOverflow.value,
+      isControlled: isControlled.value,
     },
-    { once: true },
   )
-}
 
-const observeIframes = () => {
-  const el = contentRef.value
-
-  if (!el) {
-    return
+  if (isExpanded.value) {
+    collapse()
+  } else {
+    expand()
   }
-
-  el
-    .querySelectorAll<HTMLIFrameElement>(
-      'iframe',
-    )
-    .forEach(observeIframe)
-}
-
-/**
- * 统一媒体监听
- */
-
-const observeMedia = () => {
-  observeImages()
-  observeVideos()
-  observeIframes()
-}
-
-/**
- * =========================================================
- * Font
- * =========================================================
- */
-
-const observeFonts = () => {
-  if (!isBrowser()) {
-    return
-  }
-
-  if (!document.fonts?.ready) {
-    return
-  }
-
-  document.fonts.ready
-    .then(() => {
-      scheduleRecalculate(30)
-    })
-    .catch(() => {})
 }
 
 /**
@@ -745,37 +398,28 @@ let mutationObserver:
 const initMutationObserver = () => {
   mutationObserver?.disconnect()
 
-  mutationObserver = null
-
   if (
     !props.autoObserve ||
-    !isCollapsible.value
-  ) {
-    return
-  }
-
-  const el = contentRef.value
-
-  if (
-    !el ||
-    typeof MutationObserver ===
-      'undefined'
+    !isCollapsible.value ||
+    !contentRef.value
   ) {
     return
   }
 
   mutationObserver =
     new MutationObserver(() => {
-      observeMedia()
-
-      scheduleRecalculate(100)
+      observeImages()
+      scheduleRecalculate()
     })
 
-  mutationObserver.observe(el, {
-    childList: true,
-    subtree: true,
-    characterData: true,
-  })
+  mutationObserver.observe(
+    contentRef.value,
+    {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    },
+  )
 }
 
 /**
@@ -791,184 +435,84 @@ let resizeObserver:
 const initResizeObserver = () => {
   resizeObserver?.disconnect()
 
-  resizeObserver = null
-
   if (
     !props.autoObserve ||
-    !isCollapsible.value
+    !isCollapsible.value ||
+    !contentRef.value ||
+    typeof ResizeObserver === 'undefined'
   ) {
     return
   }
 
-  const el = contentRef.value
+  /**
+   * 监听父容器宽度
+   *
+   * 不监听 content 自己，
+   * 防止展开收起循环触发
+   */
+  const target =
+    contentRef.value.parentElement
 
-  if (
-    !el ||
-    typeof ResizeObserver ===
-      'undefined'
-  ) {
+  if (!target) {
     return
   }
 
   resizeObserver =
     new ResizeObserver(() => {
-      scheduleRecalculate(100)
+      scheduleRecalculate()
     })
 
-  resizeObserver.observe(el)
+  resizeObserver.observe(target)
 }
 
 /**
  * =========================================================
- * Observer Cleanup
+ * Images
  * =========================================================
  */
 
-const disconnectObservers = () => {
-  mutationObserver?.disconnect()
+const observedImages =
+  new WeakSet<HTMLImageElement>()
 
-  resizeObserver?.disconnect()
+const observeImages = () => {
+  const el = contentRef.value
 
-  mutationObserver = null
-
-  resizeObserver = null
-}
-
-/**
- * =========================================================
- * Expanded State
- * =========================================================
- */
-
-const setExpanded = (
-  value: boolean,
-) => {
-  if (!isCollapsible.value) {
+  if (!el) {
     return
   }
 
-  /**
-   * 状态没有变化
-   */
-  if (value === isExpanded.value) {
-    return
-  }
+  el
+    .querySelectorAll<HTMLImageElement>('img')
+    .forEach(image => {
+      if (observedImages.has(image)) {
+        return
+      }
 
-  if (isControlled.value) {
-    emit(
-      'update:expanded',
-      value,
-    )
-  } else {
-    internalExpanded.value = value
-  }
+      observedImages.add(image)
 
-  emit(
-    'expanded-change',
-    value,
-  )
+      const handler = () => {
+        scheduleRecalculate(30)
+      }
 
-  if (value) {
-    emit('expand')
-  } else {
-    emit('collapse')
-  }
-}
-
-/**
- * =========================================================
- * Expand
- * =========================================================
- */
-
-const expand = async () => {
-  if (
-    !isCollapsible.value ||
-    !isOverflow.value ||
-    isExpanded.value
-  ) {
-    return
-  }
-
-  const scrollTop =
-    getScrollTop()
-
-  const contentTop =
-    getContentTop()
-
-  setExpanded(true)
-
-  await nextTick()
-
-  /**
-   * 等待布局完成
-   */
-  requestFrame(() => {
-    requestFrame(() => {
-      const currentTop =
-        getContentTop()
-
-      const delta =
-        currentTop - contentTop
-
-      setScrollTop(
-        scrollTop + delta,
+      image.addEventListener(
+        'load',
+        handler,
+        { once: true },
       )
-    })
-  })
-}
 
-/**
- * =========================================================
- * Collapse
- * =========================================================
- */
-
-const collapse = async () => {
-  if (
-    !isCollapsible.value ||
-    !isExpanded.value
-  ) {
-    return
-  }
-
-  const scrollTop =
-    getScrollTop()
-
-  const contentTop =
-    getContentTop()
-
-  setExpanded(false)
-
-  await nextTick()
-
-  requestFrame(() => {
-    requestFrame(() => {
-      const currentTop =
-        getContentTop()
-
-      const delta =
-        currentTop - contentTop
-
-      setScrollTop(
-        scrollTop + delta,
+      image.addEventListener(
+        'error',
+        handler,
+        { once: true },
       )
+
+      /**
+       * 已加载
+       */
+      if (image.complete) {
+        handler()
+      }
     })
-  })
-}
-
-/**
- * =========================================================
- * Toggle
- * =========================================================
- */
-
-const toggle = () => {
-  if (isExpanded.value) {
-    void collapse()
-  } else {
-    void expand()
-  }
 }
 
 /**
@@ -980,20 +524,21 @@ const toggle = () => {
 const initialize = async () => {
   await nextTick()
 
-  /**
-   * Full 模式
-   *
-   * 不启动 Observer
-   */
   if (!isCollapsible.value) {
     isOverflow.value = false
-
     return
   }
 
-  observeMedia()
+  observeImages()
 
-  observeFonts()
+  /**
+   * 初始状态：
+   *
+   * 先强制认为可能需要折叠
+   */
+  isOverflow.value = true
+
+  await nextTick()
 
   await recalculate()
 
@@ -1008,41 +553,12 @@ const initialize = async () => {
  * =========================================================
  */
 
-/**
- * mode / collapsible
- */
-
 watch(
-  [
-    () => props.mode,
-    () => props.collapsible,
-  ],
-  async () => {
-    disconnectObservers()
-
-    if (!isCollapsible.value) {
-      isOverflow.value = false
-
-      return
-    }
-
-    await nextTick()
-
-    observeMedia()
-
-    observeFonts()
-
-    await recalculate()
-
-    initMutationObserver()
-
-    initResizeObserver()
+  () => props.content,
+  () => {
+    void initialize()
   },
 )
-
-/**
- * lines
- */
 
 watch(
   normalizedLines,
@@ -1051,44 +567,13 @@ watch(
   },
 )
 
-/**
- * autoObserve
- */
-
 watch(
-  () => props.autoObserve,
+  [
+    () => props.mode,
+    () => props.collapsible,
+  ],
   () => {
-    disconnectObservers()
-
-    if (
-      props.autoObserve &&
-      isCollapsible.value
-    ) {
-      initMutationObserver()
-
-      initResizeObserver()
-    }
-  },
-)
-
-/**
- * content
- */
-
-watch(
-  () => props.content,
-  async () => {
-    if (!isCollapsible.value) {
-      isOverflow.value = false
-
-      return
-    }
-
-    await nextTick()
-
-    observeMedia()
-
-    scheduleRecalculate(0)
+    void initialize()
   },
 )
 
@@ -1103,19 +588,13 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  disconnectObservers()
+  mutationObserver?.disconnect()
 
-  if (calculationTimer) {
-    clearTimeout(calculationTimer)
+  resizeObserver?.disconnect()
 
-    calculationTimer = null
+  if (timer) {
+    clearTimeout(timer)
   }
-
-  cancelAllFrames()
-
-  calculating = false
-
-  calculationPending = false
 })
 
 /**
@@ -1135,12 +614,6 @@ defineExpose({
 </script>
 
 <style scoped>
-/**
- * =========================================================
- * Root
- * =========================================================
- */
-
 .rich-text {
   width: 100%;
   min-width: 0;
@@ -1150,34 +623,23 @@ defineExpose({
   line-height: 1.6;
 }
 
-/**
- * =========================================================
- * Content
- * =========================================================
- */
-
 .rich-text__content {
   width: 100%;
   min-width: 0;
 
   word-break: break-word;
   overflow-wrap: anywhere;
-
-  overflow-anchor: none;
-}
-
-.rich-text__html {
-  width: 100%;
-  min-width: 0;
 }
 
 /**
- * =========================================================
- * Collapse
- * =========================================================
+ * 正常折叠
  */
+.rich-text__content--collapsed,
 
-.rich-text__content.is-collapsed {
+/**
+ * 测量时强制折叠
+ */
+.rich-text__content--measuring {
   display: -webkit-box;
 
   -webkit-box-orient: vertical;
@@ -1186,25 +648,14 @@ defineExpose({
     var(--rich-text-lines, 5);
 
   overflow: hidden;
-
-  text-overflow: ellipsis;
 }
 
-/**
- * =========================================================
- * Expanded
- * =========================================================
- */
-
-.rich-text__content.is-expanded {
-  display: block;
+/* HTML */
+.rich-text__html {
+  width: 100%;
 }
 
-/**
- * =========================================================
- * Paragraph
- * =========================================================
- */
+/* 富文本元素 */
 
 .rich-text__content :deep(p) {
   margin: 0 0 1em;
@@ -1214,259 +665,31 @@ defineExpose({
   margin-bottom: 0;
 }
 
-/**
- * =========================================================
- * Heading
- * =========================================================
- */
-
-.rich-text__content :deep(h1),
-.rich-text__content :deep(h2),
-.rich-text__content :deep(h3),
-.rich-text__content :deep(h4),
-.rich-text__content :deep(h5),
-.rich-text__content :deep(h6) {
-  margin: 1em 0 0.6em;
-
-  line-height: 1.4;
-  font-weight: 600;
-}
-
-.rich-text__content :deep(h1:first-child),
-.rich-text__content :deep(h2:first-child),
-.rich-text__content :deep(h3:first-child),
-.rich-text__content :deep(h4:first-child),
-.rich-text__content :deep(h5:first-child),
-.rich-text__content :deep(h6:first-child) {
-  margin-top: 0;
-}
-
-/**
- * =========================================================
- * List
- * =========================================================
- */
-
-.rich-text__content :deep(ul),
-.rich-text__content :deep(ol) {
-  margin: 1em 0;
-  padding-left: 2em;
-}
-
-.rich-text__content :deep(li) {
-  margin-bottom: 0.35em;
-}
-
-/**
- * =========================================================
- * Link
- * =========================================================
- */
-
-.rich-text__content :deep(a) {
-  color: #1677ff;
-
-  text-decoration: none;
-
-  overflow-wrap: anywhere;
-}
-
-.rich-text__content :deep(a:hover) {
-  text-decoration: underline;
-}
-
-/**
- * =========================================================
- * Image
- * =========================================================
- */
-
-.rich-text__content :deep(img) {
-  display: block;
-
-  max-width: 100%;
-  height: auto;
-
-  margin: 0.5em 0;
-
-  object-fit: contain;
-}
-
-/**
- * =========================================================
- * Video
- * =========================================================
- */
-
+.rich-text__content :deep(img),
 .rich-text__content :deep(video) {
   display: block;
 
-  width: auto;
   max-width: 100%;
   height: auto;
 
   margin: 0.5em 0;
 }
-
-/**
- * =========================================================
- * Audio
- * =========================================================
- */
-
-.rich-text__content :deep(audio) {
-  display: block;
-
-  max-width: 100%;
-
-  margin: 0.5em 0;
-}
-
-/**
- * =========================================================
- * iframe
- * =========================================================
- */
-
-.rich-text__content :deep(iframe) {
-  display: block;
-
-  width: 100%;
-  max-width: 100%;
-
-  margin: 0.5em 0;
-
-  border: 0;
-}
-
-/**
- * =========================================================
- * Table
- * =========================================================
- */
 
 .rich-text__content :deep(table) {
   display: block;
 
-  width: 100%;
   max-width: 100%;
 
-  margin: 1em 0;
-
-  border-collapse: collapse;
-
   overflow-x: auto;
-}
-
-.rich-text__content :deep(th),
-.rich-text__content :deep(td) {
-  padding: 8px 12px;
-
-  border: 1px solid #e5e5e5;
-
-  white-space: nowrap;
-}
-
-/**
- * =========================================================
- * Blockquote
- * =========================================================
- */
-
-.rich-text__content :deep(blockquote) {
-  margin: 1em 0;
-  padding: 0.5em 1em;
-
-  border-left: 4px solid #e5e5e5;
-
-  color: #666;
-}
-
-/**
- * =========================================================
- * Code
- * =========================================================
- */
-
-.rich-text__content :deep(code) {
-  padding: 0.15em 0.35em;
-
-  border-radius: 4px;
-
-  font-family:
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Monaco,
-    Consolas,
-    monospace;
-
-  font-size: 0.9em;
-
-  overflow-wrap: anywhere;
 }
 
 .rich-text__content :deep(pre) {
   max-width: 100%;
 
-  margin: 1em 0;
-  padding: 12px 14px;
-
   overflow-x: auto;
 
-  border-radius: 6px;
-
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
-
-.rich-text__content :deep(pre code) {
-  padding: 0;
-
-  background: transparent;
-
-  white-space: inherit;
-}
-
-/**
- * =========================================================
- * HR
- * =========================================================
- */
-
-.rich-text__content :deep(hr) {
-  margin: 1.5em 0;
-
-  border: 0;
-
-  border-top: 1px solid #e5e5e5;
-}
-
-/**
- * =========================================================
- * Figure
- * =========================================================
- */
-
-.rich-text__content :deep(figure) {
-  margin: 1em 0;
-}
-
-.rich-text__content :deep(figcaption) {
-  margin-top: 0.5em;
-
-  color: #888;
-
-  font-size: 13px;
-
-  text-align: center;
-}
-
-/**
- * =========================================================
- * Toggle
- * =========================================================
- */
 
 .rich-text__toggle {
   display: block;
@@ -1482,24 +705,11 @@ defineExpose({
   color: #1677ff;
 
   font-size: 14px;
-  line-height: 1.5;
 
   cursor: pointer;
-
-  user-select: none;
-
-  overflow-anchor: none;
 }
 
 .rich-text__toggle:hover {
   color: #4096ff;
-}
-
-.rich-text__toggle:focus-visible {
-  outline: 2px solid currentColor;
-
-  outline-offset: 2px;
-
-  border-radius: 2px;
 }
 </style>
