@@ -258,7 +258,7 @@ onMounted(async () => {
 <!--                    <TextCollapse>-->
 <!--                      <div v-html="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"></div>-->
 <!--                    </TextCollapse>-->
-              <RichTextCollapse mode="auto" lines="2"
+              <RichTextCollapse mode="auto" :lines="2"
                                 :content="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)" />
 <!--          <RichLineClamp v-model:expanded="expanded"-->
 <!--                         :html="html"-->

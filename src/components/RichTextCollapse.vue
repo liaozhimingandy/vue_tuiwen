@@ -1,37 +1,33 @@
 <template>
-  <div class="rich-text">
+  <div
+    class="rich-text"
+    :class="{
+      'rich-text--collapsible': isCollapsible,
+      'rich-text--expanded': isExpanded,
+    }"
+  >
     <div
       ref="contentRef"
       class="rich-text__content"
       :class="{
-        'is-collapsed': isCollapsible && !isExpanded,
-        'is-expanded': isCollapsible && isExpanded,
+        'is-collapsed': isCollapsed,
+        'is-expanded': isCollapsible && isExpanded && !isMeasuring,
       }"
       :style="contentStyle"
     >
-      <!--
-        content 优先于 slot。
+      <!-- content 优先 -->
+      <div
+        v-if="content != null"
+        class="rich-text__html"
+        v-html="content"
+      />
 
-        标准用法：
-        <RichTextCollapse :content="html" />
-
-        高级用法：
-        <RichTextCollapse>
-          <article>...</article>
-        </RichTextCollapse>
-      -->
-      <template v-if="content != null">
-        <div
-          class="rich-text__html"
-          v-html="content"
-        />
-      </template>
-
+      <!-- 没有 content 时使用 slot -->
       <slot v-else />
     </div>
 
     <button
-      v-if="showToggle"
+      v-if="shouldShowToggle"
       type="button"
       class="rich-text__toggle"
       :aria-expanded="isExpanded"
@@ -52,92 +48,99 @@ import {
   watch,
 } from 'vue'
 
-type ScrollContainer = string | HTMLElement | null
+/**
+ * =========================================================
+ * Types
+ * =========================================================
+ */
 
 type RichTextMode =
   | 'auto'
   | 'collapse'
   | 'full'
 
+type ScrollContainer =
+  | string
+  | HTMLElement
+  | null
+
 interface Props {
   /**
-   * HTML 富文本内容。
-   *
-   * content 优先级高于 default slot。
+   * HTML 富文本内容
    *
    * 注意：
-   * content 必须在进入本组件之前完成 HTML 安全清洗。
+   * content 优先于 slot
    */
   content?: string | null
 
   /**
-   * 展示模式：
+   * 展示模式
    *
-   * auto     根据 collapsible 判断
-   * collapse 强制启用折叠
-   * full     完整展示
+   * auto：
+   * 根据 collapsible 决定
+   *
+   * collapse：
+   * 强制开启折叠能力
+   *
+   * full：
+   * 永远完整展示
    */
   mode?: RichTextMode
 
   /**
-   * auto 模式下是否允许折叠。
-   *
-   * mode="collapse" 时始终折叠能力开启。
-   * mode="full" 时始终关闭。
+   * auto 模式下是否允许折叠
    */
   collapsible?: boolean
 
   /**
-   * 折叠行数。
+   * 折叠显示行数
    */
   lines?: number
 
   /**
-   * 展开按钮文字。
+   * 展开文字
    */
   expandText?: string
 
   /**
-   * 收起按钮文字。
+   * 收起文字
    */
   collapseText?: string
 
   /**
-   * 是否监听内容 / 尺寸变化。
-   *
-   * 关闭后仍会进行初始化计算，
-   * 但不会启动 MutationObserver / ResizeObserver。
+   * 是否自动监听内容变化
    */
   autoObserve?: boolean
 
   /**
-   * 页面滚动容器。
+   * 滚动容器
    *
-   * 默认使用 window。
+   * 默认 window
    *
-   * 可以传：
-   * - CSS selector
+   * 支持：
    * - HTMLElement
-   * - null
+   * - CSS selector
    */
   scrollContainer?: ScrollContainer
 
   /**
-   * 是否显示展开 / 收起按钮。
-   *
-   * 注意：
-   * 即使为 true，只有实际发生溢出时才显示。
+   * 是否显示展开/收起按钮
    */
   showToggle?: boolean
 
   /**
-   * 受控展开状态。
+   * 受控展开状态
    *
-   * 配合：
    * v-model:expanded
    */
   expanded?: boolean
 }
+
+/**
+ * =========================================================
+ * Props
+ * =========================================================
+ */
 
 const props = withDefaults(
   defineProps<Props>(),
@@ -153,6 +156,12 @@ const props = withDefaults(
   },
 )
 
+/**
+ * =========================================================
+ * Emits
+ * =========================================================
+ */
+
 const emit = defineEmits<{
   /**
    * v-model:expanded
@@ -160,56 +169,78 @@ const emit = defineEmits<{
   'update:expanded': [value: boolean]
 
   /**
-   * 展开事件。
+   * 展开
    */
   expand: []
 
   /**
-   * 收起事件。
+   * 收起
    */
   collapse: []
 
   /**
-   * 展开状态变化。
+   * 展开状态变化
    */
   'expanded-change': [value: boolean]
 }>()
 
-const contentRef = ref<HTMLElement | null>(null)
-
-const internalExpanded = ref(false)
-
-const isOverflow = ref(false)
-
 /**
  * =========================================================
- * 展示模式
+ * Refs
  * =========================================================
  */
 
+const contentRef =
+  ref<HTMLElement | null>(null)
+
+/**
+ * 非受控模式下的内部状态
+ */
+const internalExpanded = ref(false)
+
+/**
+ * 是否发生溢出
+ */
+const isOverflow = ref(false)
+
+/**
+ * 是否正在测量
+ *
+ * 测量时强制使用折叠状态，
+ * 但不修改真实 expanded 状态。
+ */
+const isMeasuring = ref(false)
+
+/**
+ * =========================================================
+ * Mode
+ * =========================================================
+ */
+
+/**
+ * 当前是否允许折叠
+ */
 const isCollapsible = computed(() => {
-  switch (props.mode) {
-    case 'full':
-      return false
-
-    case 'collapse':
-      return true
-
-    case 'auto':
-    default:
-      return props.collapsible
+  if (props.mode === 'full') {
+    return false
   }
+
+  if (props.mode === 'collapse') {
+    return true
+  }
+
+  return props.collapsible
 })
 
 /**
- * 是否为受控模式。
+ * 是否受控
  */
 const isControlled = computed(() => {
   return props.expanded !== undefined
 })
 
 /**
- * 最终展开状态。
+ * 最终展开状态
  */
 const isExpanded = computed(() => {
   if (!isCollapsible.value) {
@@ -224,7 +255,24 @@ const isExpanded = computed(() => {
 })
 
 /**
- * 规范折叠行数。
+ * 当前是否处于折叠状态
+ *
+ * 注意：
+ * isMeasuring 时也必须使用折叠样式，
+ * 用于准确计算 overflow。
+ */
+const isCollapsed = computed(() => {
+  return (
+    isCollapsible.value &&
+    (
+      !isExpanded.value ||
+      isMeasuring.value
+    )
+  )
+})
+
+/**
+ * 标准化行数
  */
 const normalizedLines = computed(() => {
   const value = Number(props.lines)
@@ -233,13 +281,16 @@ const normalizedLines = computed(() => {
     return 5
   }
 
-  return Math.max(1, Math.floor(value))
+  return Math.max(
+    1,
+    Math.floor(value),
+  )
 })
 
 /**
- * 是否显示按钮。
+ * 是否显示展开按钮
  */
-const showToggle = computed(() => {
+const shouldShowToggle = computed(() => {
   return (
     isCollapsible.value &&
     props.showToggle &&
@@ -248,46 +299,12 @@ const showToggle = computed(() => {
 })
 
 /**
- * CSS 变量。
+ * CSS Variables
  */
-const contentStyle = computed(() => {
-  return {
-    '--rich-text-lines': normalizedLines.value,
-  }
-})
-
-/**
- * =========================================================
- * Observer / Timer
- * =========================================================
- */
-
-let mutationObserver: MutationObserver | null = null
-
-let resizeObserver: ResizeObserver | null = null
-
-let calculationTimer:
-  ReturnType<typeof setTimeout> | null = null
-
-let calculating = false
-
-let calculationPending = false
-
-const animationFrames = new Set<number>()
-
-/**
- * 已监听媒体元素。
- *
- * WeakSet 不会阻止 DOM 元素被垃圾回收。
- */
-const observedImages =
-  new WeakSet<HTMLImageElement>()
-
-const observedVideos =
-  new WeakSet<HTMLVideoElement>()
-
-const observedIframes =
-  new WeakSet<HTMLIFrameElement>()
+const contentStyle = computed(() => ({
+  '--rich-text-lines':
+    normalizedLines.value,
+}))
 
 /**
  * =========================================================
@@ -301,16 +318,63 @@ const isBrowser = () => {
 
 /**
  * =========================================================
+ * Timer
+ * =========================================================
+ */
+
+let calculationTimer:
+  | ReturnType<typeof setTimeout>
+  | null = null
+
+let calculating = false
+
+let calculationPending = false
+
+/**
+ * =========================================================
+ * RAF
+ * =========================================================
+ */
+
+const animationFrames = new Set<number>()
+
+const requestFrame = (
+  callback: FrameRequestCallback,
+) => {
+  if (!isBrowser()) {
+    return
+  }
+
+  const id = requestAnimationFrame(
+    time => {
+      animationFrames.delete(id)
+
+      callback(time)
+    },
+  )
+
+  animationFrames.add(id)
+}
+
+const cancelAllFrames = () => {
+  animationFrames.forEach(id => {
+    cancelAnimationFrame(id)
+  })
+
+  animationFrames.clear()
+}
+
+/**
+ * =========================================================
  * Scroll
  * =========================================================
  */
 
-const getScrollElement = (): Window | HTMLElement => {
-  if (!isBrowser()) {
-    return window
-  }
-
-  const container = props.scrollContainer
+const getScrollElement = ():
+  | Window
+  | HTMLElement => {
+  const container =
+    props.scrollContainer
 
   if (!container) {
     return window
@@ -328,7 +392,8 @@ const getScrollElement = (): Window | HTMLElement => {
 }
 
 const getScrollTop = () => {
-  const element = getScrollElement()
+  const element =
+    getScrollElement()
 
   if (element === window) {
     return (
@@ -343,8 +408,11 @@ const getScrollTop = () => {
   return element.scrollTop
 }
 
-const setScrollTop = (value: number) => {
-  const element = getScrollElement()
+const setScrollTop = (
+  value: number,
+) => {
+  const element =
+    getScrollElement()
 
   if (element === window) {
     window.scrollTo({
@@ -358,54 +426,23 @@ const setScrollTop = (value: number) => {
   element.scrollTop = value
 }
 
-/**
- * 获取富文本顶部位置。
- */
 const getContentTop = () => {
   return (
-    contentRef.value?.getBoundingClientRect().top ??
-    0
+    contentRef.value
+      ?.getBoundingClientRect()
+      .top ?? 0
   )
 }
 
 /**
  * =========================================================
- * RAF
- * =========================================================
- */
-
-const requestFrame = (
-  callback: FrameRequestCallback,
-) => {
-  if (!isBrowser()) {
-    return
-  }
-
-  const id = requestAnimationFrame(time => {
-    animationFrames.delete(id)
-    callback(time)
-  })
-
-  animationFrames.add(id)
-}
-
-const cancelAllFrames = () => {
-  animationFrames.forEach(id => {
-    cancelAnimationFrame(id)
-  })
-
-  animationFrames.clear()
-}
-
-/**
- * =========================================================
- * Overflow
+ * Overflow Calculation
  * =========================================================
  */
 
 const recalculate = async () => {
   /**
-   * full 模式不需要任何折叠计算。
+   * Full 模式完全跳过
    */
   if (!isCollapsible.value) {
     isOverflow.value = false
@@ -413,7 +450,7 @@ const recalculate = async () => {
   }
 
   /**
-   * 防止并发计算。
+   * 防止重复计算
    */
   if (calculating) {
     calculationPending = true
@@ -423,6 +460,15 @@ const recalculate = async () => {
   calculating = true
 
   try {
+    /**
+     * 强制切换到测量状态
+     *
+     * 注意：
+     * 这里只改变 Vue 状态，
+     * 不再直接 classList 操作 DOM。
+     */
+    isMeasuring.value = true
+
     await nextTick()
 
     const el = contentRef.value
@@ -433,50 +479,31 @@ const recalculate = async () => {
     }
 
     /**
-     * 保存当前真实状态。
-     */
-    const expanded = isExpanded.value
-
-    /**
-     * 临时强制折叠。
-     *
-     * 不修改 Vue 状态，只修改 DOM。
-     *
-     * 这样可以在 expanded=true 时，
-     * 仍然准确计算“折叠后是否有溢出”。
-     */
-    el.classList.add('is-collapsed')
-    el.classList.remove('is-expanded')
-
-    /**
-     * 强制浏览器完成布局。
+     * 强制浏览器布局
      */
     void el.offsetHeight
 
     /**
-     * 判断折叠状态下是否超过容器高度。
+     * 判断是否溢出
      */
-    const overflow =
+    isOverflow.value =
       el.scrollHeight >
       el.clientHeight + 1
-
-    isOverflow.value = overflow
-
-    /**
-     * 恢复真实 DOM 状态。
-     */
-    if (expanded) {
-      el.classList.remove('is-collapsed')
-      el.classList.add('is-expanded')
-    } else {
-      el.classList.add('is-collapsed')
-      el.classList.remove('is-expanded')
-    }
   } finally {
+    /**
+     * 恢复真实展示状态
+     */
+    isMeasuring.value = false
+
     calculating = false
 
+    /**
+     * 如果计算期间又触发了计算，
+     * 再执行一次
+     */
     if (calculationPending) {
       calculationPending = false
+
       scheduleRecalculate()
     }
   }
@@ -484,16 +511,13 @@ const recalculate = async () => {
 
 /**
  * =========================================================
- * Debounce
+ * Schedule Recalculate
  * =========================================================
  */
 
 const scheduleRecalculate = (
   delay = 100,
 ) => {
-  /**
-   * full 模式不做任何计算。
-   */
   if (!isCollapsible.value) {
     return
   }
@@ -504,14 +528,28 @@ const scheduleRecalculate = (
 
   calculationTimer = setTimeout(() => {
     calculationTimer = null
+
     void recalculate()
   }, delay)
 }
 
 /**
  * =========================================================
- * Image
+ * Media Observe
  * =========================================================
+ */
+
+const observedImages =
+  new WeakSet<HTMLImageElement>()
+
+const observedVideos =
+  new WeakSet<HTMLVideoElement>()
+
+const observedIframes =
+  new WeakSet<HTMLIFrameElement>()
+
+/**
+ * Image
  */
 
 const observeImage = (
@@ -530,21 +568,17 @@ const observeImage = (
   image.addEventListener(
     'load',
     handleChange,
-    {
-      once: true,
-    },
+    { once: true },
   )
 
   image.addEventListener(
     'error',
     handleChange,
-    {
-      once: true,
-    },
+    { once: true },
   )
 
   /**
-   * 图片已经完成加载。
+   * 图片已经加载完成
    */
   if (image.complete) {
     if (
@@ -570,14 +604,14 @@ const observeImages = () => {
   }
 
   el
-    .querySelectorAll<HTMLImageElement>('img')
+    .querySelectorAll<HTMLImageElement>(
+      'img',
+    )
     .forEach(observeImage)
 }
 
 /**
- * =========================================================
  * Video
- * =========================================================
  */
 
 const observeVideo = (
@@ -596,30 +630,21 @@ const observeVideo = (
   video.addEventListener(
     'loadedmetadata',
     handleChange,
-    {
-      once: true,
-    },
+    { once: true },
   )
 
   video.addEventListener(
     'loadeddata',
     handleChange,
-    {
-      once: true,
-    },
+    { once: true },
   )
 
   video.addEventListener(
     'error',
     handleChange,
-    {
-      once: true,
-    },
+    { once: true },
   )
 
-  /**
-   * 视频已经有 metadata。
-   */
   if (video.readyState >= 1) {
     scheduleRecalculate(30)
   }
@@ -640,9 +665,7 @@ const observeVideos = () => {
 }
 
 /**
- * =========================================================
- * iframe
- * =========================================================
+ * Iframe
  */
 
 const observeIframe = (
@@ -659,9 +682,7 @@ const observeIframe = (
     () => {
       scheduleRecalculate(50)
     },
-    {
-      once: true,
-    },
+    { once: true },
   )
 }
 
@@ -680,9 +701,7 @@ const observeIframes = () => {
 }
 
 /**
- * =========================================================
- * Media
- * =========================================================
+ * 统一媒体监听
  */
 
 const observeMedia = () => {
@@ -719,6 +738,10 @@ const observeFonts = () => {
  * =========================================================
  */
 
+let mutationObserver:
+  | MutationObserver
+  | null = null
+
 const initMutationObserver = () => {
   mutationObserver?.disconnect()
 
@@ -735,7 +758,8 @@ const initMutationObserver = () => {
 
   if (
     !el ||
-    typeof MutationObserver === 'undefined'
+    typeof MutationObserver ===
+      'undefined'
   ) {
     return
   }
@@ -743,6 +767,7 @@ const initMutationObserver = () => {
   mutationObserver =
     new MutationObserver(() => {
       observeMedia()
+
       scheduleRecalculate(100)
     })
 
@@ -758,6 +783,10 @@ const initMutationObserver = () => {
  * ResizeObserver
  * =========================================================
  */
+
+let resizeObserver:
+  | ResizeObserver
+  | null = null
 
 const initResizeObserver = () => {
   resizeObserver?.disconnect()
@@ -775,7 +804,8 @@ const initResizeObserver = () => {
 
   if (
     !el ||
-    typeof ResizeObserver === 'undefined'
+    typeof ResizeObserver ===
+      'undefined'
   ) {
     return
   }
@@ -790,7 +820,23 @@ const initResizeObserver = () => {
 
 /**
  * =========================================================
- * Expanded
+ * Observer Cleanup
+ * =========================================================
+ */
+
+const disconnectObservers = () => {
+  mutationObserver?.disconnect()
+
+  resizeObserver?.disconnect()
+
+  mutationObserver = null
+
+  resizeObserver = null
+}
+
+/**
+ * =========================================================
+ * Expanded State
  * =========================================================
  */
 
@@ -802,7 +848,7 @@ const setExpanded = (
   }
 
   /**
-   * 防止重复触发事件。
+   * 状态没有变化
    */
   if (value === isExpanded.value) {
     return
@@ -844,26 +890,23 @@ const expand = async () => {
     return
   }
 
-  const scrollTop = getScrollTop()
+  const scrollTop =
+    getScrollTop()
 
-  const contentTop = getContentTop()
+  const contentTop =
+    getContentTop()
 
   setExpanded(true)
 
   await nextTick()
 
   /**
-   * 等待浏览器完成两轮布局。
-   *
-   * 主要用于：
-   * - 图片
-   * - 字体
-   * - iframe
-   * - 动态内容
+   * 等待布局完成
    */
   requestFrame(() => {
     requestFrame(() => {
-      const currentTop = getContentTop()
+      const currentTop =
+        getContentTop()
 
       const delta =
         currentTop - contentTop
@@ -889,9 +932,11 @@ const collapse = async () => {
     return
   }
 
-  const scrollTop = getScrollTop()
+  const scrollTop =
+    getScrollTop()
 
-  const contentTop = getContentTop()
+  const contentTop =
+    getContentTop()
 
   setExpanded(false)
 
@@ -899,7 +944,8 @@ const collapse = async () => {
 
   requestFrame(() => {
     requestFrame(() => {
-      const currentTop = getContentTop()
+      const currentTop =
+        getContentTop()
 
       const delta =
         currentTop - contentTop
@@ -927,21 +973,7 @@ const toggle = () => {
 
 /**
  * =========================================================
- * Observer Cleanup
- * =========================================================
- */
-
-const disconnectObservers = () => {
-  mutationObserver?.disconnect()
-  resizeObserver?.disconnect()
-
-  mutationObserver = null
-  resizeObserver = null
-}
-
-/**
- * =========================================================
- * 初始化
+ * Initialize
  * =========================================================
  */
 
@@ -949,12 +981,13 @@ const initialize = async () => {
   await nextTick()
 
   /**
-   * full 模式：
+   * Full 模式
    *
-   * 只负责渲染，不进行任何折叠相关工作。
+   * 不启动 Observer
    */
   if (!isCollapsible.value) {
     isOverflow.value = false
+
     return
   }
 
@@ -971,13 +1004,14 @@ const initialize = async () => {
 
 /**
  * =========================================================
- * Props Watch
+ * Watch
  * =========================================================
  */
 
 /**
- * mode / collapsible。
+ * mode / collapsible
  */
+
 watch(
   [
     () => props.mode,
@@ -986,11 +1020,9 @@ watch(
   async () => {
     disconnectObservers()
 
-    /**
-     * full 模式。
-     */
     if (!isCollapsible.value) {
       isOverflow.value = false
+
       return
     }
 
@@ -1009,8 +1041,9 @@ watch(
 )
 
 /**
- * lines。
+ * lines
  */
+
 watch(
   normalizedLines,
   () => {
@@ -1019,37 +1052,35 @@ watch(
 )
 
 /**
- * autoObserve。
+ * autoObserve
  */
+
 watch(
   () => props.autoObserve,
   () => {
-    if (!isCollapsible.value) {
-      disconnectObservers()
-      return
-    }
+    disconnectObservers()
 
-    if (props.autoObserve) {
+    if (
+      props.autoObserve &&
+      isCollapsible.value
+    ) {
       initMutationObserver()
+
       initResizeObserver()
-    } else {
-      disconnectObservers()
     }
   },
 )
 
 /**
- * content。
- *
- * content 本身变化时：
- * - MutationObserver 不一定能捕获 Vue 的整体替换
- * - 因此直接重新计算
+ * content
  */
+
 watch(
   () => props.content,
   async () => {
     if (!isCollapsible.value) {
       isOverflow.value = false
+
       return
     }
 
@@ -1058,37 +1089,6 @@ watch(
     observeMedia()
 
     scheduleRecalculate(0)
-  },
-)
-
-/**
- * 外部 expanded。
- *
- * 这里不主动修改父组件状态。
- *
- * 例如：
- *
- * expanded=true
- * 但内容只有 2 行
- *
- * 仍然允许 expanded=true，
- * 只是不会显示展开按钮。
- */
-watch(
-  () => props.expanded,
-  value => {
-    if (
-      value === undefined ||
-      !isCollapsible.value
-    ) {
-      return
-    }
-
-    /**
-     * 外部状态变化后，
-     * 让 DOM class 与 Vue 状态同步。
-     */
-    void nextTick()
   },
 )
 
@@ -1107,12 +1107,14 @@ onUnmounted(() => {
 
   if (calculationTimer) {
     clearTimeout(calculationTimer)
+
     calculationTimer = null
   }
 
   cancelAllFrames()
 
   calculating = false
+
   calculationPending = false
 })
 
@@ -1164,11 +1166,6 @@ defineExpose({
   overflow-anchor: none;
 }
 
-/**
- * content HTML 容器。
- *
- * 仅作为 content 模式下的 HTML 承载节点。
- */
 .rich-text__html {
   width: 100%;
   min-width: 0;
@@ -1268,6 +1265,7 @@ defineExpose({
 
 .rich-text__content :deep(a) {
   color: #1677ff;
+
   text-decoration: none;
 
   overflow-wrap: anywhere;
@@ -1458,6 +1456,7 @@ defineExpose({
   margin-top: 0.5em;
 
   color: #888;
+
   font-size: 13px;
 
   text-align: center;
@@ -1486,6 +1485,7 @@ defineExpose({
   line-height: 1.5;
 
   cursor: pointer;
+
   user-select: none;
 
   overflow-anchor: none;
@@ -1497,9 +1497,9 @@ defineExpose({
 
 .rich-text__toggle:focus-visible {
   outline: 2px solid currentColor;
+
   outline-offset: 2px;
 
   border-radius: 2px;
 }
 </style>
-
