@@ -1,23 +1,41 @@
 <template>
-  <div
-    ref="containerRef"
-    class="single-emoji"
-    :class="{
-      'is-playing': isAnimating,
-      'is-disabled': animationType === 'none'
-    }"
-    :style="containerStyle"
+  <!--
+    正常状态的占位元素
+    始终保持在正文原来的左侧位置
+  -->
+  <span
+    ref="wrapperRef"
+    class="single-emoji-wrapper"
+  >
+    <!-- 正常 Emoji -->
+    <span
+      class="single-emoji"
+      :class="{ 'is-hidden': isAnimating }"
+    >
+      {{ emoji }}
+    </span>
+  </span>
+
+  <!--
+    动画层
+    只有播放动画时才显示
+
+    fixed/absolute 层会把 Emoji 放到父容器水平中心
+  -->
+  <span
+    v-if="isAnimating"
+    ref="animationLayerRef"
+    class="single-emoji-animation-layer"
   >
     <span
       ref="emojiRef"
-      class="single-emoji__content"
+      class="single-emoji-animation"
       :class="animationClass"
-      :style="emojiStyle"
       @animationend="handleAnimationEnd"
     >
       {{ emoji }}
     </span>
-  </div>
+  </span>
 </template>
 
 <script setup lang="ts">
@@ -28,15 +46,13 @@ import {
   onMounted,
   ref,
   watch,
-} from 'vue';
+} from 'vue'
+
 import {
   EMOJI_ANIMATION_MAP,
   isSupportedSingleEmoji,
 } from '@/common/emoji'
 
-/**
- * 支持的动画类型
- */
 export type SingleEmojiAnimation =
   | 'auto'
   | 'none'
@@ -55,68 +71,37 @@ export type SingleEmojiAnimation =
 
 interface Props {
   /**
-   * 数据库返回的 Emoji Unicode
-   *
-   * 例如：
-   * 😂
-   * ❤️
-   * 👍
+   * Emoji 内容
    */
   content: string
 
   /**
-   * Emoji 大小
-   *
-   * 默认 96px
-   */
-  size?: number | string
-
-  /**
    * 动画类型
-   *
-   * auto：根据 Emoji 自动选择
    */
   animation?: SingleEmojiAnimation
 
   /**
    * 是否自动播放
-   *
-   * 默认 true
    */
   autoplay?: boolean
 
   /**
    * 是否只播放一次
-   *
-   * true：进入视口播放一次
-   * false：每次进入视口都播放
    */
   once?: boolean
 
   /**
-   * 是否进入视口后才播放
-   *
-   * 默认 true
-   *
-   * 如果为 false，则组件 mounted 后立即播放
+   * 是否进入可视区域后播放
    */
   playOnVisible?: boolean
 
   /**
-   * IntersectionObserver threshold
-   *
-   * 默认 0.5
+   * 可视区域阈值
    */
   threshold?: number
-
-  /**
-   * 动画播放完成后的回调
-   */
-  onAnimationEnd?: () => void
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  size: 96,
   animation: 'auto',
   autoplay: true,
   once: true,
@@ -125,103 +110,67 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  animationEnd: []
   play: []
+  animationEnd: []
 }>()
 
 /**
- * DOM
+ * 正常状态占位元素
  */
-const containerRef = ref<HTMLElement | null>(null)
+const wrapperRef = ref<HTMLElement | null>(null)
+
+/**
+ * 动画 Emoji
+ */
 const emojiRef = ref<HTMLElement | null>(null)
 
 /**
- * 状态
+ * 动画层
+ */
+const animationLayerRef = ref<HTMLElement | null>(null)
+
+/**
+ * 是否正在动画
  */
 const isAnimating = ref(false)
+
+/**
+ * 是否已经播放
+ */
 const hasPlayed = ref(false)
 
-/**
- * IntersectionObserver
- */
 let observer: IntersectionObserver | null = null
+let playFrame: number | null = null
 
 /**
- * 是否支持当前 Emoji
- *
- * 这里只判断：
- * 内容是否是一个完整 Emoji，
- * 而不是普通文本。
+ * Emoji 内容
  */
 const emoji = computed(() => {
   return props.content.trim()
 })
 
+/**
+ * 是否为单个 Emoji
+ */
 const isSingleEmoji = computed(() => {
   return isSupportedSingleEmoji(emoji.value)
 })
 
 /**
- * 自动匹配动画
+ * 动画类型
  */
-const animationType = computed<Exclude<SingleEmojiAnimation, 'auto'>>(() => {
-  /**
-   * 用户强制指定动画
-   */
+const animationType = computed<
+  Exclude<SingleEmojiAnimation, 'auto'>
+>(() => {
   if (props.animation !== 'auto') {
     return props.animation
   }
 
-  /**
-   * 不支持的 Emoji 默认 pop
-   *
-   * 正常情况下 SingleEmoji 只应该接收到支持的 Emoji。
-   */
   return EMOJI_ANIMATION_MAP[emoji.value] ?? 'pop'
 })
 
 /**
- * CSS animation class
- */
-const animationClass = computed(() => {
-  if (!isAnimating.value || animationType.value === 'none') {
-    return undefined
-  }
-
-  return `animation-${animationType.value}`
-})
-
-/**
- * Emoji 尺寸
- */
-const emojiSize = computed(() => {
-  if (typeof props.size === 'number') {
-    return `${props.size}px`
-  }
-
-  return props.size
-})
-
-/**
- * Emoji 样式
- */
-const emojiStyle = computed(() => ({
-  fontSize: emojiSize.value,
-  lineHeight: 1,
-}))
-
-/**
- * 容器样式
- *
- * 这里不设置固定宽高，
- * 让 Emoji 自然撑开。
- */
-const containerStyle = computed(() => ({
-  '--emoji-size': emojiSize.value,
-}))
-
-/**
- * 是否应该播放
+ * 是否可以播放
  */
 const canPlay = computed(() => {
   return (
@@ -232,112 +181,163 @@ const canPlay = computed(() => {
 })
 
 /**
- * 停止动画
+ * 动画 class
  */
-function stop() {
-  isAnimating.value = false
-}
+const animationClass = computed(() => {
+  if (!isAnimating.value) {
+    return undefined
+  }
+
+  if (animationType.value === 'none') {
+    return undefined
+  }
+
+  return `animation-${animationType.value}`
+})
 
 /**
  * 播放动画
- *
- * 通过：
- *
- * false
- * ↓
- * nextTick
- * ↓
- * 强制读取 offsetWidth
- * ↓
- * true
- *
- * 让同一个动画可以重复触发。
  */
 async function play() {
   if (!canPlay.value) {
     return
   }
 
-  /**
-   * once 模式下已经播放过，就不再播放
-   */
   if (props.once && hasPlayed.value) {
     return
   }
 
-  /**
-   * 先取消当前动画
-   */
-  isAnimating.value = false
-
-  /**
-   * 等待 DOM 更新
-   */
-  await nextTick()
-
-  /**
-   * 强制浏览器重新计算布局
-   *
-   * 解决：
-   * 点击播放后 animation 不重新执行的问题。
-   */
-  if (emojiRef.value) {
-    void emojiRef.value.offsetWidth
+  if (playFrame !== null) {
+    cancelAnimationFrame(playFrame)
+    playFrame = null
   }
 
   /**
-   * 开始动画
+   * 先启动动画层
    */
   isAnimating.value = true
-  hasPlayed.value = true
 
-  emit('play')
+  await nextTick()
+
+  const element = emojiRef.value
+
+  if (!element) {
+    isAnimating.value = false
+    return
+  }
+
+  /**
+   * 强制重新计算布局
+   */
+  void element.offsetWidth
+
+  /**
+   * 下一帧开始 CSS animation
+   */
+  playFrame = requestAnimationFrame(() => {
+    playFrame = null
+
+    /**
+     * 此时 animation class 已经存在
+     */
+    emit('play')
+  })
+
+  hasPlayed.value = true
+}
+
+/**
+ * 停止
+ */
+function stop() {
+  if (playFrame !== null) {
+    cancelAnimationFrame(playFrame)
+    playFrame = null
+  }
+
+  isAnimating.value = false
+}
+
+/**
+ * 重置
+ */
+function reset() {
+  stop()
+
+  hasPlayed.value = false
+
+  observer?.disconnect()
+  observer = null
+
+  nextTick(() => {
+    setupObserver()
+  })
 }
 
 /**
  * 动画结束
  */
-function handleAnimationEnd() {
+function handleAnimationEnd(event: AnimationEvent) {
+  if (event.target !== emojiRef.value) {
+    return
+  }
+
+  /**
+   * 关闭动画层
+   *
+   * 关闭以后：
+   *
+   * 动画 Emoji 消失
+   *
+   * 正常 Emoji 重新显示
+   *
+   * 因此会自动回到正文原来的左侧位置。
+   */
   isAnimating.value = false
 
   emit('animationEnd')
-  props.onAnimationEnd?.()
 }
 
 /**
- * 初始化 IntersectionObserver
+ * 创建 IntersectionObserver
  */
 function setupObserver() {
+  observer?.disconnect()
+  observer = null
+
+  if (!props.autoplay) {
+    return
+  }
+
+  if (!isSingleEmoji.value) {
+    return
+  }
+
   /**
-   * 不需要进入视口播放
+   * 不要求进入可视区域
    */
   if (!props.playOnVisible) {
     void play()
     return
   }
 
-  /**
-   * SSR 环境
-   */
   if (typeof window === 'undefined') {
     return
   }
 
   /**
-   * 浏览器不支持 IntersectionObserver
-   *
-   * 直接播放，保证功能正常。
+   * 不支持 IntersectionObserver
    */
   if (!('IntersectionObserver' in window)) {
     void play()
     return
   }
 
-  if (!containerRef.value) {
+  const element = wrapperRef.value
+
+  if (!element) {
     return
   }
-
-  observer?.disconnect()
 
   observer = new IntersectionObserver(
     entries => {
@@ -349,12 +349,6 @@ function setupObserver() {
 
       void play()
 
-      /**
-       * 只播放一次
-       *
-       * observer 可以直接断开，
-       * 避免 Feed 长列表不断触发。
-       */
       if (props.once) {
         observer?.disconnect()
         observer = null
@@ -365,55 +359,26 @@ function setupObserver() {
     },
   )
 
-  observer.observe(containerRef.value)
-}
-
-/**
- * 重新初始化
- */
-function resetObserver() {
-  observer?.disconnect()
-  observer = null
-
-  hasPlayed.value = false
-  isAnimating.value = false
-
-  if (props.autoplay) {
-    nextTick(() => {
-      setupObserver()
-    })
-  }
+  observer.observe(element)
 }
 
 /**
  * 内容变化
- *
- * 例如：
- *
- * 😂 → 😍
- *
- * 需要重新播放新 Emoji 的动画。
  */
 watch(
   () => props.content,
   () => {
-    resetObserver()
+    reset()
   },
 )
 
 /**
- * 动画类型变化
- *
- * 例如：
- *
- * animation="pop"
- * ↓
- * animation="heartbeat"
+ * 动画变化
  */
 watch(
   () => props.animation,
   () => {
-    resetObserver()
+    reset()
   },
 )
 
@@ -424,77 +389,83 @@ watch(
   () => props.autoplay,
   value => {
     if (value) {
-      resetObserver()
-    } else {
-      stop()
-      observer?.disconnect()
-      observer = null
+      reset()
+      return
     }
+
+    stop()
+
+    observer?.disconnect()
+    observer = null
   },
 )
 
 /**
- * 暴露给父组件
- *
- * 父组件可以：
- *
- * const emojiRef = ref()
- *
- * emojiRef.value?.play()
+ * 暴露方法
  */
 defineExpose({
   play,
   stop,
-  reset: resetObserver,
+  reset,
 })
 
+/**
+ * mounted
+ */
 onMounted(() => {
-  if (!props.autoplay) {
-    return
-  }
-
-  /**
-   * nextTick 确保 containerRef 已经挂载
-   */
   nextTick(() => {
     setupObserver()
   })
 })
 
+/**
+ * unmounted
+ */
 onBeforeUnmount(() => {
   observer?.disconnect()
   observer = null
+
+  if (playFrame !== null) {
+    cancelAnimationFrame(playFrame)
+    playFrame = null
+  }
 })
 </script>
 
 <style scoped>
-.single-emoji {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* =========================================================
+ * 正常状态占位
+ * ========================================================= */
 
-  /**
-   * Emoji 本身不应该影响文字布局
+.single-emoji-wrapper {
+  /*
+   * 正常情况下仍然是 inline-block
+   *
+   * 所以 Emoji 会待在正文原来的位置
    */
-  vertical-align: middle;
-
-  /**
-   * 防止动画过程中出现奇怪的文字选中
-   */
-  user-select: none;
-
-  /**
-   * Emoji 动画需要硬件加速
-   */
-  contain: layout paint;
-}
-
-.single-emoji__content {
   display: inline-block;
 
-  /**
-   * Emoji 默认字体表现
+  /*
+   * 正常字号 24px
    */
+  font-size: 24px;
+
+  line-height: 1.5;
+
+  vertical-align: middle;
+}
+
+
+/* =========================================================
+ * 正常 Emoji
+ * ========================================================= */
+
+.single-emoji {
+  display: inline-block;
+
+  font-size: 24px;
+  line-height: 1.5;
+
   font-family:
     "Apple Color Emoji",
     "Segoe UI Emoji",
@@ -502,373 +473,687 @@ onBeforeUnmount(() => {
     "Android Emoji",
     sans-serif;
 
-  /**
-   * 动画优化
-   */
-  transform-origin: center center;
-  will-change: transform, opacity, filter;
+  transform: scale(1);
 
-  /**
-   * 避免部分浏览器动画时出现闪烁
-   */
-  backface-visibility: hidden;
+  opacity: 1;
 
-  /**
-   * 让 Emoji 更像一个独立视觉元素
-   */
   white-space: nowrap;
+
+  vertical-align: middle;
 }
 
+/*
+ * 动画期间隐藏正常 Emoji
+ *
+ * 但是 wrapper 仍然保留，
+ * 所以动画结束以后不会改变正文布局。
+ */
+.single-emoji.is-hidden {
+  visibility: hidden;
+}
+
+
 /* =========================================================
- * Pop
+ * 动画层
+ * ========================================================= */
+
+.single-emoji-animation-layer {
+  /*
+   * 关键：
+   * 整个动画区域覆盖父容器
+   */
+  position: absolute;
+
+  /*
+   * 父容器需要 position: relative
+   */
+  inset: 0;
+
+  /*
+   * 水平居中
+   */
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  /*
+   * 动画可以超出正常范围
+   */
+  overflow: visible;
+
+  /*
+   * 不影响鼠标事件
+   */
+  pointer-events: none;
+
+  /*
+   * 不改变正文布局
+   */
+  z-index: 10;
+}
+
+
+/* =========================================================
+ * 动画 Emoji
+ * ========================================================= */
+
+.single-emoji-animation {
+  display: inline-block;
+
+  /*
+   * 动画状态仍然以 24px 为基础
+   */
+  font-size: 24px;
+
+  line-height: 1.5;
+
+  font-family:
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Noto Color Emoji",
+    "Android Emoji",
+    sans-serif;
+
+  /*
+   * 从自身中心放大
+   */
+  transform-origin: center center;
+
+  transform: scale(1);
+
+  white-space: nowrap;
+
+  vertical-align: middle;
+
+  will-change: transform;
+
+  backface-visibility: hidden;
+}
+
+
+/* =========================================================
+ * POP
  * ========================================================= */
 
 .animation-pop {
-  animation: emoji-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: single-emoji-pop 3s ease-in-out both;
 }
 
-@keyframes emoji-pop {
+@keyframes single-emoji-pop {
   0% {
-    opacity: 0;
-    transform: scale(0.2);
+    transform: scale(1);
   }
 
-  55% {
-    opacity: 1;
-    transform: scale(1.18);
+  8% {
+    transform: scale(2);
+  }
+
+  18% {
+    transform: scale(4);
+  }
+
+  28% {
+    transform: scale(4.8);
+  }
+
+  40% {
+    transform: scale(4.2);
+  }
+
+  52% {
+    transform: scale(4.6);
+  }
+
+  64% {
+    transform: scale(4);
   }
 
   75% {
-    transform: scale(0.94);
+    transform: scale(3);
+  }
+
+  85% {
+    transform: scale(2);
+  }
+
+  93% {
+    transform: scale(1.3);
   }
 
   100% {
-    opacity: 1;
     transform: scale(1);
   }
 }
 
+
 /* =========================================================
- * Bounce
+ * BOUNCE
  * ========================================================= */
 
 .animation-bounce {
-  animation: emoji-bounce 0.9s ease;
+  animation: single-emoji-bounce 3s ease-in-out both;
 }
 
-@keyframes emoji-bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  25% {
-    transform: translateY(-18px);
-  }
-
-  45% {
-    transform: translateY(0);
-  }
-
-  65% {
-    transform: translateY(-8px);
-  }
-
-  80% {
-    transform: translateY(0);
-  }
-}
-
-/* =========================================================
- * Shake
- * ========================================================= */
-
-.animation-shake {
-  animation: emoji-shake 0.55s ease-in-out;
-}
-
-@keyframes emoji-shake {
-  0%,
-  100% {
-    transform: translateX(0) rotate(0);
-  }
-
-  20% {
-    transform: translateX(-8px) rotate(-5deg);
-  }
-
-  40% {
-    transform: translateX(8px) rotate(5deg);
-  }
-
-  60% {
-    transform: translateX(-6px) rotate(-4deg);
-  }
-
-  80% {
-    transform: translateX(6px) rotate(4deg);
-  }
-}
-
-/* =========================================================
- * Heartbeat
- * ========================================================= */
-
-.animation-heartbeat {
-  animation: emoji-heartbeat 1s ease-in-out;
-}
-
-@keyframes emoji-heartbeat {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  15% {
-    transform: scale(1.2);
-  }
-
-  30% {
-    transform: scale(1);
-  }
-
-  45% {
-    transform: scale(1.18);
-  }
-
-  60% {
-    transform: scale(1);
-  }
-}
-
-/* =========================================================
- * Pulse
- * ========================================================= */
-
-.animation-pulse {
-  animation: emoji-pulse 1s ease-in-out;
-}
-
-@keyframes emoji-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(1.18);
-    opacity: 0.78;
-  }
-}
-
-/* =========================================================
- * Wave
- * ========================================================= */
-
-.animation-wave {
-  transform-origin: 70% 80%;
-  animation: emoji-wave 0.9s ease-in-out;
-}
-
-@keyframes emoji-wave {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  15% {
-    transform: rotate(14deg);
-  }
-
-  30% {
-    transform: rotate(-8deg);
-  }
-
-  45% {
-    transform: rotate(14deg);
-  }
-
-  60% {
-    transform: rotate(-6deg);
-  }
-
-  75% {
-    transform: rotate(10deg);
-  }
-
-  100% {
-    transform: rotate(0deg);
-  }
-}
-
-/* =========================================================
- * Clap
- * ========================================================= */
-
-.animation-clap {
-  animation: emoji-clap 0.7s ease-in-out;
-}
-
-@keyframes emoji-clap {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  25% {
-    transform: scale(1.08) rotate(-4deg);
-  }
-
-  50% {
-    transform: scale(0.92) rotate(4deg);
-  }
-
-  75% {
-    transform: scale(1.08) rotate(-3deg);
-  }
-}
-
-/* =========================================================
- * Laugh
- * ========================================================= */
-
-.animation-laugh {
-  animation: emoji-laugh 0.8s ease-in-out;
-}
-
-@keyframes emoji-laugh {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0);
-  }
-
-  20% {
-    transform: translateY(-3px) rotate(-4deg);
-  }
-
-  40% {
-    transform: translateY(2px) rotate(4deg);
-  }
-
-  60% {
-    transform: translateY(-3px) rotate(-4deg);
-  }
-
-  80% {
-    transform: translateY(2px) rotate(3deg);
-  }
-}
-
-/* =========================================================
- * Sleep
- * ========================================================= */
-
-.animation-sleep {
-  animation: emoji-sleep 1.5s ease-in-out;
-}
-
-@keyframes emoji-sleep {
-  0% {
-    transform: translateY(0) scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: translateY(4px) scale(0.96);
-    opacity: 0.7;
-  }
-
-  100% {
-    transform: translateY(0) scale(1);
-    opacity: 1;
-  }
-}
-
-/* =========================================================
- * Cry
- * ========================================================= */
-
-.animation-cry {
-  animation: emoji-cry 1s ease-in-out;
-}
-
-@keyframes emoji-cry {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  25% {
-    transform: translateY(-3px);
-  }
-
-  50% {
-    transform: translateY(3px);
-  }
-
-  75% {
-    transform: translateY(-2px);
-  }
-}
-
-/* =========================================================
- * Spin
- * ========================================================= */
-
-.animation-spin {
-  animation: emoji-spin 0.8s ease-in-out;
-}
-
-@keyframes emoji-spin {
-  0% {
-    transform: rotate(0deg) scale(0.8);
-  }
-
-  60% {
-    transform: rotate(380deg) scale(1.1);
-  }
-
-  100% {
-    transform: rotate(360deg) scale(1);
-  }
-}
-
-/* =========================================================
- * Fire
- * ========================================================= */
-
-.animation-fire {
-  animation: emoji-fire 0.8s ease-in-out;
-}
-
-@keyframes emoji-fire {
+@keyframes single-emoji-bounce {
   0%,
   100% {
     transform: scale(1) translateY(0);
   }
 
-  25% {
-    transform: scale(1.08, 1.15) translateY(-2px);
+  10% {
+    transform: scale(3) translateY(-20px);
+  }
+
+  20% {
+    transform: scale(4.8) translateY(-50px);
+  }
+
+  30% {
+    transform: scale(5.2) translateY(-30px);
+  }
+
+  40% {
+    transform: scale(4.6) translateY(0);
   }
 
   50% {
-    transform: scale(0.96, 1.08) translateY(1px);
+    transform: scale(3.8) translateY(-15px);
   }
 
-  75% {
-    transform: scale(1.06, 1.12) translateY(-2px);
+  60% {
+    transform: scale(3) translateY(0);
+  }
+
+  72% {
+    transform: scale(2.2) translateY(-8px);
+  }
+
+  85% {
+    transform: scale(1.5) translateY(0);
+  }
+
+  94% {
+    transform: scale(1.15);
   }
 }
 
+
 /* =========================================================
- * 无障碍：用户开启减少动画
+ * SHAKE
  * ========================================================= */
 
-@media (prefers-reduced-motion: reduce) {
-  .single-emoji__content {
-    animation: none !important;
-    transition: none !important;
-    transform: none !important;
+.animation-shake {
+  animation: single-emoji-shake 3s ease-in-out both;
+}
+
+@keyframes single-emoji-shake {
+  0%,
+  100% {
+    transform: scale(1) rotate(0);
+  }
+
+  8% {
+    transform: scale(4) rotate(-10deg);
+  }
+
+  16% {
+    transform: scale(4.8) rotate(10deg);
+  }
+
+  24% {
+    transform: scale(4.8) rotate(-10deg);
+  }
+
+  32% {
+    transform: scale(4.8) rotate(10deg);
+  }
+
+  40% {
+    transform: scale(4.6) rotate(-7deg);
+  }
+
+  48% {
+    transform: scale(4.3) rotate(7deg);
+  }
+
+  58% {
+    transform: scale(3.6) rotate(-5deg);
+  }
+
+  68% {
+    transform: scale(2.8) rotate(5deg);
+  }
+
+  78% {
+    transform: scale(2.1) rotate(-3deg);
+  }
+
+  88% {
+    transform: scale(1.4) rotate(2deg);
+  }
+
+  96% {
+    transform: scale(1.1) rotate(0);
+  }
+}
+
+
+/* =========================================================
+ * HEARTBEAT
+ * ========================================================= */
+
+.animation-heartbeat {
+  animation: single-emoji-heartbeat 3s ease-in-out both;
+}
+
+@keyframes single-emoji-heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  12% {
+    transform: scale(4);
+  }
+
+  20% {
+    transform: scale(4.8);
+  }
+
+  28% {
+    transform: scale(4.2);
+  }
+
+  40% {
+    transform: scale(4.8);
+  }
+
+  52% {
+    transform: scale(4);
+  }
+
+  65% {
+    transform: scale(3.2);
+  }
+
+  78% {
+    transform: scale(2.4);
+  }
+
+  90% {
+    transform: scale(1.5);
+  }
+}
+
+
+/* =========================================================
+ * PULSE
+ * ========================================================= */
+
+.animation-pulse {
+  animation: single-emoji-pulse 3s ease-in-out both;
+}
+
+@keyframes single-emoji-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  20% {
+    transform: scale(4.6);
+  }
+
+  40% {
+    transform: scale(3.8);
+  }
+
+  60% {
+    transform: scale(4.6);
+  }
+
+  80% {
+    transform: scale(2.4);
+  }
+}
+
+
+/* =========================================================
+ * WAVE
+ * ========================================================= */
+
+.animation-wave {
+  animation: single-emoji-wave 3s ease-in-out both;
+}
+
+@keyframes single-emoji-wave {
+  0%,
+  100% {
+    transform: scale(1) rotate(0);
+  }
+
+  15% {
+    transform: scale(4) rotate(-15deg);
+  }
+
+  30% {
+    transform: scale(4.8) rotate(15deg);
+  }
+
+  45% {
+    transform: scale(4.8) rotate(-15deg);
+  }
+
+  60% {
+    transform: scale(4.3) rotate(12deg);
+  }
+
+  72% {
+    transform: scale(3.3) rotate(-8deg);
+  }
+
+  84% {
+    transform: scale(2.1) rotate(5deg);
+  }
+
+  94% {
+    transform: scale(1.3) rotate(0);
+  }
+}
+
+
+/* =========================================================
+ * CLAP
+ * ========================================================= */
+
+.animation-clap {
+  animation: single-emoji-clap 3s ease-in-out both;
+}
+
+@keyframes single-emoji-clap {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  10% {
+    transform: scale(3.8);
+  }
+
+  20% {
+    transform: scale(4.8);
+  }
+
+  30% {
+    transform: scale(3.8);
+  }
+
+  40% {
+    transform: scale(4.8);
+  }
+
+  50% {
+    transform: scale(3.8);
+  }
+
+  65% {
+    transform: scale(4.3);
+  }
+
+  78% {
+    transform: scale(2.8);
+  }
+
+  90% {
+    transform: scale(1.5);
+  }
+}
+
+
+/* =========================================================
+ * LAUGH
+ * ========================================================= */
+
+.animation-laugh {
+  animation: single-emoji-laugh 3s ease-in-out both;
+}
+
+@keyframes single-emoji-laugh {
+  0%,
+  100% {
+    transform: scale(1) rotate(0);
+  }
+
+  12% {
+    transform: scale(3.8) rotate(-5deg);
+  }
+
+  24% {
+    transform: scale(4.8) rotate(5deg);
+  }
+
+  36% {
+    transform: scale(4.3) rotate(-5deg);
+  }
+
+  48% {
+    transform: scale(4.8) rotate(5deg);
+  }
+
+  62% {
+    transform: scale(3.8) rotate(-4deg);
+  }
+
+  76% {
+    transform: scale(2.7) rotate(3deg);
+  }
+
+  90% {
+    transform: scale(1.5) rotate(0);
+  }
+}
+
+
+/* =========================================================
+ * SLEEP
+ * ========================================================= */
+
+.animation-sleep {
+  animation: single-emoji-sleep 3s ease-in-out both;
+}
+
+@keyframes single-emoji-sleep {
+  0% {
+    transform: scale(1) translateY(0);
+  }
+
+  15% {
+    transform: scale(3.8);
+  }
+
+  30% {
+    transform: scale(4.8);
+  }
+
+  45% {
+    transform: scale(4.3) translateY(-8px);
+  }
+
+  60% {
+    transform: scale(3.8) translateY(5px);
+  }
+
+  75% {
+    transform: scale(2.8) translateY(-5px);
+  }
+
+  88% {
+    transform: scale(1.8);
+  }
+
+  96% {
+    transform: scale(1.15);
+  }
+
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+
+/* =========================================================
+ * CRY
+ * ========================================================= */
+
+.animation-cry {
+  animation: single-emoji-cry 3s ease-in-out both;
+}
+
+@keyframes single-emoji-cry {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+  }
+
+  10% {
+    transform: scale(4.2);
+  }
+
+  20% {
+    transform: scale(4.8) translateY(5px);
+  }
+
+  30% {
+    transform: scale(4.8) translateY(-5px);
+  }
+
+  40% {
+    transform: scale(4.8) translateY(5px);
+  }
+
+  50% {
+    transform: scale(4.6) translateY(-5px);
+  }
+
+  60% {
+    transform: scale(4) translateY(5px);
+  }
+
+  72% {
+    transform: scale(3) translateY(-3px);
+  }
+
+  84% {
+    transform: scale(2.1);
+  }
+
+  94% {
+    transform: scale(1.3);
+  }
+}
+
+
+/* =========================================================
+ * SPIN
+ * ========================================================= */
+
+.animation-spin {
+  animation: single-emoji-spin 3s ease-in-out both;
+}
+
+@keyframes single-emoji-spin {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+
+  15% {
+    transform: scale(3.8) rotate(90deg);
+  }
+
+  30% {
+    transform: scale(4.8) rotate(180deg);
+  }
+
+  45% {
+    transform: scale(4.8) rotate(270deg);
+  }
+
+  60% {
+    transform: scale(4.3) rotate(360deg);
+  }
+
+  75% {
+    transform: scale(2.8) rotate(450deg);
+  }
+
+  88% {
+    transform: scale(1.8) rotate(540deg);
+  }
+
+  96% {
+    transform: scale(1.15) rotate(600deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(720deg);
+  }
+}
+
+
+/* =========================================================
+ * FIRE
+ * ========================================================= */
+
+.animation-fire {
+  animation: single-emoji-fire 3s ease-in-out both;
+}
+
+@keyframes single-emoji-fire {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  10% {
+    transform: scale(3.8);
+  }
+
+  20% {
+    transform: scale(4.8);
+  }
+
+  30% {
+    transform: scale(4.3);
+  }
+
+  40% {
+    transform: scale(5);
+  }
+
+  50% {
+    transform: scale(4.6);
+  }
+
+  60% {
+    transform: scale(5);
+  }
+
+  70% {
+    transform: scale(3.8);
+  }
+
+  80% {
+    transform: scale(2.8);
+  }
+
+  90% {
+    transform: scale(1.8);
+  }
+
+  96% {
+    transform: scale(1.2);
   }
 }
 </style>

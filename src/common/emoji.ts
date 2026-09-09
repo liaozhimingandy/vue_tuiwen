@@ -355,3 +355,10 @@ export const FACE_GROUPS: FaceGroup[] = [
         list: EMOJI_LIST
     },
 ];
+
+// 全局自定义表情Map，后端接口加载所有用户上传表情
+export const CUSTOM_FACE_MAP: Record<string, FaceItem> = {};
+
+// 正则：只匹配自定义表情标记，原生Unicode完全不处理
+export const CUSTOM_FACE_REG = /\[face:([a-zA-Z0-9_]+)\]/g;
+

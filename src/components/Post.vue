@@ -15,7 +15,6 @@ import type {IAccount, IComment, IPost} from "@/interface";
 import {getClampPreviewHtml, getResourceUrl, logger, timestampFormat} from "@/common/utils.ts";
 import instance from '../services/';
 import appStore from "../stores";
-import NineImageGrid from "@/components/NineImageGrid.vue";
 import {apiUrls} from "@/services/api.ts";
 import UserAvatar from "@/components/UserAvatar.vue";
 import {Ticker} from '@tombcato/smart-ticker/vue';
@@ -267,7 +266,7 @@ onMounted(async () => {
               v-if="isSingleEmoji"
               :content="post.content.text"
           />
-          <RichTextCollapse mode="auto" :lines="2"
+          <RichTextCollapse v-else mode="auto" :lines="2"
                             :content="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"/>
           <!--          <RichLineClamp v-model:expanded="expanded"-->
           <!--                         :html="html"-->
