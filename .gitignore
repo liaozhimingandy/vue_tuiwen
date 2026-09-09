@@ -12,6 +12,7 @@ dist-ssr/
 
 # 自动生成的类型文件（按需忽略）
 auto-imports.d.ts
+components.d.ts
 
 # 日志文件
 npm-debug.log*
