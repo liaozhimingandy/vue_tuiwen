@@ -100,13 +100,12 @@ instance.interceptors.response.use(
         // 2. 后端返回状态码
         const status: Number = response.status;
         const detail: any = response.data?.detail || '';
-
         switch (status) {
             case 400:
                 // message.error(detail || '参数错误');
                 break;
             case 401:
-                const accountStore = appStore.useAccountStore();
+                const accountStore = appStore.useAccountStore;
                 const token: IToken = accountStore.token;
                 // 没有刷新令牌：直接登录，return阻断后续刷新逻辑
                 if (!token?.refresh_token) {
@@ -140,6 +139,7 @@ instance.interceptors.response.use(
                     const accountId = accountStore.account?.account_id ?? '';
                     const apiPath = apiUrls.update_token(accountId);
                     const refreshTokenUrl = `${baseUrl}${apiPath}`;
+                    logger.info("token is expired, change token use refresh token")
                     const refreshRes = await axios.get(refreshTokenUrl,
                         {
                             headers: {

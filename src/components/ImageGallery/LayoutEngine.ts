@@ -120,34 +120,26 @@ function layoutThree(
     return {
       columns: 2,
       rows: 2,
-
       slots: [
         {
           index: 0,
-
           colStart: 1,
           colSpan: 1,
-
           rowStart: 1,
           rowSpan: 2,
         },
 
         {
           index: 1,
-
           colStart: 2,
           colSpan: 1,
-
           rowStart: 1,
           rowSpan: 1,
         },
-
         {
           index: 2,
-
           colStart: 2,
           colSpan: 1,
-
           rowStart: 2,
           rowSpan: 1,
         },
@@ -163,34 +155,27 @@ function layoutThree(
   return {
     columns: 2,
     rows: 2,
-
     slots: [
       {
         index: 0,
-
         colStart: 1,
         colSpan: 2,
-
         rowStart: 1,
         rowSpan: 1,
       },
 
       {
         index: 1,
-
         colStart: 1,
         colSpan: 1,
-
         rowStart: 2,
         rowSpan: 1,
       },
 
       {
         index: 2,
-
         colStart: 2,
         colSpan: 1,
-
         rowStart: 2,
         rowSpan: 1,
       },
@@ -262,54 +247,43 @@ function layoutFive(
     return {
       columns: 3,
       rows: 2,
-
       slots: [
         {
           index: 0,
-
           colStart: 1,
           colSpan: 1,
-
           rowStart: 1,
           rowSpan: 2,
         },
 
         {
           index: 1,
-
           colStart: 2,
           colSpan: 1,
-
           rowStart: 1,
           rowSpan: 1,
         },
 
         {
           index: 2,
-
           colStart: 3,
           colSpan: 1,
-
           rowStart: 1,
           rowSpan: 1,
         },
 
         {
           index: 3,
-
           colStart: 2,
           colSpan: 1,
-
           rowStart: 2,
           rowSpan: 1,
         },
 
         {
           index: 4,
-
           colStart: 3,
           colSpan: 1,
-
           rowStart: 2,
           rowSpan: 1,
         },
@@ -326,54 +300,42 @@ function layoutFive(
   return {
     columns: 4,
     rows: 2,
-
     slots: [
       {
         index: 0,
-
         colStart: 1,
         colSpan: 4,
-
         rowStart: 1,
         rowSpan: 1,
       },
-
       {
         index: 1,
-
         colStart: 1,
         colSpan: 1,
-
         rowStart: 2,
         rowSpan: 1,
       },
 
       {
         index: 2,
-
         colStart: 2,
         colSpan: 1,
-
         rowStart: 2,
         rowSpan: 1,
       },
 
       {
         index: 3,
-
         colStart: 3,
         colSpan: 1,
-
         rowStart: 2,
         rowSpan: 1,
       },
 
       {
         index: 4,
-
         colStart: 4,
         colSpan: 1,
-
         rowStart: 2,
         rowSpan: 1,
       },

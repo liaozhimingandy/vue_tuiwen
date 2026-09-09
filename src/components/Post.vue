@@ -257,17 +257,20 @@ onMounted(async () => {
         </div>
       </template>
       <!-- 推文正文内容 -->
-      <div style="margin-bottom: 16px; background-color: white;">
+
+      <template #cover>
         <t-space direction="vertical" :size="6" style="width: 100%;">
           <!--                    <TextCollapse>-->
           <!--                      <div v-html="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"></div>-->
           <!--                    </TextCollapse>-->
-          <SingleEmoji
-              v-if="isSingleEmoji"
-              :content="post.content.text"
-          />
-          <RichTextCollapse v-else mode="auto" :lines="2"
-                            :content="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"/>
+
+          <div style="margin: 0 16px; width: 100%">
+            <SingleEmoji v-if="isSingleEmoji" :content="post.content.text"
+              :continue-after-shrink="true" :size="32" :animation-size="100"/>
+            <RichTextCollapse v-else mode="auto" :lines="2" :content="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"/>
+          </div>
+          <ImageGallery :image-list="props.post.content.images"/>
+
           <!--          <RichLineClamp v-model:expanded="expanded"-->
           <!--                         :html="html"-->
           <!--                         :max-lines="2"-->
@@ -284,10 +287,9 @@ onMounted(async () => {
           <!--              :two-col-max-width="200"-->
           <!--              :three-col-max-width="360"-->
           <!--          />-->
-          <ImageGallery :image-list="props.post.content.images"/>
-        </t-space>
-      </div>
 
+        </t-space>
+      </template>
       <!-- 底部操作栏：分享 / 评论 / 点赞 -->
       <template #footer>
         <t-row :align="'middle'" justify="center" style="gap: 24px">
