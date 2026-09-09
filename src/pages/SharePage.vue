@@ -8,10 +8,11 @@ import {timestampFormat} from "@/common/utils.ts";
 import NineImageGrid from "@/components/NineImageGrid.vue";
 import {MessagePlugin} from 'tdesign-vue-next';
 import UserAvatar from "@/components/UserAvatar.vue";
-import {copyLink, rewriteImgCdnPrefix} from "../common/utils.ts";
+import {copyLink, getClampPreviewHtml, rewriteImgCdnPrefix} from "../common/utils.ts";
 import {config} from "../common/config.ts";
 import {LinkIcon} from "tdesign-icons-vue-next";
 import ImageGallery from "../components/ImageGallery/ImageGallery.vue";
+import RichTextCollapse from "../components/RichTextCollapse.vue";
 
 const route = useRoute();
 const post_id = computed(() => route.params.post_id as string);
@@ -87,16 +88,16 @@ const html = computed(() => {
           <t-col :md="{offset: 0, span: 6 }" :xs="11" :sm="11">
             <div class="article-body">
               <!-- 富文本文章 post_type=2 -->
-              <div
-                  v-if="post.post_type === 2"
-                  v-html="html"
-                  class="rich-article"
-              />
+<!--              <div-->
+<!--                  v-if="post.post_type === 2"-->
+<!--                  v-html="html"-->
+<!--                  class="rich-article"-->
+<!--              />-->
               <!-- 普通文本帖子 post_type=1 -->
-              <div v-if="post.post_type === 1" class="plain-article">
-                {{ post?.content?.text }}
-              </div>
-
+<!--              <div v-if="post.post_type === 1" class="plain-article">-->
+<!--                {{ post?.content?.text }}-->
+<!--              </div>-->
+                  <RichTextCollapse mode="full" :content="getClampPreviewHtml(post?.content?.text, config.CDN_BASE_URL)" />
               <!-- 九宫格图片 -->
 <!--              <NineImageGrid-->
 <!--                  v-if="post?.post_type === 1 && post?.content?.images?.length"-->

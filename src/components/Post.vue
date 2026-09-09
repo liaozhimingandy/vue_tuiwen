@@ -23,6 +23,7 @@ import '@tombcato/smart-ticker/style.css';
 import {copyLink, formatMessageToHtml, formatter} from "../common/utils.ts";
 import {config} from "../common/config.ts";
 import ImageGallery from "./ImageGallery/ImageGallery.vue";
+import RichTextCollapse from "./RichTextCollapse.vue";
 
 dayjs.extend(relativeTime);
 
@@ -254,9 +255,11 @@ onMounted(async () => {
       <!-- 推文正文内容 -->
       <div style="margin-bottom: 16px; background-color: white;">
         <t-space direction="vertical" :size="6" style="width: 100%;">
-                    <TextCollapse>
-                      <div v-html="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"></div>
-                    </TextCollapse>
+<!--                    <TextCollapse>-->
+<!--                      <div v-html="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"></div>-->
+<!--                    </TextCollapse>-->
+              <RichTextCollapse mode="auto" lines="2"
+                                :content="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)" />
 <!--          <RichLineClamp v-model:expanded="expanded"-->
 <!--                         :html="html"-->
 <!--                         :max-lines="2"-->
