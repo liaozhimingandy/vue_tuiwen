@@ -22,6 +22,7 @@ import {Ticker} from '@tombcato/smart-ticker/vue';
 import '@tombcato/smart-ticker/style.css';
 import {copyLink, formatMessageToHtml, formatter} from "../common/utils.ts";
 import {config} from "../common/config.ts";
+import ImageGallery from "./ImageGallery/ImageGallery.vue";
 
 dayjs.extend(relativeTime);
 
@@ -266,12 +267,13 @@ onMounted(async () => {
 <!--              </t-link>-->
 <!--            </template>-->
 <!--          </RichLineClamp>-->
-          <NineImageGrid
-              :image-list="props.post.content.images"
-              :single-max-width="160"
-              :two-col-max-width="200"
-              :three-col-max-width="360"
-          />
+<!--          <NineImageGrid-->
+<!--              :image-list="props.post.content.images"-->
+<!--              :single-max-width="160"-->
+<!--              :two-col-max-width="200"-->
+<!--              :three-col-max-width="360"-->
+<!--          />-->
+          <ImageGallery :image-list="props.post.content.images" />
         </t-space>
       </div>
 

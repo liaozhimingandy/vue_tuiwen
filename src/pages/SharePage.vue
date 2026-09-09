@@ -11,6 +11,7 @@ import UserAvatar from "@/components/UserAvatar.vue";
 import {copyLink, rewriteImgCdnPrefix} from "../common/utils.ts";
 import {config} from "../common/config.ts";
 import {LinkIcon} from "tdesign-icons-vue-next";
+import ImageGallery from "../components/ImageGallery/ImageGallery.vue";
 
 const route = useRoute();
 const post_id = computed(() => route.params.post_id as string);
@@ -70,7 +71,7 @@ const html = computed(() => {
       <template v-else>
         <!-- 作者头部信息 -->
         <t-row justify="center">
-          <t-col :md="{offset: 0, span: 5 }" :xs="11" :sm="11" class="article-header">
+          <t-col :md="{offset: 0, span: 6 }" :xs="11" :sm="11" class="article-header">
             <t-space size="small">
               <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name"/>
               <t-space direction="vertical" :size="1">
@@ -83,7 +84,7 @@ const html = computed(() => {
 
         <!-- 文章主体内容 -->
         <t-row justify="center">
-          <t-col :md="{offset: 0, span: 5 }" :xs="11" :sm="11">
+          <t-col :md="{offset: 0, span: 6 }" :xs="11" :sm="11">
             <div class="article-body">
               <!-- 富文本文章 post_type=2 -->
               <div
@@ -97,13 +98,15 @@ const html = computed(() => {
               </div>
 
               <!-- 九宫格图片 -->
-              <NineImageGrid
-                  v-if="post?.post_type === 1 && post?.content?.images?.length"
-                  :image-list="post.content.images"
-                  :single-max-width="100"
-                  :two-col-max-width="100"
-                  :three-col-max-width="100"
-              />
+<!--              <NineImageGrid-->
+<!--                  v-if="post?.post_type === 1 && post?.content?.images?.length"-->
+<!--                  :image-list="post.content.images"-->
+<!--                  :single-max-width="100"-->
+<!--                  :two-col-max-width="100"-->
+<!--                  :three-col-max-width="100"-->
+<!--              />-->
+
+              <ImageGallery :image-list="post.content.images" />
             </div>
           </t-col>
         </t-row>
@@ -113,7 +116,7 @@ const html = computed(() => {
     <!-- t‑layout原生 t‑footer -->
     <t-footer v-if="!loading && post">
       <t-row justify="center">
-        <t-col :md="{offset: 0, span: 5 }" :xs="11" :sm="11">
+        <t-col :md="{offset: 0, span: 6 }" :xs="11" :sm="11">
           <t-space class="article-footer">
             <t-typography-text theme="secondary"> © {{
                 new Date().getFullYear()
