@@ -117,7 +117,7 @@
         @click="visible=!visible"
     >
       <template #content>
-        <edit-2-icon :fill-color='["white","white"]' :stroke-color='["white","white"]' :stroke-width="2.5" size="28px"/>
+        <SvgIcon name="edit" :size="24" color="white"/>
       </template>
     </t-back-top>
 
@@ -470,7 +470,6 @@ const onHandleClick: StickyToolProps['onClick'] = (context) => {
 };
 
 
-const snap_id_expanded = ref<number>()
 </script>
 
 <style scoped>
