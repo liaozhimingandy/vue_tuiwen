@@ -4,7 +4,7 @@ import {SendIcon, ChevronDownIcon} from 'tdesign-icons-vue-next';
 import {MessagePlugin} from 'tdesign-vue-next';
 import {storeToRefs} from "pinia";
 import appStore from "@/stores";
-import type { DropdownProps } from 'tdesign-vue-next';
+import type {DropdownProps} from 'tdesign-vue-next';
 import '@wangeditor/editor/dist/css/style.css' // 引入 css
 import {Editor, Toolbar} from '@wangeditor/editor-for-vue'
 import Header from "@/components/Header.vue";
@@ -18,10 +18,10 @@ const submitting = ref(false);
 const draftStore = storeToRefs(appStore.useDraftStore);
 const selected_status = ref<number>(1);
 // 组装下拉选项
-const dropdownOptions : DropdownProps['options'] = Object.entries(post_right_map).map(([value, content]) => ({
-    value,
-    content,
-  })) as DropdownProps['options'];
+const dropdownOptions: DropdownProps['options'] = Object.entries(post_right_map).map(([value, content]) => ({
+  value,
+  content,
+})) as DropdownProps['options'];
 // 下拉菜单点击
 const handleMenuClick: DropdownProps['onClick'] = (data: any) => {
   logger.info(data)
@@ -152,9 +152,6 @@ const onPublish = async () => {
   editorRef.value.clear();
   appStore.useDraftStore.clearDraft();
 }
-
-
-
 </script>
 
 <template>
@@ -162,20 +159,24 @@ const onPublish = async () => {
     <t-header ref="headerRef" :style="{width: '100vw','background-color': 'white'}">
       <Header selected-keys="none"/>
     </t-header>
-    <t-content :style="{ padding: '0 50px', marginTop: '4px' }">
-      <Toolbar
-          style="border-bottom: 1px solid #ccc"
-          :editor="editorRef"
-          :defaultConfig="toolbarConfig"
-          :mode="mode"
-      />
-      <Editor
-          style="height: 500px; overflow-y: hidden;"
-          v-model="content"
-          :defaultConfig="editorConfig"
-          :mode="mode"
-          @onCreated="handleCreated"
-      />
+    <t-content style="margin-top: 2px">
+      <t-row justify="center">
+          <t-col :md="{offset: 0, span: 6 }" :xs="12" :sm="12">
+          <Toolbar
+              style="border-bottom: 1px solid #ccc"
+              :editor="editorRef"
+              :defaultConfig="toolbarConfig"
+              :mode="mode"
+          />
+          <Editor
+              style="height: 500px; overflow-y: hidden;"
+              v-model="content"
+              :defaultConfig="editorConfig"
+              :mode="mode"
+              @onCreated="handleCreated"
+          />
+        </t-col>
+      </t-row>
     </t-content>
     <t-footer>
       <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -183,7 +184,8 @@ const onPublish = async () => {
         <t-space direction="horizontal">
           <t-button @click="onPublish" :loading="submitting">
             <template #icon>
-              <send-icon v-if="!submitting" :fill-color='["transparent","transparent"]' :stroke-color='["currentColor","currentColor"]'
+              <send-icon v-if="!submitting" :fill-color='["transparent","transparent"]'
+                         :stroke-color='["currentColor","currentColor"]'
                          :stroke-width="2.5"/>
             </template>
             发布

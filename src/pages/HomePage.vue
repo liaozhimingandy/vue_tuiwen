@@ -200,7 +200,7 @@ const changeHandler: MenuProps['onChange'] = (active) => {
         </t-col>
 
         <!-- 博客列表 (第二列) -->
-        <t-col :md="5" :xs="12" :sm="12" :offset="isMobile ? 0 : 1">
+        <t-col :md="{offset: 1, span: 5 }" :xs="11" :sm="11">
           <c-scrollbar
               trigger="hover"
               class="content"
