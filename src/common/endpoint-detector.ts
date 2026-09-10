@@ -274,6 +274,7 @@ export async function initEndpoints(force = false): Promise<Record<string, strin
 
   // 遍历所有服务，逐个探测
   for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
+    if(serviceName !== 'api') continue;
     // api 已经用了自定义地址，跳过
     if (result[serviceName]) continue;
     result[serviceName] = await detectService(serviceName, serviceConfig, force);
