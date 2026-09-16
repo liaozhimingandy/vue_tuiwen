@@ -62,7 +62,6 @@ const validateConfirmPassword = async (
 };
 
 import type {CustomValidator} from 'tdesign-vue-next';
-import {assignWith} from "lodash";
 
 const checkUserNameValidator: CustomValidator = async (val, context) => {
   if (!val || !val.trim()) {
@@ -214,7 +213,7 @@ const sizeLimit = ref<UploadProps['sizeLimit']>({
 
 // 上传事件
 const onUploadSuccess: UploadProps['onSuccess'] = ({file}) => {
-  account.value.avatar = file?.response?.image_url;
+  account.value.avatar = file?.response?.rawUrl as string | undefined;
   MessagePlugin.success(`头像上传成功`);
 };
 
@@ -227,6 +226,13 @@ const onUploadFail: UploadProps['onFail'] = ({file}) => {
 // 是否正在校验中（显示loading）
 const checkingName = ref(false)
 
+const formatUploadResp = (resp: any) => {
+  const relativeUrl = resp.url // 后端返回的纯相对路径 /static/xxx
+  return {
+    url: apiUrls.static_links(relativeUrl), // 给t-upload预览用，开发环境带域名
+    rawUrl: relativeUrl // 保存原始相对路径，用于发布帖子存入数据库
+  }
+}
 </script>
 
 <template>
@@ -253,6 +259,7 @@ const checkingName = ref(false)
                           accept="image/*"
                           :show-image-preview="true"
                           :max="1"
+                          :format-response="formatUploadResp"
                           :autoUpload="true"
                           :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
                           @fail="onUploadFail"

@@ -9,7 +9,7 @@ import appStore from '@/stores/';
 import {storeToRefs} from 'pinia';
 import {post_right_map} from "@/common/constants.js";
 import {apiUrls, publish_post} from "@/services/api.ts";
-import {getResourceUrl,trimEmptyParagraph} from "@/common/utils.ts";
+import {trimEmptyParagraph} from "@/common/utils.ts";
 import FacePicker from "@/components/FacePicker.vue";
 import UserAvatar from "@/components/UserAvatar.vue";
 
@@ -47,7 +47,7 @@ const handlePublish = () => {
   submitting.value = true;
   // 判断是否有图片上传
   const images = fileList.value
-      .map((file?) => (file as any).response?.image_url)
+      .map((file?) => (file as any).response?.rawUrl as string | undefined)
       .filter(Boolean) as string[]
 
   let post: IPost = {
@@ -89,7 +89,7 @@ watch([content, fileList], () => {
         }
         // 提取已上传的图片链接
         const images = fileList.value
-            .map((el: any) => el.response?.image_url)
+            .map((el: any) => el.response?.rawUrl as string | undefined)
             .filter(Boolean)
         // 更新草稿，插件会自动同步到本地存储
         draftStore.post_draft.value = {text: content.value, images};
@@ -123,6 +123,13 @@ const handleFail: UploadProps['onFail'] = ({file}) => {
   MessagePlugin.error(`文件 ${file.name} 上传失败`);
 };
 
+const formatUploadResp = (resp: any) => {
+  const relativeUrl = resp.url // 后端返回的纯相对路径 /static/xxx
+  return {
+    url: apiUrls.static_links(relativeUrl), // 给t-upload预览用，开发环境带域名
+    rawUrl: relativeUrl // 保存原始相对路径，用于发布帖子存入数据库
+  }
+}
 </script>
 
 <template>
@@ -235,6 +242,7 @@ const handleFail: UploadProps['onFail'] = ({file}) => {
           :cancel-upload-button="showUploadButton ? { theme: 'default', content: '取消上传' } : null"
           multiple
           :max="9"
+          :format-response="formatUploadResp"
           @fail="handleFail"
       >
       </t-upload>

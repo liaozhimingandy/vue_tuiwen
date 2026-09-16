@@ -117,7 +117,7 @@ const html = computed(() => {
     <!-- t‑layout原生 t‑footer -->
     <t-footer v-if="!loading && post">
       <t-row justify="center">
-        <t-col :md="{offset: 0, span: 6 }" :xs="11" :sm="11">
+        <t-col :md="{offset: 0, span: 6 }" :xs="12" :sm="12">
           <t-space class="article-footer">
             <t-typography-text theme="secondary"> © {{
                 new Date().getFullYear()

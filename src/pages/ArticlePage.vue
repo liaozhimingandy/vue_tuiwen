@@ -76,7 +76,7 @@ const editorConfig = {
           })
 
           // 假设后端返回 { code:0, data: { url } }
-          const url = res.data.image_url
+          const url = res.data.url
           // 插入图片到编辑器
           insertFn(url)
         } catch (err) {

@@ -386,10 +386,9 @@ onMounted(async () => {
             </div>
           </template>
         </t-comment>
-
         <!-- 评论列表 -->
         <t-list
-            v-if="select_item === 'c'"
+            v-if="select_item === 'comment'"
             :header="`${comments.length} 条评论`"
             :split="true"
         >
@@ -398,7 +397,7 @@ onMounted(async () => {
                 :author="user_map[item.account_id]?.nick_name"
                 :avatar="getResourceUrl(user_map[item.account_id]?.avatar)"
                 :content="item.content"
-                :datetime="timestampFormat(item.gmt_created)"
+                :datetime="timestampFormat(item.create_at)"
             />
           </t-list-item>
         </t-list>
