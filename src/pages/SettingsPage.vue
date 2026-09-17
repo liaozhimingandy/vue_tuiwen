@@ -245,7 +245,7 @@ const sizeLimit = ref<UploadProps['sizeLimit']>({
  * @param file Upload 组件返回的当前文件对象（含 response）
  */
 const onUploadSuccess: UploadProps['onSuccess'] = ({file}) => {
-  account.value.avatar = file?.response?.image_url;
+  account.value.avatar = file?.response?.rawUrl as string | undefined;
   MessagePlugin.success(`头像上传成功`);
 };
 
@@ -260,8 +260,21 @@ const onUploadFail: UploadProps['onFail'] = ({file}) => {
   MessagePlugin.error(`文件 ${file.name} 上传失败`);
 };
 
+<<<<<<< HEAD
 // 是否正在校验用户名（用于显示 loading 状态）
 const checkingName = ref(false);
+=======
+// 是否正在校验中（显示loading）
+const checkingName = ref(false)
+
+const formatUploadResp = (resp: any) => {
+  const relativeUrl = resp.url // 后端返回的纯相对路径 /static/xxx
+  return {
+    url: apiUrls.static_links(relativeUrl), // 给t-upload预览用，开发环境带域名
+    rawUrl: relativeUrl // 保存原始相对路径，用于发布帖子存入数据库
+  }
+}
+>>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
 </script>
 
 <template>
@@ -287,6 +300,7 @@ const checkingName = ref(false);
                   <t-space direction="vertical">
                     <t-form-item label="头像">
                       <t-upload
+<<<<<<< HEAD
                         v-model="files"
                         :action="apiUrls.upload_image_url()"
                         :size-limit="sizeLimit"
@@ -298,6 +312,20 @@ const checkingName = ref(false);
                         :headers="{Authorization: `Bearer ${appStore.useAccountStore.token.access_token}`}"
                         @fail="onUploadFail"
                         @success="onUploadSuccess"
+=======
+                          v-model="files"
+                          :action="apiUrls.upload_image_url()"
+                          :size-limit="sizeLimit"
+                          theme="image"
+                          accept="image/*"
+                          :show-image-preview="true"
+                          :max="1"
+                          :format-response="formatUploadResp"
+                          :autoUpload="true"
+                          :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
+                          @fail="onUploadFail"
+                          @success="onUploadSuccess"
+>>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
                       />
                     </t-form-item>
                     <t-form-item label="用户名" name="username">

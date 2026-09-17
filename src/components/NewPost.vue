@@ -17,11 +17,19 @@ import {MessagePlugin} from 'tdesign-vue-next';
 import type {IPost} from '@/interface';
 import appStore from '@/stores/';
 import {storeToRefs} from 'pinia';
+<<<<<<< HEAD
 import {post_right_map} from '@/common/constants.js';
 import {apiUrls, publish_post} from '@/services/api.ts';
 import {trimEmptyParagraph} from '@/common/utils.ts';
 import FacePicker from '@/components/FacePicker.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
+=======
+import {post_right_map} from "@/common/constants.js";
+import {apiUrls, publish_post} from "@/services/api.ts";
+import {trimEmptyParagraph} from "@/common/utils.ts";
+import FacePicker from "@/components/FacePicker.vue";
+import UserAvatar from "@/components/UserAvatar.vue";
+>>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
 
 const draftStore = storeToRefs(appStore.useDraftStore);
 const content = ref(''); // 内容
@@ -60,8 +68,15 @@ const dropdownOptions: DropdownProps['options'] = Object.entries(post_right_map)
 // 处理发布博客
 const handlePublish = () => {
   submitting.value = true;
+<<<<<<< HEAD
   // 判断是否有图片上传（fileList.value 在清空后可能为 undefined，做兜底）
   const images = (fileList.value ?? []).map((file?) => (file as any).response?.image_url).filter(Boolean) as string[];
+=======
+  // 判断是否有图片上传
+  const images = fileList.value
+      .map((file?) => (file as any).response?.rawUrl as string | undefined)
+      .filter(Boolean) as string[]
+>>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
 
   let post: IPost = {
     post_id: crypto.randomUUID(),
@@ -91,6 +106,7 @@ onMounted(() => {
   }
 });
 
+<<<<<<< HEAD
 watch(
   [content, fileList],
   () => {
@@ -112,6 +128,27 @@ watch(
   },
   {deep: true},
 );
+=======
+
+watch([content, fileList], () => {
+      window.setTimeout(() => {
+        // 空内容直接清空草稿
+        if (!content.value.trim()) {
+          appStore.useDraftStore.clearDraft();
+          return
+        }
+        // 提取已上传的图片链接
+        const images = fileList.value
+            .map((el: any) => el.response?.rawUrl as string | undefined)
+            .filter(Boolean)
+        // 更新草稿，插件会自动同步到本地存储
+        draftStore.post_draft.value = {text: content.value, images};
+
+      }, 800) // 800ms防抖，输入停顿才保存
+    },
+    {deep: true}
+)
+>>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
 
 // 保存光标位置
 const saveCursor = () => {
@@ -134,6 +171,17 @@ const onSelectFace = (face: string) => {
 const handleFail: UploadProps['onFail'] = ({file}) => {
   MessagePlugin.error(`文件 ${file.name} 上传失败`);
 };
+<<<<<<< HEAD
+=======
+
+const formatUploadResp = (resp: any) => {
+  const relativeUrl = resp.url // 后端返回的纯相对路径 /static/xxx
+  return {
+    url: apiUrls.static_links(relativeUrl), // 给t-upload预览用，开发环境带域名
+    rawUrl: relativeUrl // 保存原始相对路径，用于发布帖子存入数据库
+  }
+}
+>>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
 </script>
 
 <template>
@@ -232,6 +280,7 @@ const handleFail: UploadProps['onFail'] = ({file}) => {
       <t-divider />
       <!--          图片上传功能 TDesign t-upload -->
       <t-upload
+<<<<<<< HEAD
         ref="uploadRef3"
         :allow-upload-duplicate-file="true"
         v-model="fileList"
@@ -250,6 +299,27 @@ const handleFail: UploadProps['onFail'] = ({file}) => {
         multiple
         :max="9"
         @fail="handleFail"
+=======
+          ref="uploadRef3"
+          :allow-upload-duplicate-file="true"
+          v-model="fileList"
+          :action="apiUrls.upload_image_url()"
+          theme="image"
+          tips="最多只能上传9张图片"
+          v-show="is_open_upload_image"
+          accept="image/*"
+          :size-limit="sizeLimit"
+          :abridge-name="abridgeName"
+          :disabled="disabled"
+          :auto-upload="autoUpload"
+          :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
+          :upload-button="showUploadButton ? undefined : null"
+          :cancel-upload-button="showUploadButton ? { theme: 'default', content: '取消上传' } : null"
+          multiple
+          :max="9"
+          :format-response="formatUploadResp"
+          @fail="handleFail"
+>>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
       >
       </t-upload>
       <t-divider v-if="is_open_upload_image" />

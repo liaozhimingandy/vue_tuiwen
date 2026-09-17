@@ -88,9 +88,83 @@ watch(
   {deep: true},
 );
 
+<<<<<<< HEAD
 /**
  * 发布长文：校验非空后调用 publish_post 接口，并清理本地草稿
  */
+=======
+      // 4. 图片大小限制
+      maxSize: 5 * 1024 * 1024, // 5M
+
+      // 5. 上传成功后，后端返回格式必须如下：
+      // { errno: 0, data: { url: 'https://xxx.png' } }
+      // 如果后端格式不一样，用 customUpload 自己处理
+
+      // 6. 自定义上传（最常用，完全自己控制）
+      customUpload: async (file: any, insertFn: any) => {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        try {
+          const res = await axios.post(apiUrls.upload_image_url(), formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              Authorization: access_token
+            }
+          })
+
+          // 假设后端返回 { code:0, data: { url } }
+          const url = res.data.url
+          // 插入图片到编辑器
+          insertFn(url)
+        } catch (err) {
+          console.error('上传失败', err)
+        }
+      }
+    },
+    // 上传视频
+    uploadVideo: {
+      // 置空上传地址，阻断本地文件上传逻辑
+      server: '',
+      // 拦截所有本地文件上传
+      customUpload(file: any) {
+        logger.info(file.name)
+        MessagePlugin.warning('暂不支持上传本地视频，请粘贴视频链接')
+        return Promise.reject()
+      }
+    },
+  }
+
+}
+
+// 组件销毁时，也及时销毁编辑器
+onBeforeUnmount(() => {
+  const editor = editorRef.value
+  if (editor == null) return
+  editor.destroy()
+})
+
+const handleCreated = (editor: Editor) => {
+  editorRef.value = editor;
+
+  const draft = draftStore.post_draft.value;
+  if (draft) {
+    // 文本内容自动填充
+    content.value = draft.text;
+    // 草稿里的图片自动插入到编辑器
+
+  }
+}
+
+watch(content, () => {
+  if (content.value.trim()) {
+    let tmp_draft = draftStore.post_draft.value;
+    draftStore.post_draft.value = {...tmp_draft, text: content.value.trim()}
+  }
+}, {deep: true})
+
+// 处理发布博客
+>>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
 const onPublish = async () => {
   const editor = editorComp.value;
   // 骨架阶段就点发布：编辑器还没创建，此时读不到内容，给出提示而不是静默失败
