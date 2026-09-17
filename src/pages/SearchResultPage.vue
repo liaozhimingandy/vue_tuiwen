@@ -1,21 +1,31 @@
 <script setup lang="ts">
-import {onMounted, ref, watch, computed} from "vue";
+/**
+ * 搜索结果页（SearchResultPage）
+ *
+ * 路由路径：/search?q=关键词（路由命名 name: 'search'）
+ * 页面用途：根据地址栏 ?q 参数搜索用户账号，结果以列表无限加载展示。
+ * 数据来源：apiUrls.search_account(q)（分页参数 offset / limit）。
+ * 主要交互：
+ *   1. 监听 route.query.q 变化 → 重置并重新搜索；
+ *   2. 列表下拉到底部触发「加载更多」（offset 累加 limit）；
+ *   3. 当返回条数少于 limit 时判定无更多数据。
+ */
+import {onMounted, ref, watch, computed} from 'vue';
 import {useRoute} from 'vue-router';
 import type {ListProps} from 'tdesign-vue-next';
 import {MessagePlugin} from 'tdesign-vue-next';
 
-import Header from "@/components/Header.vue";
-import instance from "@/services";
-import {apiUrls} from "@/services/api.ts";
-import {getResourceUrl} from "@/common/utils.ts";
-import UserAvatar from "../components/UserAvatar.vue";
+import Header from '@/components/Header.vue';
+import instance from '@/services';
+import {apiUrls} from '@/services/api.ts';
+import UserAvatar from '../components/UserAvatar.vue';
 
-const route = useRoute()
+const route = useRoute();
 
 const initLoading = ref(false);
 const loading = ref(false);
 const items = ref<any[]>([]);
-const limit = 5; // 分页配置
+const limit = 5; // 单次分页拉取条数
 const offset = ref(0);
 const hasMore = ref(true); // 是否还有下一页
 
@@ -37,8 +47,8 @@ const doSearch = async (q: string, isLoadMore = false) => {
     const res: any = await instance.get(apiUrls.search_account(q), {
       params: {
         offset: offset.value,
-        limit
-      }
+        limit,
+      },
     });
     const list = res.data.items || [];
 
@@ -50,15 +60,14 @@ const doSearch = async (q: string, isLoadMore = false) => {
       items.value = [...list];
     }
 
-    // 判断是否还有数据
+    // 本页返回条数不足 limit，说明已是最后一页，关闭「加载更多」
     if (list.length < limit) {
       hasMore.value = false;
     }
-
   } catch (err) {
     if (!isLoadMore) {
       items.value = [];
-      await MessagePlugin.warning("未搜索到内容!");
+      await MessagePlugin.warning('未搜索到内容!');
     }
     hasMore.value = false;
   } finally {
@@ -70,7 +79,7 @@ const doSearch = async (q: string, isLoadMore = false) => {
 // 加载更多
 const onMore = async () => {
   if (loading.value || !hasMore.value) return;
-  const q = (route.query.q as string ?? '').trim();
+  const q = ((route.query.q as string) ?? '').trim();
   if (!q) return;
 
   offset.value += limit;
@@ -79,18 +88,18 @@ const onMore = async () => {
 
 // 监听搜索关键词变化 → 重新第一页搜索
 watch(
-    () => route.query.q,
-    (newQ) => {
-      const q = (newQ as string ?? '').trim();
-      if (q) {
-        doSearch(q);
-      } else {
-        items.value = [];
-        hasMore.value = false;
-      }
-    },
-    {immediate: true}
-)
+  () => route.query.q,
+  (newQ) => {
+    const q = ((newQ as string) ?? '').trim();
+    if (q) {
+      doSearch(q);
+    } else {
+      items.value = [];
+      hasMore.value = false;
+    }
+  },
+  {immediate: true},
+);
 
 const asyncLoading = computed<ListProps['asyncLoading']>(() => {
   if (loading.value) {
@@ -100,20 +109,20 @@ const asyncLoading = computed<ListProps['asyncLoading']>(() => {
     return 'load-more';
   }
   return '没有更多数据了';
-})
+});
 
 onMounted(async () => {
   if (loading.value || !hasMore.value) return;
-  const q = (route.query.q as string ?? '').trim();
+  const q = ((route.query.q as string) ?? '').trim();
   if (!q) return;
-  await doSearch(q)
-})
+  await doSearch(q);
+});
 </script>
 
 <template>
   <t-layout>
     <t-header>
-      <Header selected-keys="none"/>
+      <Header selected-keys="none" />
     </t-header>
     <t-content>
       <t-row justify="center">
@@ -122,19 +131,22 @@ onMounted(async () => {
             <t-list-item v-for="(item, index) in items" :key="index">
               <t-list-item-meta :title="`${item.nick_name}(${item.username})`" :description="item.bio">
                 <template #image>
-                  <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-                    <UserAvatar :avatar="item?.avatar" :nickname="item?.nick_name" style="width: 100%; height: 100%;"
-                    />
+                  <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center">
+                    <UserAvatar :avatar="item?.avatar" :nickname="item?.nick_name" style="width: 100%; height: 100%" />
                   </div>
                 </template>
               </t-list-item-meta>
               <template #action>
-                <t-link theme="primary" :href="`${apiUrls.share_account_link(item.account_id)}`" hover="color"
-                        style="margin-left: 16px">查看更多
+                <t-link
+                  theme="primary"
+                  :href="`${apiUrls.share_account_link(item.account_id)}`"
+                  hover="color"
+                  style="margin-left: 16px"
+                  >查看更多
                 </t-link>
               </template>
             </t-list-item>
-            <t-empty v-if="items.length == 0"/>
+            <t-empty v-if="items.length == 0" />
           </t-list>
         </t-col>
       </t-row>
@@ -143,5 +155,4 @@ onMounted(async () => {
   </t-layout>
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>

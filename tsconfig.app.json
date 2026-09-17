@@ -3,6 +3,16 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
 
+    /* 路径别名：必须与 vite.config.ts 中的 resolve.alias 保持一致，
+       否则 TypeScript 无法解析 "@/xxx" 导入，会退化为 any 并失去类型检查 */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    /* 目标库：基础配置为 ES2020，这里追加 ES2022 以支持 Array.prototype.at 等新 API */
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,

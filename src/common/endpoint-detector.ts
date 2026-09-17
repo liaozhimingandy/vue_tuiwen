@@ -4,7 +4,7 @@
  * 优先级：用户自定义(api) > 自动探测缓存 > 配置fallback > 环境变量 > 默认地址
  * 空值防护：全程杜绝空字符串作为最终地址
  */
-import { config } from "./config.ts";
+import {config} from './config.ts';
 
 const CUSTOM_URL_KEY = 'CUSTOM_API_BASE_URL';
 const CACHE_KEY_PREFIX = 'tw_endpoint_';
@@ -49,7 +49,7 @@ function getFallbackUrl(serviceName: string): string {
   const fallbackMap: Record<string, string> = {
     api: import.meta.env.VITE_APP_API_BASE_URL || 'https://api.tuiwen.alsoapp.com',
     file: 'https://file.tuiwen.alsoapp.com',
-    socket: 'wss://socket.tuiwen.alsoapp.com'
+    socket: 'wss://socket.tuiwen.alsoapp.com',
   };
   return fallbackMap[serviceName] || '';
 }
@@ -67,9 +67,9 @@ export function checkHealth(url: string, timeout: number): Promise<boolean> {
       method: 'GET',
       signal: controller.signal,
       mode: 'cors',
-      cache: 'no-store'
+      cache: 'no-store',
     })
-      .then(res => resolve(res.ok))
+      .then((res) => resolve(res.ok))
       .catch(() => resolve(false))
       .finally(() => clearTimeout(timer));
   });
@@ -78,7 +78,7 @@ export function checkHealth(url: string, timeout: number): Promise<boolean> {
 /** 加载远端节点配置文件 */
 async function loadConfig(): Promise<EndpointConfig | null> {
   try {
-    const res = await fetch(CONFIG_URL, { cache: 'no-store' });
+    const res = await fetch(CONFIG_URL, {cache: 'no-store'});
     return res.ok ? await res.json() : null;
   } catch {
     return null;
@@ -89,7 +89,7 @@ async function loadConfig(): Promise<EndpointConfig | null> {
  * 读取指定服务的探测缓存
  * 空地址、过期地址直接返回 null
  */
-function getCachedEndpoint(serviceName: string): { url: string; time: number } | null {
+function getCachedEndpoint(serviceName: string): {url: string; time: number} | null {
   try {
     const raw = localStorage.getItem(`${CACHE_KEY_PREFIX}${serviceName}`);
     if (!raw) return null;
@@ -113,10 +113,7 @@ function getCachedEndpoint(serviceName: string): { url: string; time: number } |
  */
 function setCachedEndpoint(serviceName: string, url: string) {
   if (!url || url.trim() === '') return;
-  localStorage.setItem(
-      `${CACHE_KEY_PREFIX}${serviceName}`,
-      JSON.stringify({url, time: Date.now()})
-  );
+  localStorage.setItem(`${CACHE_KEY_PREFIX}${serviceName}`, JSON.stringify({url, time: Date.now()}));
   // if(serviceName === 'api'){
   //   config.API_BASE_URL = url;
   // }
@@ -124,11 +121,7 @@ function setCachedEndpoint(serviceName: string, url: string) {
 /**
  * 对单个服务执行节点探测
  */
-async function detectService(
-  serviceName: string,
-  serviceConfig: ServiceConfig,
-  force = false
-): Promise<string> {
+async function detectService(serviceName: string, serviceConfig: ServiceConfig, force = false): Promise<string> {
   // 非强制模式：先检查缓存
   if (!force) {
     const cached = getCachedEndpoint(serviceName);
@@ -154,7 +147,7 @@ async function detectService(
 
   // 按优先级筛选节点
   const candidates = serviceConfig.endpoints
-    .filter(item => item.enabled && item.url && item.url.trim() !== '')
+    .filter((item) => item.enabled && item.url && item.url.trim() !== '')
     .sort((a, b) => a.priority - b.priority);
 
   const defaultHealth = serviceConfig.health_check;
@@ -246,11 +239,15 @@ export async function initEndpoints(force = false): Promise<Record<string, strin
   const result: Record<string, string> = {};
 
   // 开发环境：直接返回代理/默认地址，跳过探测
-  if (import.meta.env.VITE_APP_IS_DEBUG && !force) {
+  // 注意使用 config.isDebug（真正的布尔值）。
+  // 不可直接判断 import.meta.env.VITE_APP_IS_DEBUG：
+  // 环境变量是字符串，"False" 也是 truthy，会导致生产环境误入本分支。
+  if (config.isDebug && !force) {
     return {
       api: 'http://api.tuiwen.alsoapp.com',
       file: 'http://file.tuiwen.alsoapp.com',
-      socket: 'http://wss.tuiwen.alsoapp.com'
+      // 注意：socket 的基地址理论上应为 wss://，此处沿用历史值，改动需同步后端
+      socket: 'http://wss.tuiwen.alsoapp.com',
     };
   }
 
@@ -260,9 +257,10 @@ export async function initEndpoints(force = false): Promise<Record<string, strin
     result.api = customUrl;
   }
 
-  // 加载配置
-  const config = await loadConfig();
-  if (!config?.services) {
+  // 加载远端节点清单
+  // 注意：变量名不要用 config，否则会遮蔽从 ./config.ts 导入的全局配置
+  const endpointConfig = await loadConfig();
+  if (!endpointConfig?.services) {
     // 配置加载失败：全部走兜底
     for (const name of ['api', 'file', 'socket']) {
       if (!result[name]) {
@@ -273,8 +271,11 @@ export async function initEndpoints(force = false): Promise<Record<string, strin
   }
 
   // 遍历所有服务，逐个探测
-  for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
-    if(serviceName !== 'api') continue;
+  for (const [serviceName, serviceConfig] of Object.entries(endpointConfig.services)) {
+    // ⚠️ 现状：这里只探测 api，file / socket 直接跳过（等于关闭了这两个服务的节点探测），
+    // 因此下面的 getFileBaseUrl() / getSocketBaseUrl() 永远只会命中缓存或兜底值。
+    // 若需要恢复多服务探测，删除下面这行 continue 即可（注意会增加启动期请求数）。
+    if (serviceName !== 'api') continue;
     // api 已经用了自定义地址，跳过
     if (result[serviceName]) continue;
     result[serviceName] = await detectService(serviceName, serviceConfig, force);
@@ -289,9 +290,6 @@ export async function initEndpoints(force = false): Promise<Record<string, strin
 
   return result;
 }
-
-
-
 
 /**
  * 运行时触发重新探测（节点故障时调用）
@@ -317,13 +315,13 @@ export async function runtimeRedetectApi(): Promise<boolean> {
   isRuntimeDetecting = true;
   try {
     const oldUrl = getApiBaseUrl();
-    // 强制重新探测 api 服务
-    const config = await loadConfig();
-    if (!config?.services?.api) {
+    // 强制重新探测 api 服务（同样避免使用 config 作为局部变量名）
+    const endpointConfig = await loadConfig();
+    if (!endpointConfig?.services?.api) {
       return false;
     }
 
-    const newUrl = await detectService('api', config.services.api, true);
+    const newUrl = await detectService('api', endpointConfig.services.api, true);
     lastDetectTime = Date.now();
     return newUrl !== oldUrl;
   } catch {

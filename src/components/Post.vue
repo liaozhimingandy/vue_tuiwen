@@ -1,30 +1,37 @@
 <!--这是推文组件,用于展示一条推文（tdesign-vue-next 重构版）-->
 <script setup lang="ts">
 import {h, onMounted, ref, computed} from 'vue';
-import {storeToRefs} from "pinia";
-import {
-  DeleteIcon,
-  StopCircleIcon
-} from 'tdesign-icons-vue-next';
+import {storeToRefs} from 'pinia';
+import {DeleteIcon, StopCircleIcon} from 'tdesign-icons-vue-next';
 import dayjs from 'dayjs';
 import {MessagePlugin, DialogPlugin, type DropdownProps} from 'tdesign-vue-next';
-import {HeartIcon, LinkIcon, LogoTwitterIcon, ChatDoubleIcon, ShareIcon, MoreIcon} from 'tdesign-icons-vue-next';
+import {HeartIcon, LinkIcon, ChatDoubleIcon, ShareIcon, MoreIcon} from 'tdesign-icons-vue-next';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import {ShareNetwork} from 'vue-social-sharing'
-import type {IAccount, IComment, IPost} from "@/interface";
-import {getClampPreviewHtml, getResourceUrl, logger, timestampFormat} from "@/common/utils.ts";
+// 说明：原先这里 `import {ShareNetwork} from 'vue-social-sharing'`，但该包（4.0.0-alpha4）
+// 只导出 default（一个 Vue 插件），并没有具名导出 ShareNetwork，
+// 所以取到的是 undefined，模板里的 <ShareNetwork> 无法解析、微博分享按钮实际不生效。
+// 现已改为直接拼微博官方 share 链接（见 weiboShareUrl），同时省掉该依赖约 53KB。
+import type {IAccount, IComment, IPost} from '@/interface';
+import {
+  compareByTimeDesc,
+  getClampPreviewHtml,
+  getEntityTime,
+  getResourceUrl,
+  logger,
+  timestampFormat,
+} from '@/common/utils.ts';
 import instance from '../services/';
-import appStore from "../stores";
-import {apiUrls} from "@/services/api.ts";
-import UserAvatar from "@/components/UserAvatar.vue";
+import appStore from '../stores';
+import {apiUrls} from '@/services/api.ts';
+import UserAvatar from '@/components/UserAvatar.vue';
 import {Ticker} from '@tombcato/smart-ticker/vue';
 import '@tombcato/smart-ticker/style.css';
-import {copyLink, formatMessageToHtml, formatter} from "../common/utils.ts";
-import {config} from "../common/config.ts";
-import ImageGallery from "./ImageGallery/ImageGallery.vue";
-import RichTextCollapse from "./RichTextCollapse.vue";
-import {isSupportedSingleEmoji} from "../common/emoji.ts";
-import SingleEmoji from "./SingleEmoji.vue";
+import {copyLink, formatMessageToHtml, formatter} from '../common/utils.ts';
+import {config} from '../common/config.ts';
+import ImageGallery from './ImageGallery/ImageGallery.vue';
+import RichTextCollapse from './RichTextCollapse.vue';
+import {isSupportedSingleEmoji} from '../common/emoji.ts';
+import SingleEmoji from './SingleEmoji.vue';
 
 dayjs.extend(relativeTime);
 
@@ -42,8 +49,8 @@ const comment_data = ref<string>('');
 const user_map = ref<Record<string, IAccount>>({});
 const {account_map} = storeToRefs(appStore.useCacheStore);
 const isSingleEmoji = computed(() => {
-  return isSupportedSingleEmoji(props.post?.content.text)
-})
+  return isSupportedSingleEmoji(props.post?.content.text);
+});
 // 构造下拉菜单选项
 const dropdownOptions = computed<DropdownProps['options']>(() => {
   const opts: DropdownProps['options'] = [];
@@ -54,14 +61,14 @@ const dropdownOptions = computed<DropdownProps['options']>(() => {
       value: 0,
       content: '删除帖子',
       prefixIcon: () => h(DeleteIcon),
-      onClick: () => handleDropdownClick('0')
+      onClick: () => handleDropdownClick('0'),
     });
   } else {
     opts.push({
       value: 1,
       content: '举报反馈',
       prefixIcon: () => h(StopCircleIcon),
-      onClick: () => handleDropdownClick('1')
+      onClick: () => handleDropdownClick('1'),
     });
   }
   return opts;
@@ -72,11 +79,32 @@ const account = computed(() => {
     appStore.useCacheStore.fetch_account(props.post.account_id);
   }
   return account_map.value[props.post.account_id] ?? {};
-})
+});
+
+/**
+ * 微博分享链接
+ *
+ * 直接拼接微博官方 share 接口，替代 vue-social-sharing 组件。
+ * 该组件此前因具名导出不存在而失效，且会为单个分享按钮引入约 53KB 依赖。
+ *
+ * @returns 可直接作为 <a href> 的微博分享地址；缺少 post_id 时返回空串
+ */
+const weiboShareUrl = computed(() => {
+  const postId = props.post?.post_id;
+  if (!postId) return '';
+
+  const url = apiUrls.share_post_link(postId);
+  const text = props.post?.content?.text ?? '';
+  const params = new URLSearchParams({
+    url,
+    // 微博 share 接口只用 title 一个参数承载文案
+    title: `来自${account.value.nick_name ?? ''}的分享 - ${text}`,
+  });
+  return `https://service.weibo.com/share/share.php?${params.toString()}`;
+});
 const follow = computed(() => {
   return account_map.value[props.post.account_id]?.follow ?? {};
-})
-
+});
 
 const handleFollow = () => appStore.useCacheStore.toggleFollow(account_id, props.post.account_id);
 
@@ -86,19 +114,19 @@ const handleLike = (post_id: string) => {
     let data = {
       obj_id: post_id,
       obj_type: 1,
-      account_id: account_id
-    }
+      account_id: account_id,
+    };
     instance.post(apiUrls.post_likes(), {...data}).then(() => {
-      MessagePlugin.success("点赞成功");
+      MessagePlugin.success('点赞成功');
       like.value.count += 1;
       like.value.is_liked = !like.value.is_liked;
     });
   } else {
     instance.delete(apiUrls.delete_likes(props.post.post_id)).then(() => {
-      MessagePlugin.success("取消点赞成功");
+      MessagePlugin.success('取消点赞成功');
       like.value.count -= 1;
       like.value.is_liked = !like.value.is_liked;
-    })
+    });
   }
 };
 
@@ -112,18 +140,22 @@ const handleSubmit = () => {
     content: comment_data.value.trim(),
     obj_id: props.post.post_id,
     obj_type: 1,
-    account_id: account_id
-  }
-  instance.post(apiUrls.post_comments(), {...data}).then((r: any) => {
-    MessagePlugin.success("评论成功!");
-    comment_data.value = '';
-    let els = comments.value.concat(r.data);
-    let map = new Map();
-    els.forEach((el) => map.set(el.comment_id, el));
-    comments.value = Array.from(map.values());
-    comments.value = comments.value.sort((a, b) => new Date(b.create_at).getTime() - new Date(a.create_at).getTime());
-  }).finally(() => submitting.value = false);
-}
+    account_id: account_id,
+  };
+  instance
+    .post(apiUrls.post_comments(), {...data})
+    .then((r: any) => {
+      MessagePlugin.success('评论成功!');
+      comment_data.value = '';
+      let els = comments.value.concat(r.data);
+      let map = new Map();
+      els.forEach((el) => map.set(el.comment_id, el));
+      comments.value = Array.from(map.values());
+      // 统一按创建时间倒序（字段名用 getEntityTime 兼容 create_at / gmt_created）
+      comments.value = comments.value.sort(compareByTimeDesc);
+    })
+    .finally(() => (submitting.value = false));
+};
 
 // 加载评论
 const handleComment = async () => {
@@ -133,34 +165,39 @@ const handleComment = async () => {
     let map = new Map();
     items.forEach((item: any) => map.set(item.comment_id, item));
     comments.value = Array.from(map.values());
-    comments.value = comments.value.sort((a, b) => new Date(b.create_at).getTime() - new Date(a.create_at).getTime());
+    // 统一按创建时间倒序（字段名用 getEntityTime 兼容 create_at / gmt_created）
+    comments.value = comments.value.sort(compareByTimeDesc);
 
-    const accountIds = Array.from(new Set(comments.value.map(a => a.account_id)));
-    await Promise.all(accountIds.map(async id => {
-      if (user_map.value[id]) return;
-      instance.get(apiUrls.get_account(id)).then((r: IAccount) => user_map.value[id] = r.data);
-    }))
+    const accountIds = Array.from(new Set(comments.value.map((a) => a.account_id)));
+    await Promise.all(
+      accountIds.map(async (id) => {
+        if (user_map.value[id]) return;
+        // 注意：回调参数是 AxiosResponse，用户数据在 r.data
+        instance.get(apiUrls.get_account(id)).then((r) => (user_map.value[id] = r.data));
+      }),
+    );
   });
-}
+};
 // 下拉菜单点击事件
 const handleDropdownClick = (value: string) => {
   switch (value) {
     case '0':
       // 删除帖子 confirm
       const diaglog = DialogPlugin.confirm({
-        theme: "warning",
+        theme: 'warning',
         header: '你确定要执行这个操作吗？',
         body: '删除此帖子后,不可恢复!',
         confirmBtn: '确定',
         cancelBtn: '取消',
         onConfirm: () => {
-          instance.delete(apiUrls.delete_posts(props.post.post_id))
-              .then(() => {
-                MessagePlugin.success(`删除成功`);
-                appStore.usePostStore.delete_post(props.post.post_id);
-                diaglog.destroy();
-              })
-              .catch((e: any) => MessagePlugin.error(`删除失败${e}`))
+          instance
+            .delete(apiUrls.delete_posts(props.post.post_id))
+            .then(() => {
+              MessagePlugin.success(`删除成功`);
+              appStore.usePostStore.delete_post(props.post.post_id);
+              diaglog.destroy();
+            })
+            .catch((e: any) => MessagePlugin.error(`删除失败${e}`));
         },
         onCancel: () => {
           logger.log('用户取消了');
@@ -174,14 +211,14 @@ const handleDropdownClick = (value: string) => {
       feedbackDialogRef.value?.open();
       break;
     default:
-      break
+      break;
   }
 };
 
 onMounted(async () => {
   await appStore.useCacheStore.fetch_account(props.post.account_id);
-  instance.get(apiUrls.get_likes(props.post.post_id)).then((r: any) => like.value = r.data);
-})
+  instance.get(apiUrls.get_likes(props.post.post_id)).then((r: any) => (like.value = r.data));
+});
 
 // 帖子展开或收起
 //const expanded = ref<boolean>(false);
@@ -190,66 +227,70 @@ onMounted(async () => {
 </script>
 
 <template>
-  <t-watermark :watermark-content="{ text: post.right_status === 0 ? '仅你自己可见' : '' }"
-               :y="120"
-               :x="80"
-               :width="120"
-               :height="60"
+  <t-watermark
+    :watermark-content="{text: post.right_status === 0 ? '仅你自己可见' : ''}"
+    :y="120"
+    :x="80"
+    :width="120"
+    :height="60"
   >
     <t-card size="small" style="text-align: left">
       <!-- 用户头部信息 -->
       <template #header>
         <div
-            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; width: 100%;">
+          style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; width: 100%"
+        >
           <t-space>
             <t-popup trigger="hover" show-arrow placement="bottom-left">
               <template #content>
                 <t-space direction="vertical" style="width: 300px">
-                  <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name"/>
-                  <t-typography-text style="margin: 0;">{{ account?.nick_name || post.account_id }}</t-typography-text>
-                  <t-typography-text style="margin: 0;">正在关注: {{ follow.followee_count }} | 粉丝数:
+                  <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name" />
+                  <t-typography-text style="margin: 0">{{ account?.nick_name || post.account_id }}</t-typography-text>
+                  <t-typography-text style="margin: 0"
+                    >正在关注: {{ follow.followee_count }} | 粉丝数:
                     {{ follow.follower_count }}
                   </t-typography-text>
-                  <t-divider/>
-                  <t-space justify="space-between" style="width:100%">
+                  <t-divider />
+                  <t-space justify="space-between" style="width: 100%">
                     <t-button
-                        v-if="account_id !== post.account_id"
-                        theme="primary"
-                        :danger="follow?.is_following"
-                        @click="handleFollow"
+                      v-if="account_id !== post.account_id"
+                      theme="primary"
+                      :danger="follow?.is_following"
+                      @click="handleFollow"
                     >
                       {{ follow?.is_following ? '取消关注' : '加关注' }}
                     </t-button>
-                    <router-link :to="{ name: 'user', params: { username: post.account_id } }">
+                    <router-link :to="{name: 'user', params: {username: post.account_id}}">
                       <t-button theme="primary">个人资料</t-button>
                     </router-link>
                   </t-space>
                 </t-space>
               </template>
-              <router-link :to="{ name: 'user', params: { username: post.account_id } }">
-                <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name"/>
+              <router-link :to="{name: 'user', params: {username: post.account_id}}">
+                <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name" />
               </router-link>
             </t-popup>
             <div>
-              <t-typography-text style="margin: 0;"><b>{{ account?.nick_name || post.account_id }}</b>
+              <t-typography-text style="margin: 0"
+                ><b>{{ account?.nick_name || post.account_id }}</b>
               </t-typography-text>
-              <br/>
-              <span style="color: #888;">发布于{{ timestampFormat(post.create_at) }}</span>
+              <br />
+              <span style="color: #888">发布于{{ timestampFormat(getEntityTime(post)) }}</span>
             </div>
           </t-space>
           <t-space direction="horizontal">
             <t-button
-                v-if="post.account_id !== account_id"
-                theme="primary"
-                @click="handleFollow"
-                :danger="follow?.is_following"
+              v-if="post.account_id !== account_id"
+              theme="primary"
+              @click="handleFollow"
+              :danger="follow?.is_following"
             >
               {{ follow?.is_following ? '取消关注' : '加关注' }}
             </t-button>
             <t-dropdown :options="dropdownOptions">
               <t-button variant="text">
                 <template #icon>
-                  <more-icon/>
+                  <more-icon />
                 </template>
               </t-button>
             </t-dropdown>
@@ -259,17 +300,27 @@ onMounted(async () => {
       <!-- 推文正文内容 -->
 
       <template #cover>
-        <t-space direction="vertical" :size="6" style="width: 100%;">
+        <t-space direction="vertical" :size="6" style="width: 100%">
           <!--                    <TextCollapse>-->
           <!--                      <div v-html="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"></div>-->
           <!--                    </TextCollapse>-->
 
           <div style="margin: 0 16px; width: 100%">
-            <SingleEmoji v-if="isSingleEmoji" :content="post.content.text"
-              :continue-after-shrink="true" :size="32" :animation-size="100"/>
-            <RichTextCollapse v-else mode="auto" :lines="2" :content="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"/>
+            <SingleEmoji
+              v-if="isSingleEmoji"
+              :content="post.content.text"
+              :continue-after-shrink="true"
+              :size="32"
+              :animation-size="100"
+            />
+            <RichTextCollapse
+              v-else
+              mode="auto"
+              :lines="2"
+              :content="getClampPreviewHtml(formatMessageToHtml(post.content.text), config.CDN_BASE_URL)"
+            />
           </div>
-          <ImageGallery :image-list="props.post.content.images"/>
+          <ImageGallery :image-list="props.post.content.images" />
 
           <!--          <RichLineClamp v-model:expanded="expanded"-->
           <!--                         :html="html"-->
@@ -287,7 +338,6 @@ onMounted(async () => {
           <!--              :two-col-max-width="200"-->
           <!--              :three-col-max-width="360"-->
           <!--          />-->
-
         </t-space>
       </template>
       <!-- 底部操作栏：分享 / 评论 / 点赞 -->
@@ -296,116 +346,105 @@ onMounted(async () => {
           <t-col flex="auto" style="display: inline-flex; justify-content: center">
             <t-popup show-arrow>
               <template #content>
-                <div style="text-align:center;padding:8px">
+                <div style="text-align: center; padding: 8px">
                   <t-qrcode
-                      :value="`${apiUrls.share_post_link(post?.post_id)}`"
-                      level="H"
-                      type="svg"
-                      style="margin: 0 auto;"
+                    :value="`${apiUrls.share_post_link(post?.post_id)}`"
+                    level="H"
+                    type="svg"
+                    style="margin: 0 auto"
                   />
-                  <t-space style="margin-top:12px">
-                    <t-button theme="primary"
-                              @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`, MessagePlugin)">
+                  <t-space style="margin-top: 12px">
+                    <t-button
+                      theme="primary"
+                      @click="copyLink(`${apiUrls.share_post_link(post?.post_id)}`, MessagePlugin)"
+                    >
                       <template #icon>
-                        <link-icon/>
+                        <link-icon />
                       </template>
                       复制链接
                     </t-button>
                     <t-button theme="primary">
                       <template #icon>
-                        <logo-twitter-icon/>
+                        <share-icon />
                       </template>
-                      <ShareNetwork
-                          network="Weibo"
-                          :url="`${apiUrls.share_post_link(post?.post_id)}`"
-                          :title="`来自${account?.nick_name}的分享`"
-                          :description="post.content.text"
-                          quote="-"
-                          hashtags="-"
-                      >
-                        微博
-                      </ShareNetwork>
+                      <!--
+                        微博分享：用官方 share 接口的普通链接实现。
+                        原实现用 <ShareNetwork network="Weibo">，但该组件取到的是 undefined（见脚本顶部说明），
+                        按钮实际不可点击；这里改为原生 <a>，行为等价且零依赖。
+                      -->
+                      <a class="share-weibo" :href="weiboShareUrl" target="_blank" rel="noopener noreferrer"> 微博 </a>
                     </t-button>
                   </t-space>
                 </div>
               </template>
-              <t-button variant="text" @click="select_item === 'share'? '' : 'share'">
+              <t-button variant="text" @click="select_item === 'share' ? '' : 'share'">
                 <template #icon>
-                  <share-icon/>
+                  <share-icon />
                 </template>
                 分享
               </t-button>
             </t-popup>
           </t-col>
           <t-col flex="auto" style="display: inline-flex; justify-content: center">
-            <t-button
-                :variant="select_item === 'comment' ? 'base' : 'text'"
-                @click="handleComment"
-            >
+            <t-button :variant="select_item === 'comment' ? 'base' : 'text'" @click="handleComment">
               <template #icon>
-                <chat-double-icon/>
+                <chat-double-icon />
               </template>
               评论
             </t-button>
           </t-col>
           <t-col flex="auto" style="with: auto">
-            <t-button variant="text" style="width: auto;" @click="handleLike(post.post_id)">
+            <t-button variant="text" style="width: auto" @click="handleLike(post.post_id)">
               <template #icon>
                 <heart-icon
-                    :fill-color="like?.is_liked ? ['red','red'] : ['transparent','transparent']"
-                    :stroke-color="like?.is_liked ? ['red','red'] : ['currentColor','currentColor']"
-                    :stroke-width="2"
+                  :fill-color="like?.is_liked ? ['red', 'red'] : ['transparent', 'transparent']"
+                  :stroke-color="like?.is_liked ? ['red', 'red'] : ['currentColor', 'currentColor']"
+                  :stroke-width="2"
                 />
               </template>
-              <div style="display: inline-flex; align-items: center; gap: 4px;">
+              <div style="display: inline-flex; align-items: center; gap: 4px">
                 <span>赞</span>
                 <Ticker
-                    v-if="like?.count > 0"
-                    :value="like?.count"
-                    :duration="800"
-                    easing="linear"
-                    direction="ANY"
-                    prefix="("
-                    suffix=")"
-                    :number-format="formatter"
+                  v-if="like?.count > 0"
+                  :value="like?.count"
+                  :duration="800"
+                  easing="linear"
+                  direction="ANY"
+                  prefix="("
+                  suffix=")"
+                  :number-format="formatter"
                 />
               </div>
             </t-button>
-
           </t-col>
         </t-row>
 
         <!-- 评论输入区域 -->
         <t-divider v-if="select_item === 'comment'"></t-divider>
-        <t-comment v-if="select_item === 'comment'"
-                   :avatar="getResourceUrl(appStore.useAccountStore.account?.avatar)">
+        <t-comment v-if="select_item === 'comment'" :avatar="getResourceUrl(appStore.useAccountStore.account?.avatar)">
           <template #content>
             <div class="form-container">
-              <t-textarea v-model="comment_data" placeholder="请输入内容"/>
+              <t-textarea v-model="comment_data" placeholder="请输入内容" />
               <t-button class="form-submit" @click="handleSubmit">回复</t-button>
             </div>
           </template>
         </t-comment>
 
         <!-- 评论列表 -->
-        <t-list
-            v-if="select_item === 'c'"
-            :header="`${comments.length} 条评论`"
-            :split="true"
-        >
+        <t-list v-if="select_item === 'c'" :header="`${comments.length} 条评论`" :split="true">
           <t-list-item v-for="(item, index) in comments" :key="index">
             <t-comment
-                :author="user_map[item.account_id]?.nick_name"
-                :avatar="getResourceUrl(user_map[item.account_id]?.avatar)"
-                :content="item.content"
-                :datetime="timestampFormat(item.gmt_created)"
+              :author="user_map[item.account_id]?.nick_name"
+              :avatar="getResourceUrl(user_map[item.account_id]?.avatar)"
+              :content="item.content"
+              :datetime="timestampFormat(getEntityTime(item))"
             />
           </t-list-item>
         </t-list>
       </template>
     </t-card>
   </t-watermark>
-  <FeedbackDialog ref="feedbackDialogRef"/>
+  <FeedbackDialog ref="feedbackDialogRef" />
 </template>
 
 <style scoped>
@@ -433,5 +472,11 @@ onMounted(async () => {
 
 :deep(.rich-content-wrapper p) {
   margin: 0.6em 0;
+}
+
+/* 微博分享链接：继承按钮文字颜色、去掉默认下划线，保持按钮外观一致 */
+.share-weibo {
+  color: inherit;
+  text-decoration: none;
 }
 </style>

@@ -1,31 +1,45 @@
 <script setup lang="ts">
+/**
+ * 密码重置页（ResetPasswordPage）
+ *
+ * 路由路径：/reset-password（路由命名 name: 'reset-password'）
+ * 页面用途：已注册用户通过「邮箱 + 验证码」找回/重置密码，分三步引导。
+ * 数据来源：
+ *   - 发送验证码 apiUrls.send_code()（scene=reset_pwd）；
+ *   - 重置密码 apiUrls.reset_password()。
+ * 主要交互：
+ *   1. 步骤1 填写邮箱 → 发送验证码；
+ *   2. 步骤2 输入 6 位验证码 + 新密码 → 提交重置；
+ *   3. 步骤3 完成，可返回首页。
+ * 步骤由 current(0/1/2) 控制表单显隐。
+ */
 import {computed, ref, unref} from 'vue';
-import instance from '@/services'
-import {apiUrls} from "@/services/api.ts";
-import router from "@/router";
-import {md5} from "js-md5";
+import instance from '@/services';
+import {apiUrls} from '@/services/api.ts';
+import router from '@/router';
+import {md5} from 'js-md5';
 import type {FormProps, AutoCompleteProps} from 'tdesign-vue-next';
-import {MessagePlugin} from 'tdesign-vue-next'
-import {config} from "@/common/config.ts";
-import {isMobileDevice} from "../common/device.ts";
+import {MessagePlugin} from 'tdesign-vue-next';
+import {config} from '@/common/config.ts';
+import {isMobileDevice} from '../common/device.ts';
 
 const current = ref<number>(0);
 
-// 表单实例与数据
+// 表单实例与数据（步骤1 邮箱表单 / 步骤2 验证码+密码表单）
 const formRef1 = ref();
 const formRef2 = ref();
 
 const formData1 = ref({
-  mail: ''
-})
+  mail: '',
+});
 const formData2 = ref({
-  code: "",
-  password: ""
-})
+  code: '',
+  password: '',
+});
 
 // 防重复提交
-const sending = ref(false)
-const resetting = ref(false)
+const sending = ref(false);
+const resetting = ref(false);
 
 /**
  * 发送验证码
@@ -37,23 +51,25 @@ const handleSendCode: FormProps['onSubmit'] = async ({validateResult, firstError
   }
 
   const form = unref(formData1);
-  if (!form.mail) return
+  if (!form.mail) return;
 
-  sending.value = true
+  sending.value = true;
   const data = {
-    "channel": "mail",
-    "account": form.mail,
-    "scene": "reset_pwd",
+    channel: 'mail',
+    account: form.mail,
+    // 验证码业务场景：密码重置（后端据此发送对应模板的邮件）
+    scene: 'reset_pwd',
   };
   try {
-    const res = await instance.post(apiUrls.send_code(), data)
-    await MessagePlugin.success(res.data.message)
-    current.value = 1
+    const res = await instance.post(apiUrls.send_code(), data);
+    await MessagePlugin.success(res.data.message);
+    // 进入步骤2：填写验证码与新密码
+    current.value = 1;
   } catch (err: any) {
-    const msg = err?.response?.data?.detail || '发送验证码失败'
-    await MessagePlugin.error(msg)
+    const msg = err?.response?.data?.detail || '发送验证码失败';
+    await MessagePlugin.error(msg);
   } finally {
-    sending.value = false
+    sending.value = false;
   }
 };
 
@@ -71,29 +87,30 @@ const handleResetPassword: FormProps['onSubmit'] = async ({validateResult, first
   resetting.value = true;
   try {
     const params = {
+      // 后端以邮箱作为账号标识（username 即注册邮箱）
       username: mail,
       code,
       password: md5(password),
-    }
+    };
 
-    const res = await instance.put(apiUrls.reset_password(), params)
-    await MessagePlugin.success(res.data.message)
-    goLogin()
-    current.value = 2
+    const res = await instance.put(apiUrls.reset_password(), params);
+    await MessagePlugin.success(res.data.message);
+    goLogin();
+    current.value = 2;
   } catch (err: any) {
-    const msg = err?.response?.data?.detail || '重置密码失败'
-    await MessagePlugin.error(msg)
+    const msg = err?.response?.data?.detail || '重置密码失败';
+    await MessagePlugin.error(msg);
   } finally {
-    resetting.value = false
+    resetting.value = false;
   }
-}
+};
 
 /**
  * 去登录页
  */
 const goLogin = () => {
-  router.push({name: 'login'})
-}
+  router.push({name: 'login'});
+};
 
 /**
  * 邮箱自动填入
@@ -106,7 +123,7 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
 </script>
 
 <template>
-  <t-layout style="min-height: 100vh; background-color: white;">
+  <t-layout style="min-height: 100vh; background-color: white">
     <t-content>
       <t-row justify="center">
         <t-col :span="6">
@@ -132,21 +149,24 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
               </t-step-item>
             </t-steps>
             <t-form
-                ref="formRef1"
-                :data="formData1"
-                @submit="handleSendCode"
-                v-show="current === 0"
-                style="margin-top: 20px;"
+              ref="formRef1"
+              :data="formData1"
+              @submit="handleSendCode"
+              v-show="current === 0"
+              style="margin-top: 20px"
             >
               <t-form-item
-                  label="电子邮箱"
-                  name="mail"
-                  :rules="[{required: true, message: '请输入电子邮箱', trigger: 'blur' },{mail: {ignore_max_length: true,}}]"
+                label="电子邮箱"
+                name="mail"
+                :rules="[
+                  {required: true, message: '请输入电子邮箱', trigger: 'blur'},
+                  {mail: {ignore_max_length: true}},
+                ]"
               >
                 <t-auto-complete
-                    v-model:value="formData1.mail"
-                    placeholder="注册时填写的电子邮箱"
-                    :options="emailOptions"
+                  v-model:value="formData1.mail"
+                  placeholder="注册时填写的电子邮箱"
+                  :options="emailOptions"
                 />
               </t-form-item>
               <t-form-item>
@@ -155,41 +175,43 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
             </t-form>
             <!-- 步骤2：输入验证码 + 新密码 -->
             <t-form
-                ref="formRef2"
-                :data="formData2"
-                @submit="handleResetPassword"
-                layout="vertical"
-                v-show="current === 1"
+              ref="formRef2"
+              :data="formData2"
+              @submit="handleResetPassword"
+              layout="vertical"
+              v-show="current === 1"
             >
               <t-form-item
-                  label="新密码"
-                  name="password"
-                  :rules="[{ required: true, message: '请输入新密码', trigger: 'blur' },]">
+                label="新密码"
+                name="password"
+                :rules="[{required: true, message: '请输入新密码', trigger: 'blur'}]"
+              >
                 <t-input
-                    v-model:value="formData2.password"
-                    placeholder="请输入新密码"
-                    type="password"
-                    maxlength="10"
-                    autocomplete="password"
-                    show-limit-number
+                  v-model:value="formData2.password"
+                  placeholder="请输入新密码"
+                  type="password"
+                  maxlength="10"
+                  autocomplete="password"
+                  show-limit-number
                 />
               </t-form-item>
               <t-form-item
-                  label="验证码"
-                  name="code"
-                  :rules="[
-              { required: true, message: '请输入验证码', trigger: 'blur' },
-              {
-      validator: (val: string) => /^\d{6}$/.test(val),
-      message: '验证码必须为6位纯数字',
-      trigger: ['blur', 'change']
-    },
-    ]">
+                label="验证码"
+                name="code"
+                :rules="[
+                  {required: true, message: '请输入验证码', trigger: 'blur'},
+                  {
+                    validator: (val: string) => /^\d{6}$/.test(val),
+                    message: '验证码必须为6位纯数字',
+                    trigger: ['blur', 'change'],
+                  },
+                ]"
+              >
                 <t-input
-                    v-model:value="formData2.code"
-                    placeholder="请输入6位数字验证码"
-                    show-limit-number
-                    maxlength="6"
+                  v-model:value="formData2.code"
+                  placeholder="请输入6位数字验证码"
+                  show-limit-number
+                  maxlength="6"
                 />
               </t-form-item>
               <t-form-item>
@@ -197,9 +219,9 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
               </t-form-item>
             </t-form>
 
-            <div v-show="current === 2" style="width: 100%;text-align: center;">
+            <div v-show="current === 2" style="width: 100%; text-align: center">
               <t-space align="center" size="large">
-                <t-link href="/" content="返回首页" theme="primary" size="large"/>
+                <t-link href="/" content="返回首页" theme="primary" size="large" />
               </t-space>
             </div>
           </t-space>
@@ -207,9 +229,6 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
       </t-row>
     </t-content>
   </t-layout>
-
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

@@ -1,32 +1,32 @@
+<!--
+  ImageGallery - 图文流图片九宫格 / 单图画廊组件
+
+  用途：接收 imageList（兼容字符串数组或对象数组），最多展示 maxCount 张，超出显示 +N 遮罩；
+        多图由 LayoutEngine 计算 Grid 布局，单图退化为流式自适应；点击触发预览（t-image-viewer）。
+  职责边界：只负责一组图片的布局、懒加载与预览，不含上传/编辑。
+  Props 语义：
+  - imageList：原始图片数据；maxCount：展示上限（内部再夹取到 1~5）；
+    gap/borderRadius：视觉间距与圆角；maxHeight：多图网格最大高度；
+    previewable：是否可预览；fallback/placeholderImg：加载兜底图；rootMargin：IntersectionObserver 提前加载距离。
+  Emits：click(index, image, images) —— 点击图片时抛出，便于埋点/自定义行为。
+  注意：
+  - 图片真实尺寸优先用后端返回的 width/height，缺失时由前端 load 事件补全（存于 dimensions）。
+  - 单图场景（is-single）不使用 Grid 布局，由 CSS 控制最大高度与 contain 适配。
+-->
 <script setup lang="ts">
-import {
-  computed,
-  reactive,
-  ref,
-} from 'vue'
+import {computed, reactive, ref} from 'vue';
 
-import {
-  apiUrls,
-} from '@/services/api'
+import {apiUrls} from '@/services/api';
 
-import LogoPlaceHolder from '@/assets/icons/logo‑placeholder.svg';
+import LogoPlaceHolder from '@/assets/icons/logo-placeholder.svg';
 
-import {
-  getGalleryLayout,
-} from './LayoutEngine'
+import {getGalleryLayout} from './LayoutEngine';
 
-import {
-  useIntersection,
-} from './useIntersection'
+import {useIntersection} from './useIntersection';
 
-import {
-  useGalleryResize,
-} from './useGalleryResize'
+import {useGalleryResize} from './useGalleryResize';
 
-import type {
-  ImageSource,
-  NormalizedImage,
-} from './types'
+import type {ImageSource, NormalizedImage} from './types';
 
 /* ========================================
  * Props
@@ -36,80 +36,70 @@ interface Props {
   /**
    * 图片列表
    */
-  imageList: ImageSource[]
+  imageList: ImageSource[];
   /**
    * 最大展示数量
    */
-  maxCount?: number
+  maxCount?: number;
   /**
    * 图片间距
    */
-  gap?: number
+  gap?: number;
   /**
    * 圆角
    */
-  borderRadius?: number
+  borderRadius?: number;
   /**
    * 最大展示高度
    */
-  maxHeight?: number
+  maxHeight?: number;
   /**
    * 是否允许预览
    */
-  previewable?: boolean
+  previewable?: boolean;
   /**
    * 图片加载失败兜底
    */
-  fallback?: string
+  fallback?: string;
   /**
    * 加载占位
    */
-  placeholderImg?: string
+  placeholderImg?: string;
 
   /**
    * IntersectionObserver 提前加载距离
    */
-  rootMargin?: string
+  rootMargin?: string;
 }
 
-const props = withDefaults(
-  defineProps<Props>(),
-  {
-    maxCount: 5,
-    gap: 3,
-    borderRadius: 8,
-    maxHeight: 560,
-    previewable: true,
-    fallback: LogoPlaceHolder,
-    placeholderImg: LogoPlaceHolder,
-    rootMargin: '500px 0px',
-  },
-)
+const props = withDefaults(defineProps<Props>(), {
+  maxCount: 5,
+  gap: 3,
+  borderRadius: 8,
+  maxHeight: 560,
+  previewable: true,
+  fallback: LogoPlaceHolder,
+  placeholderImg: LogoPlaceHolder,
+  rootMargin: '500px 0px',
+});
 
 /* ========================================
  * Emits
  * ======================================== */
 
 const emit = defineEmits<{
-  click: [
-    index: number,
-    image: ImageSource,
-    images: ImageSource[],
-  ]
-}>()
+  click: [index: number, image: ImageSource, images: ImageSource[]];
+}>();
 
 /* ========================================
  * Refs
  * ======================================== */
 
-const galleryRef =
-  ref<HTMLElement | null>(null)
+const galleryRef = ref<HTMLElement | null>(null);
 
-const viewerVisible =
-  ref(false)
+const viewerVisible = ref(false);
 
-const viewerIndex =
-  ref(0)
+const viewerIndex = ref(0);
 
 /**
  * 图片真实尺寸
@@ -120,35 +110,25 @@ const dimensions = reactive(
   new Map<
     string,
     {
-      width: number
-      height: number
+      width: number;
+      height: number;
     }
   >(),
-)
+);
 
 /* ========================================
  * Intersection
  * ======================================== */
 
-const {
-  activated,
-} = useIntersection(
-  galleryRef,
-  {
-    rootMargin:
-      props.rootMargin,
-  },
-)
+const {activated} = useIntersection(galleryRef, {
+  rootMargin: props.rootMargin,
+});
 
 /* ========================================
  * Resize
  * ======================================== */
 
-const {
-  width: galleryWidth,
-} = useGalleryResize(
-  galleryRef,
-)
+const {width: galleryWidth} = useGalleryResize(galleryRef);
 
 /* ========================================
  * Images
@@ -156,258 +136,180 @@ const {
 
 const safeImages = computed(() => {
   if (!Array.isArray(props.imageList)) {
-    return []
+    return [];
   }
 
-  return props.imageList.filter(Boolean)
-})
+  return props.imageList.filter(Boolean);
+});
 
 const displayImages = computed(() => {
-  const maxCount =
-    Math.max(
-      1,
-      Math.min(
-        props.maxCount,
-        5,
-      ),
-    )
+  // 展示上限夹取到 1~5：布局引擎只实现了 2~5 张的九宫格，单图走 is-single 单列；
+  // 上限 5 与 LayoutEngine 的 layoutFive 分支对应，超出部分用 +N 遮罩提示
+  const maxCount = Math.max(1, Math.min(props.maxCount, 5));
 
-  return safeImages.value.slice(
-    0,
-    maxCount,
-  )
-})
+  return safeImages.value.slice(0, maxCount);
+});
 
 const remainCount = computed(() => {
-  return Math.max(
-    safeImages.value.length -
-      displayImages.value.length,
-    0,
-  )
-})
+  return Math.max(safeImages.value.length - displayImages.value.length, 0);
+});
 
 /* ========================================
  * URL
  * ======================================== */
 
-function getFullSrc(
-  path?: string,
-) {
+function getFullSrc(path?: string) {
   if (!path) {
-    return ''
+    return '';
   }
 
   try {
-    return apiUrls.static_links(path)
+    return apiUrls.static_links(path);
   } catch {
-    return path
+    return path;
   }
 }
 
-function getThumbnail(
-  image: ImageSource,
-) {
-  if (
-    typeof image === 'string'
-  ) {
-    return getFullSrc(image)
+function getThumbnail(image: ImageSource) {
+  if (typeof image === 'string') {
+    return getFullSrc(image);
   }
 
-  return getFullSrc(
-    image.thumbnail ||
-      image.url,
-  )
+  return getFullSrc(image.thumbnail || image.url);
 }
 
-function getOriginal(
-  image: ImageSource,
-) {
-  if (
-    typeof image === 'string'
-  ) {
-    return getFullSrc(image)
+function getOriginal(image: ImageSource) {
+  if (typeof image === 'string') {
+    return getFullSrc(image);
   }
 
-  return getFullSrc(
-    image.url,
-  )
+  return getFullSrc(image.url);
 }
 
 /* ========================================
  * Normalized Images
  * ======================================== */
 
-const normalizedImages = computed<
-  NormalizedImage[]
->(() => {
-  return displayImages.value.map(
-    (image, index) => {
-      let width: number | undefined
-      let height: number | undefined
+const normalizedImages = computed<NormalizedImage[]>(() => {
+  return displayImages.value.map((image, index) => {
+    let width: number | undefined;
+    let height: number | undefined;
 
-      const thumbnail =
-        getThumbnail(image)
+    const thumbnail = getThumbnail(image);
 
-      /*
-       * 1. 后端尺寸
-       */
+    /*
+     * 1. 后端尺寸
+     */
 
-      if (
-        typeof image !== 'string'
-      ) {
-        width = image.width
-        height = image.height
-      }
+    if (typeof image !== 'string') {
+      width = image.width;
+      height = image.height;
+    }
 
-      /*
-       * 2. 前端真实尺寸
-       */
+    /*
+     * 2. 前端真实尺寸
+     */
 
-      if (
-        (!width || !height) &&
-        dimensions.has(thumbnail)
-      ) {
-        const dimension =
-          dimensions.get(thumbnail)!
+    if ((!width || !height) && dimensions.has(thumbnail)) {
+      const dimension = dimensions.get(thumbnail)!;
 
-        width =
-          dimension.width
+      width = dimension.width;
 
-        height =
-          dimension.height
-      }
+      height = dimension.height;
+    }
 
-      /*
-       * ratio
-       */
+    /*
+     * ratio
+     */
 
-      const ratio =
-        width &&
-        height &&
-        height > 0
-          ? width / height
-          : 1
+    const ratio = width && height && height > 0 ? width / height : 1;
 
-      return {
-        index,
+    return {
+      index,
 
-        thumbnail,
+      thumbnail,
 
-        original:
-          getOriginal(image),
+      original: getOriginal(image),
 
-        width,
+      width,
 
-        height,
+      height,
 
-        ratio,
-      }
-    },
-  )
-})
+      ratio,
+    };
+  });
+});
 
 /* ========================================
  * Layout
  * ======================================== */
 
 const layout = computed(() => {
-  return getGalleryLayout(
-    normalizedImages.value,
-  )
-})
+  // 返回 null 表示图片数 ≤ 1，组件退化为 is-single 流式布局，不应用 Grid 行列
+  return getGalleryLayout(normalizedImages.value);
+});
 
 /**
  * Gallery 高度
  */
 const galleryHeight = computed(() => {
-  const width =
-    galleryWidth.value
+  const width = galleryWidth.value;
 
   if (!width) {
-    return 320
+    return 320;
   }
 
   /*
    * Facebook Feed 比例
    */
-  const idealHeight =
-    width / 1.35
+  const idealHeight = width / 1.35;
 
-  return Math.min(
-    idealHeight,
-    props.maxHeight,
-  )
-})
+  return Math.min(idealHeight, props.maxHeight);
+});
 
 const galleryStyle = computed(() => {
-  const style: Record<
-    string,
-    string
-  > = {
-    '--gap':
-      `${props.gap}px`,
+  const style: Record<string, string> = {
+    '--gap': `${props.gap}px`,
 
-    '--radius':
-      `${props.borderRadius}px`,
+    '--radius': `${props.borderRadius}px`,
+  };
+
+  if (normalizedImages.value.length <= 1 || !layout.value) {
+    return style;
   }
 
-  if (
-    normalizedImages.value.length <= 1 ||
-    !layout.value
-  ) {
-    return style
-  }
+  style.height = `${galleryHeight.value}px`;
 
-  style.height =
-    `${galleryHeight.value}px`
+  style.gridTemplateColumns = `repeat(${layout.value.columns}, minmax(0, 1fr))`;
 
-  style.gridTemplateColumns =
-    `repeat(${layout.value.columns}, minmax(0, 1fr))`
+  style.gridTemplateRows = `repeat(${layout.value.rows}, minmax(0, 1fr))`;
 
-  style.gridTemplateRows =
-    `repeat(${layout.value.rows}, minmax(0, 1fr))`
+  return style;
+});
 
-  return style
-})
-
-function getItemStyle(
-  index: number,
-) {
-  const slot =
-    layout.value?.slots.find(
-      item =>
-        item.index === index,
-    )
+function getItemStyle(index: number) {
+  const slot = layout.value?.slots.find((item) => item.index === index);
 
   if (!slot) {
-    return {}
+    return {};
   }
 
   return {
-    gridColumn:
-      `${slot.colStart} / span ${slot.colSpan}`,
+    gridColumn: `${slot.colStart} / span ${slot.colSpan}`,
 
-    gridRow:
-      `${slot.rowStart} / span ${slot.rowSpan}`,
-  }
+    gridRow: `${slot.rowStart} / span ${slot.rowSpan}`,
+  };
 }
 
 /* ========================================
  * Image Load
  * ======================================== */
 
-function handleImageLoad(
-  event: Event,
-  image: NormalizedImage,
-) {
-  const target =
-    event.target as HTMLImageElement
+function handleImageLoad(event: Event, image: NormalizedImage) {
+  const target = event.target as HTMLImageElement;
 
-  if (
-    !target.naturalWidth ||
-    !target.naturalHeight
-  ) {
-    return
+  if (!target.naturalWidth || !target.naturalHeight) {
+    return;
   }
 
   /**
@@ -415,23 +317,15 @@ function handleImageLoad(
    *
    * 不需要覆盖
    */
-  if (
-    image.width &&
-    image.height
-  ) {
-    return
+  if (image.width && image.height) {
+    return;
   }
 
-  dimensions.set(
-    image.thumbnail,
-    {
-      width:
-        target.naturalWidth,
+  dimensions.set(image.thumbnail, {
+    width: target.naturalWidth,
 
-      height:
-        target.naturalHeight,
-    },
-  )
+    height: target.naturalHeight,
+  });
 }
 
 /* ========================================
@@ -439,54 +333,40 @@ function handleImageLoad(
  * ======================================== */
 
 const previewImages = computed(() => {
-  return safeImages.value.map(
-    getOriginal,
-  )
-})
+  return safeImages.value.map(getOriginal);
+});
 
-function openPreview(
-  index: number,
-) {
+function openPreview(index: number) {
   if (!props.previewable) {
-    return
+    return;
   }
 
-  viewerIndex.value = index
+  viewerIndex.value = index;
 
-  viewerVisible.value = true
+  viewerVisible.value = true;
 }
 
-function handleClick(
-  index: number,
-  image: ImageSource,
-) {
-  emit(
-    'click',
-    index,
-    image,
-    safeImages.value,
-  )
+function handleClick(index: number, image: ImageSource) {
+  emit('click', index, image, safeImages.value);
 
-  openPreview(index)
+  openPreview(index);
 }
 
 /* ========================================
  * Image Source
  * ======================================== */
 
-function getImageSrc(
-  image: NormalizedImage,
-) {
+function getImageSrc(image: NormalizedImage) {
   /**
    * 未接近视口
    *
    * 不加载真实图片
    */
   if (!activated.value) {
-    return ''
+    return '';
   }
 
-  return image.thumbnail
+  return image.thumbnail;
 }
 </script>
 
@@ -496,8 +376,7 @@ function getImageSrc(
     ref="galleryRef"
     class="image-gallery"
     :class="{
-      'is-single':
-        normalizedImages.length === 1,
+      'is-single': normalizedImages.length === 1,
     }"
     :style="galleryStyle"
   >
@@ -506,27 +385,14 @@ function getImageSrc(
       :key="image.original"
       class="image-item"
       :style="getItemStyle(image.index)"
-      @click="
-        handleClick(
-          image.index,
-          displayImages[image.index],
-        )
-      "
+      @click="handleClick(image.index, displayImages[image.index])"
     >
-      <t-image
-        class="gallery-image"
-        :src="getImageSrc(image)"
-        fit="cover"
-        lazy
-      >
+      <t-image class="gallery-image" :src="getImageSrc(image)" fit="cover" lazy>
         <!-- Loading -->
 
         <template #loading>
           <div class="image-placeholder">
-            <img
-              :src="placeholderImg"
-              alt=""
-            >
+            <img :src="placeholderImg" alt="" />
           </div>
         </template>
 
@@ -534,10 +400,7 @@ function getImageSrc(
 
         <template #error>
           <div class="image-placeholder">
-            <img
-              :src="fallback"
-              alt=""
-            >
+            <img :src="fallback" alt="" />
           </div>
         </template>
 
@@ -549,26 +412,14 @@ function getImageSrc(
             class="native-image"
             loading="lazy"
             alt=""
-            @load="
-              handleImageLoad(
-                $event,
-                image,
-              )
-            "
-          >
+            @load="handleImageLoad($event, image)"
+          />
         </template>
       </t-image>
 
       <!-- +N -->
 
-      <div
-        v-if="
-          image.index ===
-            normalizedImages.length - 1 &&
-          remainCount > 0
-        "
-        class="remain-mask"
-      >
+      <div v-if="image.index === normalizedImages.length - 1 && remainCount > 0" class="remain-mask">
         +{{ remainCount }}
       </div>
     </div>
@@ -581,12 +432,8 @@ function getImageSrc(
     :visible="viewerVisible"
     :images="previewImages"
     :index="viewerIndex"
-    @index-change="
-      viewerIndex = $event
-    "
-    @close="
-      viewerVisible = false
-    "
+    @index-change="viewerIndex = $event"
+    @close="viewerVisible = false"
   />
 </template>
 
@@ -627,8 +474,7 @@ function getImageSrc(
 
   cursor: pointer;
 
-  -webkit-tap-highlight-color:
-    transparent;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ========================================
@@ -666,8 +512,7 @@ function getImageSrc(
 
   object-fit: cover;
 
-  transition:
-    transform 0.25s ease;
+  transition: transform 0.25s ease;
 }
 
 /* ========================================
@@ -675,10 +520,8 @@ function getImageSrc(
  * ======================================== */
 
 @media (hover: hover) {
-  .image-item:hover
-    .native-image {
-    transform:
-      scale(1.025);
+  .image-item:hover .native-image {
+    transform: scale(1.025);
   }
 }
 
@@ -710,8 +553,7 @@ function getImageSrc(
   height: auto;
 }
 
-.is-single
-  :deep(.t-image) {
+.is-single :deep(.t-image) {
   height: auto;
 }
 
@@ -767,8 +609,7 @@ function getImageSrc(
   align-items: center;
   justify-content: center;
 
-  background:
-    rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.55);
 
   color: #fff;
 
@@ -799,4 +640,3 @@ function getImageSrc(
   }
 }
 </style>
-

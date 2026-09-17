@@ -1,15 +1,20 @@
-/*****去除所有内边距外边距*****/
+/**
+ * 全局样式
+ * 只放"跨页面共享"的基础样式：重置、进度条主题、TDesign 字体变量。
+ * 页面级样式请写在各自 SFC 的 <style scoped> 中。
+ */
+
+/***** 去除所有内边距外边距 *****/
+/* 注意：通配符重置会作用于所有元素（含 TDesign 内部组件），
+   如需更精细的控制建议改为针对性的选择器 */
 * {
   padding: 0;
   margin: 0;
 }
 
-/* 自定义进度条颜色 */
-#nprogress .bar{
-  background: #027AFF !important;
-}
-/* 自定义进度条位置 */
+/* 自定义进度条主题：颜色 + 位置（原为两条重复规则，已合并） */
 #nprogress .bar {
+  background: #027aff !important;
   height: 5px; /* 调整进度条的高度 */
   top: 0; /* 使进度条紧贴顶部 */
   position: fixed;
@@ -17,18 +22,18 @@
   width: 100%;
 }
 
-/* -------- 第二步：覆盖TDesign官方字体主题变量【官方标准方案】 -------- */
+/* -------- 覆盖 TDesign 官方字体主题变量【官方标准方案】 -------- */
 :root {
-  --td-font-family: 'Roboto', -apple-system-font, BlinkMacSystemFont, "Microsoft YaHei",
-  "Microsoft YaHei UI", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
-  Arial, sans-serif;
+  --td-font-family:
+    'Roboto', -apple-system-font, BlinkMacSystemFont, 'Microsoft YaHei', 'Microsoft YaHei UI', 'Helvetica Neue',
+    'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif;
 
-  --td-font-family-medium: 'Roboto', -apple-system-font, BlinkMacSystemFont, "Microsoft YaHei",
-  "Microsoft YaHei UI", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
-  Arial, sans-serif;
+  --td-font-family-medium:
+    'Roboto', -apple-system-font, BlinkMacSystemFont, 'Microsoft YaHei', 'Microsoft YaHei UI', 'Helvetica Neue',
+    'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif;
 }
 
-/* -------- 第三步：页面普通文字兜底 -------- */
+/* -------- 页面普通文字兜底 -------- */
 html,
 body {
   font-family: var(--td-font-family);

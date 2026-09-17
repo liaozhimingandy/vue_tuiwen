@@ -1,8 +1,14 @@
-<script lang="ts" setup>
-</script>
+<!--
+  文件：NotFoundPage.vue
+  用途：404 页面，用户访问不存在的路由时展示，提供返回首页入口
+  路由：* （兜底路由，name: 'not-found' 之类，以 router 配置为准）
+  数据来源：无（纯静态展示）
+  主要交互：点击「返回到首页」跳转至首页
+-->
+<script lang="ts" setup></script>
 
 <template>
-  <div style="min-height: 100vh; display: flex; justify-content: center; align-items: center;">
+  <div style="min-height: 100vh; display: flex; justify-content: center; align-items: center">
     <div class="result-wrap">
       <div class="emoji-icon">
         <span class="emoji">❓</span>
@@ -42,12 +48,15 @@
 
 .emoji {
   font-size: 52px;
-  animation: swing 2s ease-in-out infinite, glow 3s ease-in-out infinite;
+  animation:
+    swing 2s ease-in-out infinite,
+    glow 3s ease-in-out infinite;
   transform-origin: center bottom;
 }
 
 @keyframes bounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -56,7 +65,8 @@
 }
 
 @keyframes swing {
-  0%, 100% {
+  0%,
+  100% {
     transform: rotate(-6deg);
   }
   50% {
@@ -65,7 +75,8 @@
 }
 
 @keyframes glow {
-  0%, 100% {
+  0%,
+  100% {
     filter: drop-shadow(0 0 8px rgba(255, 200, 0, 0.4));
   }
   50% {

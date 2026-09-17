@@ -1,50 +1,48 @@
+<!--
+  SingleEmoji - 单 Emoji 大动画组件
+
+  用途：渲染一个 Emoji 字符；当该 Emoji 命中 ANIMATED_EMOJI 列表时播放大动画（Lottie），
+        并可选择缩小后持续循环播放。
+  职责边界：只负责单个 Emoji 的展示与动画，不含表情选择面板等业务。
+  被谁使用：点赞、庆祝等需要 Emoji 动效的地方。
+  注意：
+  - 动画层用 position: fixed + 视口坐标（getBoundingClientRect）定位，
+    而不是依赖父元素定位，从而避开 overflow / 卡片 / 折叠容器的裁剪。
+    （注意：这里并没有使用 <Teleport>，动画节点仍在本组件的 DOM 树内。）
+  - 用 taskId 防止 content 快速变化时旧动画异步任务污染新动画（竞态保护）。
+  - 用两套坐标（原始 Emoji 中心 / 父容器中心）实现「大动画 → 缩小」的平滑过渡。
+-->
 <template>
   <!--     原始 Emoji
       这个元素只负责：
       1. 正常参与文本布局
       2. 提供动画中心坐标
   -->
-  <span
-    ref="rootRef"
-    class="single-emoji"
-    :style="rootStyle"
-  >
-    <span
-      class="emoji-normal"
-      :class="{ 'is-hidden': isAnimating }"
-    >
+  <span ref="rootRef" class="single-emoji" :style="rootStyle">
+    <span class="emoji-normal" :class="{'is-hidden': isAnimating}">
       {{ emoji }}
     </span>
   </span>
 
   <!--
-    ⭐ 动画 Teleport 到 body
-    这样可以避免被：
+    ⭐ 动画层（fixed 定位，脱离父容器的裁剪范围）
+    用 fixed + 视口坐标来避免被以下父容器影响：
     - overflow: hidden
     - overflow: clip
     - RichText
     - Card
     - Collapse
-    等父容器裁剪。
   -->
-    <span
-      v-if="isAnimating"
-      ref="animationRef"
-      class="emoji-animation"
-      :style="animationStyle"
-    />
+  <span v-if="isAnimating" ref="animationRef" class="emoji-animation" :style="animationStyle" />
 </template>
 
 <script setup lang="ts">
-import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  ref,
-  watch,
-} from 'vue'
-import { DotLottie } from '@lottiefiles/dotlottie-web'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue';
+// ⚠️ 只做「类型导入」：import type 在编译期会被完全擦除，不会产生运行时依赖。
+// lottie 运行时（@lottiefiles/dotlottie-web，含 wasm 加载器）体积可观，
+// 又因为本组件被 Post.vue → HomePage.vue 引用，之前静态导入会让它进入首屏包。
+// 现在改为首次真正需要播放大动画时才动态 import（见 loadDotLottie）。
+import type {DotLottie} from '@lottiefiles/dotlottie-web';
 
 /**
  * Emoji 动画状态
@@ -57,11 +55,7 @@ import { DotLottie } from '@lottiefiles/dotlottie-web'
  *   ↓
  * playing-small
  */
-type EmojiState =
-  | 'idle'
-  | 'playing-large'
-  | 'playing-shrink'
-  | 'playing-small'
+type EmojiState = 'idle' | 'playing-large' | 'playing-shrink' | 'playing-small';
 
 const props = withDefaults(
   defineProps<{
@@ -71,7 +65,7 @@ const props = withDefaults(
      * 例如：
      * 🙂 😂 ❤️
      */
-    content: string
+    content: string;
 
     /**
      * 大动画播放完成后，
@@ -83,22 +77,22 @@ const props = withDefaults(
      * true：
      *   大动画 → 缩小 → 小动画持续循环
      */
-    continueAfterShrink?: boolean
+    continueAfterShrink?: boolean;
 
     /**
      * 正常 Emoji 尺寸
      */
-    size?: number
+    size?: number;
 
     /**
      * 大动画尺寸
      */
-    animationSize?: number
+    animationSize?: number;
 
     /**
      * 是否启用缩小过渡动画
      */
-    shrinkTransition?: boolean
+    shrinkTransition?: boolean;
   }>(),
   {
     continueAfterShrink: false,
@@ -106,30 +100,52 @@ const props = withDefaults(
     animationSize: 100,
     shrinkTransition: true,
   },
-)
+);
 
 /** 原始 Emoji DOM */
-const rootRef = ref<HTMLElement>()
+const rootRef = ref<HTMLElement>();
 /** Teleport 后的动画 DOM */
-const animationRef = ref<HTMLElement>()
+const animationRef = ref<HTMLElement>();
 
 /** 当前状态 */
-const state = ref<EmojiState>('idle')
+const state = ref<EmojiState>('idle');
 
 /**
  * 两套 viewport 坐标
  * originCenter：原始emoji的中心点（缩小完成要回到这里）
  * containerCenter：父容器viewport中心点（大动画播放阶段用）
  */
-const originCenterX = ref(0)
-const originCenterY = ref(0)
-const containerCenterX = ref(0)
-const containerCenterY = ref(0)
+const originCenterX = ref(0);
+const originCenterY = ref(0);
+const containerCenterX = ref(0);
+const containerCenterY = ref(0);
 
-/** Lottie Player */
-let player: DotLottie | null = null
+/** Lottie Player 实例 */
+let player: DotLottie | null = null;
 /** Canvas */
-let canvas: HTMLCanvasElement | null = null
+let canvas: HTMLCanvasElement | null = null;
+
+/**
+ * 缓存动态加载回来的 DotLottie 构造器
+ * 只加载一次，后续复用；null 表示尚未加载
+ */
+let DotLottieCtor: (typeof import('@lottiefiles/dotlottie-web'))['DotLottie'] | null = null;
+
+/**
+ * 按需加载 lottie 运行时
+ *
+ * 该运行时体积较大且绝大多数用户不会触发 Emoji 大动画，
+ * 因此拆成独立 chunk，仅在首个动画 Emoji 出现时下载一次。
+ *
+ * @returns DotLottie 构造器
+ */
+async function loadDotLottie() {
+  if (!DotLottieCtor) {
+    const mod = await import('@lottiefiles/dotlottie-web');
+    DotLottieCtor = mod.DotLottie;
+  }
+  return DotLottieCtor;
+}
 
 /**
  * 当前播放任务 ID
@@ -138,17 +154,17 @@ let canvas: HTMLCanvasElement | null = null
  * content 快速变化时，
  * 旧动画异步任务影响新动画。
  */
-let taskId = 0
+let taskId = 0;
 
 /** 是否正在监听位置变化 */
-let positionListening = false
+let positionListening = false;
 
 /** =========================================================
  * Emoji
  * ========================================================= */
 const emoji = computed(() => {
-  return props.content.trim()
-})
+  return props.content.trim();
+});
 
 /** =========================================================
  * Emoji -> Unicode Code Point
@@ -164,10 +180,10 @@ const emoji = computed(() => {
  * ========================================================= */
 const codePoint = computed(() => {
   return Array.from(emoji.value)
-    .map(char => char.codePointAt(0)?.toString(16))
+    .map((char) => char.codePointAt(0)?.toString(16))
     .filter((value): value is string => Boolean(value))
-    .join('-')
-})
+    .join('-');
+});
 
 /** =========================================================
  * 支持动画的 Emoji
@@ -175,31 +191,27 @@ const codePoint = computed(() => {
  *
  * 后续直接往这里增加即可。
  */
-const ANIMATED_EMOJI = new Set([
-  '🙂',
-  '😅',
-  '😦',
-])
+const ANIMATED_EMOJI = new Set(['🙂', '😅', '😦']);
 
 /** 是否支持动画 */
 const hasAnimation = computed(() => {
-  return ANIMATED_EMOJI.has(emoji.value)
-})
+  return ANIMATED_EMOJI.has(emoji.value);
+});
 
 /** 是否正在动画 */
 const isAnimating = computed(() => {
-  return state.value !== 'idle'
-})
+  return state.value !== 'idle';
+});
 
 /** 是否处于缩小后的持续播放阶段 */
 const isSmall = computed(() => {
-  return state.value === 'playing-small'
-})
+  return state.value === 'playing-small';
+});
 
 /** 是否处于缩小过渡阶段 */
 const isShrinking = computed(() => {
-  return state.value === 'playing-shrink'
-})
+  return state.value === 'playing-shrink';
+});
 
 /** =========================================================
  * 根容器样式
@@ -207,8 +219,8 @@ const isShrinking = computed(() => {
 const rootStyle = computed(() => {
   return {
     '--emoji-size': `${props.size}px`,
-  }
-})
+  };
+});
 
 /** =========================================================
  * 动画样式
@@ -216,7 +228,7 @@ const rootStyle = computed(() => {
  * 注意：
  *
  * 动画并不是跟随父元素定位，
- * 而是 Teleport 到 body 后使用 fixed。
+ * 而是使用 fixed + 视口坐标（left/top 由 JS 计算）。
  *
  * left / top：
  *   根据状态切换：大动画=父容器中心；缩小后=原始emoji中心
@@ -225,21 +237,19 @@ const rootStyle = computed(() => {
  *   将动画自身中心移动到这个中心点
  * ========================================================= */
 const animationStyle = computed(() => {
-  const scale = (isSmall.value || isShrinking.value)
-    ? props.size / props.animationSize
-    : 1
+  const scale = isSmall.value || isShrinking.value ? props.size / props.animationSize : 1;
 
   // 状态判断坐标
-  let left: number
-  let top: number
+  let left: number;
+  let top: number;
   if (state.value === 'playing-large') {
     // 放大播放阶段：父容器中心
-    left = containerCenterX.value
-    top = containerCenterY.value
+    left = containerCenterX.value;
+    top = containerCenterY.value;
   } else {
     // shrink / small：切回原始emoji中心点
-    left = originCenterX.value
-    top = originCenterY.value
+    left = originCenterX.value;
+    top = originCenterY.value;
   }
 
   return {
@@ -247,11 +257,9 @@ const animationStyle = computed(() => {
     top: `${top}px`,
     '--animation-size': `${props.animationSize}px`,
     '--emoji-scale': String(scale),
-    '--shrink-duration': props.shrinkTransition
-      ? '350ms'
-      : '0ms',
-  }
-})
+    '--shrink-duration': props.shrinkTransition ? '350ms' : '0ms',
+  };
+});
 
 /** =========================================================
  * 更新两套坐标
@@ -259,23 +267,23 @@ const animationStyle = computed(() => {
  * 2. container：rootRef**的父元素**视口中心点
  * ========================================================= */
 function updatePosition() {
-  if (!rootRef.value) return
+  if (!rootRef.value) return;
 
-  const rootRect = rootRef.value.getBoundingClientRect()
+  const rootRect = rootRef.value.getBoundingClientRect();
   // 原始emoji中心点
-  originCenterX.value = rootRect.left + rootRect.width / 2
-  originCenterY.value = rootRect.top + rootRect.height / 2
+  originCenterX.value = rootRect.left + rootRect.width / 2;
+  originCenterY.value = rootRect.top + rootRect.height / 2;
 
   // 获取直接父容器的bounding rect
-  const parentEl = rootRef.value.parentElement
+  const parentEl = rootRef.value.parentElement;
   if (parentEl) {
-    const parentRect = parentEl.getBoundingClientRect()
-    containerCenterX.value = parentRect.left + parentRect.width / 2
-    containerCenterY.value = parentRect.top + parentRect.height / 2
+    const parentRect = parentEl.getBoundingClientRect();
+    containerCenterX.value = parentRect.left + parentRect.width / 2;
+    containerCenterY.value = parentRect.top + parentRect.height / 2;
   } else {
     // 兜底：如果没有父，回退到原始emoji坐标
-    containerCenterX.value = originCenterX.value
-    containerCenterY.value = originCenterY.value
+    containerCenterX.value = originCenterX.value;
+    containerCenterY.value = originCenterY.value;
   }
 }
 
@@ -291,36 +299,22 @@ function updatePosition() {
  * 窗口 resize 同理。
  * ========================================================= */
 function startPositionListener() {
-  if (positionListening) return
-  positionListening = true
+  if (positionListening) return;
+  positionListening = true;
 
-  window.addEventListener(
-    'scroll',
-    updatePosition,
-    true,
-  )
-  window.addEventListener(
-    'resize',
-    updatePosition,
-  )
+  window.addEventListener('scroll', updatePosition, true);
+  window.addEventListener('resize', updatePosition);
 }
 
 /** =========================================================
  * 停止监听位置变化
  * ========================================================= */
 function stopPositionListener() {
-  if (!positionListening) return
-  positionListening = false
+  if (!positionListening) return;
+  positionListening = false;
 
-  window.removeEventListener(
-    'scroll',
-    updatePosition,
-    true,
-  )
-  window.removeEventListener(
-    'resize',
-    updatePosition,
-  )
+  window.removeEventListener('scroll', updatePosition, true);
+  window.removeEventListener('resize', updatePosition);
 }
 
 /** =========================================================
@@ -328,155 +322,167 @@ function stopPositionListener() {
  * ========================================================= */
 function destroyPlayer() {
   if (player) {
-    player.removeEventListener(
-      'complete',
-      handleComplete,
-    )
-    player.destroy()
-    player = null
+    player.removeEventListener('complete', handleComplete);
+    player.destroy();
+    player = null;
   }
-  canvas?.remove()
-  canvas = null
-  animationRef.value?.replaceChildren()
+  canvas?.remove();
+  canvas = null;
+  animationRef.value?.replaceChildren();
 }
 
-/** =========================================================
+/**
  * 创建 Lottie Player
- * ========================================================= */
-function createPlayer() {
-  if (!animationRef.value) return null
+ *
+ * 由于 lottie 运行时是动态加载的，本函数为异步。
+ * 返回 null 表示创建失败（DOM 已卸载，或运行时加载抛错）。
+ *
+ * @returns 创建并绑定好事件的 player 实例；失败时为 null
+ */
+async function createPlayer() {
+  if (!animationRef.value) return null;
 
-  destroyPlayer()
+  destroyPlayer();
 
-  canvas = document.createElement('canvas')
-  canvas.style.width = '100%'
-  canvas.style.height = '100%'
-  animationRef.value.appendChild(canvas)
+  // 动画资源约定：public/emoji-animation/{codePoint}/lottie.json，codePoint 由 Emoji 转 Unicode 码点得到
+  const src = `/emoji-animation/${codePoint.value}/lottie.json`;
 
-  player = new DotLottie({
+  let Ctor;
+  try {
+    Ctor = await loadDotLottie();
+  } catch (err) {
+    console.error('[SingleEmoji] lottie 运行时加载失败，本次动画降级为静态 Emoji', err);
+    return null;
+  }
+
+  // 等待加载期间组件可能已卸载、或状态已回到 idle，此时 animationRef 会被置空
+  if (!animationRef.value) return null;
+
+  canvas = document.createElement('canvas');
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  animationRef.value.appendChild(canvas);
+
+  player = new Ctor({
     canvas,
-    src: `/emoji-animation/${codePoint.value}/lottie.json`,
+    src,
     autoplay: true,
     loop: false,
-  })
+  });
 
-  player.addEventListener(
-    'complete',
-    handleComplete,
-  )
-  return player
+  player.addEventListener('complete', handleComplete);
+  return player;
 }
 
 /** =========================================================
  * 开始播放
  * ========================================================= */
 async function start() {
-  if (!hasAnimation.value) return
+  if (!hasAnimation.value) return;
 
-  const currentTaskId = ++taskId
-  destroyPlayer()
+  const currentTaskId = ++taskId;
+  destroyPlayer();
 
-  updatePosition()
-  state.value = 'playing-large'
+  updatePosition();
+  state.value = 'playing-large';
 
-  startPositionListener()
-  await nextTick()
+  startPositionListener();
+  await nextTick();
 
-  if (currentTaskId !== taskId) return
-  updatePosition()
+  if (currentTaskId !== taskId) return;
+  updatePosition();
 
-  const currentPlayer = createPlayer()
-  if (!currentPlayer) {
-    state.value = 'idle'
-    stopPositionListener()
-    return
-  }
+  // 首次触发会顺带动态加载 lottie 运行时，因此这里必须 await
+  const currentPlayer = await createPlayer();
 
+  // 加载期间状态可能已变化（content 变更 / 组件卸载 / 被 stop），此时放弃本次播放
   if (currentTaskId !== taskId) {
-    destroyPlayer()
-    return
+    destroyPlayer();
+    return;
   }
-  currentPlayer.play()
+  if (!currentPlayer) {
+    state.value = 'idle';
+    stopPositionListener();
+    return;
+  }
+  currentPlayer.play();
 }
 
 /** =========================================================
  * 大动画播放完成回调
  * ========================================================= */
 async function handleComplete() {
-  if (state.value !== 'playing-large') return
+  if (state.value !== 'playing-large') return;
 
   if (!props.continueAfterShrink) {
-    stop()
-    return
+    stop();
+    return;
   }
 
   // 🎯关键：进入缩小过渡状态，坐标会自动切回originCenter，同时scale变小
-  state.value = 'playing-shrink'
-  await nextTick()
+  state.value = 'playing-shrink';
+  await nextTick();
 
-  if (!player) return
+  if (!player) return;
 
-  player.setLoop(true)
-  player.setFrame(0)
-  player.play()
+  player.setLoop(true);
+  player.setFrame(0);
+  player.play();
 
   // 等待CSS shrink过渡时长结束，再切到playing-small稳定状态
-  const shrinkMs = props.shrinkTransition ? 350 : 0
+  const shrinkMs = props.shrinkTransition ? 350 : 0;
   setTimeout(() => {
     // 任务有效性校验，避免组件销毁后执行
     if (state.value === 'playing-shrink') {
-      state.value = 'playing-small'
+      state.value = 'playing-small';
     }
-  }, shrinkMs)
+  }, shrinkMs);
 }
 
 /** =========================================================
  * 停止动画
  * ========================================================= */
 function stop() {
-  taskId++
-  player?.stop()
-  destroyPlayer()
-  state.value = 'idle'
-  stopPositionListener()
+  taskId++;
+  player?.stop();
+  destroyPlayer();
+  state.value = 'idle';
+  stopPositionListener();
 }
 
 /** =========================================================
  * 重新播放
  * =========================================================  */
 async function restart() {
-  stop()
-  await nextTick()
-  start()
+  stop();
+  await nextTick();
+  start();
 }
 
 /** Mounted */
 onMounted(() => {
-  start()
-})
+  start();
+});
 
 watch(
   () => props.content,
   () => {
-    restart()
+    restart();
   },
-)
+);
 
 watch(
   () => props.continueAfterShrink,
-  value => {
-    if (
-      !value
-      && (state.value === 'playing-small' || state.value === 'playing-shrink')
-    ) {
-      stop()
+  (value) => {
+    if (!value && (state.value === 'playing-small' || state.value === 'playing-shrink')) {
+      stop();
     }
   },
-)
+);
 
 onBeforeUnmount(() => {
-  stop()
-})
+  stop();
+});
 </script>
 
 <style scoped>
@@ -520,9 +526,7 @@ onBeforeUnmount(() => {
   width: var(--animation-size);
   height: var(--animation-size);
 
-  transform:
-    translate(-50%, -50%)
-    scale(var(--emoji-scale));
+  transform: translate(-50%, -50%) scale(var(--emoji-scale));
   transform-origin: center center;
 
   pointer-events: none;

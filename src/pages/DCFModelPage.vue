@@ -1,3 +1,20 @@
+<!--
+  文件：DCFModelPage.vue
+  用途：DCF（现金流折现）企业自由现金流估值模型，支持单阶段 / 两阶段增长
+  路由：/models/dcf/ （具体 path 以 router 配置为准）
+  数据来源：纯前端计算，参数由用户表单输入并持久化到 localStorage（key: 'dcf'）
+  主要交互：
+    1. 选择估值模式（单阶段 / 两阶段）并填写基础参数
+    2. 实时计算并展示：预测期 FCF 现值、终值、终值现值、企业价值、股权价值、每股内在价值
+    3. 可查看未来现金流预测表与计算公式
+  单位口径：
+    FCF / 现金 / 有息负债 / 企业价值 = 亿元
+    总股本 = 亿股
+    每股内在价值 / 安全边际价格 = 元
+  估值思路（Gordon 增长模型）：
+    先预测各年自由现金流并折现，再用永续增长模型估算终值并折现，
+    两者相加得企业价值，扣净负债得股权价值，除以总股本得每股内在价值。
+-->
 <template>
   <t-layout>
     <t-content style="margin: 0 60px">
@@ -6,9 +23,7 @@
            估值模式
       ========================== -->
       <t-space direction="vertical">
-        <t-typography-title level="h4">
-          <span class="border-left-title"></span>估值模式
-        </t-typography-title>
+        <t-typography-title level="h4"> <span class="border-left-title"></span>估值模式 </t-typography-title>
         <t-radio-group v-model="formData.growthMode">
           <t-radio value="single">单阶段增长</t-radio>
           <t-radio value="two-stage">两阶段增长</t-radio>
@@ -17,63 +32,41 @@
       <!-- =========================
            基础参数
       ========================== -->
-      <t-typography-title level="h4">
-        <span class="border-left-title"></span>基础参数
-      </t-typography-title>
-      <t-form
-          :data="formData"
-          label-align="top"
-          class="dcf-form"
-      >
+      <t-typography-title level="h4"> <span class="border-left-title"></span>基础参数 </t-typography-title>
+      <t-form :data="formData" label-align="top" class="dcf-form">
         <t-row>
           <!-- 基准 FCF -->
           <t-col :xs="12" :sm="6" :md="4">
             <t-form-item label="基准FCF（亿元）">
               <t-input-number
-                  v-model="formData.baseFcf"
-                  :min="-999999"
-                  :decimal-places="2"
-                  theme="normal"
-                  suffix="亿元"
+                v-model="formData.baseFcf"
+                :min="-999999"
+                :decimal-places="2"
+                theme="normal"
+                suffix="亿元"
               />
             </t-form-item>
           </t-col>
 
           <!-- 第一阶段增长率 -->
           <t-col :xs="12" :sm="6" :md="4">
-            <t-form-item
-                :label="
-                formData.growthMode === 'single'
-                  ? '未来增长率'
-                  : '第一阶段增长率'"
-            >
+            <t-form-item :label="formData.growthMode === 'single' ? '未来增长率' : '第一阶段增长率'">
               <t-input-number
-                  v-model="formData.growthRate"
-                  :min="-99.99"
-                  :max="200"
-                  :decimal-places="2"
-                  suffix="%"
-                  style="width: auto"
+                v-model="formData.growthRate"
+                :min="-99.99"
+                :max="200"
+                :decimal-places="2"
+                suffix="%"
+                style="width: auto"
               />
             </t-form-item>
           </t-col>
 
           <!-- 第一阶段年数 -->
           <t-col :xs="12" :sm="6" :md="4">
-            <t-form-item
-                :label="
-                formData.growthMode === 'single'
-                  ? '预测期'
-                  : '第一阶段年数'
-              "
-            >
+            <t-form-item :label="formData.growthMode === 'single' ? '预测期' : '第一阶段年数'">
               <t-select v-model="formData.forecastYears">
-                <t-option
-                    v-for="year in yearOptions"
-                    :key="year"
-                    :value="year"
-                    :label="`${year} 年`"
-                />
+                <t-option v-for="year in yearOptions" :key="year" :value="year" :label="`${year} 年`" />
               </t-select>
             </t-form-item>
           </t-col>
@@ -84,12 +77,12 @@
             <t-col :xs="12" :sm="6" :md="4">
               <t-form-item label="第二阶段增长率">
                 <t-input-number
-                    v-model="formData.secondGrowthRate"
-                    :min="-99.99"
-                    :max="100"
-                    :decimal-places="2"
-                    suffix="%"
-                    style="width: auto"
+                  v-model="formData.secondGrowthRate"
+                  :min="-99.99"
+                  :max="100"
+                  :decimal-places="2"
+                  suffix="%"
+                  style="width: auto"
                 />
               </t-form-item>
             </t-col>
@@ -97,12 +90,7 @@
             <t-col :xs="12" :sm="6" :md="4">
               <t-form-item label="第二阶段年数">
                 <t-select v-model="formData.secondStageYears">
-                  <t-option
-                      v-for="year in secondStageYearOptions"
-                      :key="year"
-                      :value="year"
-                      :label="`${year} 年`"
-                  />
+                  <t-option v-for="year in secondStageYearOptions" :key="year" :value="year" :label="`${year} 年`" />
                 </t-select>
               </t-form-item>
             </t-col>
@@ -114,12 +102,12 @@
           <t-col :xs="12" :sm="6" :md="4">
             <t-form-item label="折现率r">
               <t-input-number
-                  v-model="formData.discountRate"
-                  :min="0.03"
-                  :max="100"
-                  :decimal-places="2"
-                  suffix="%"
-                  style="width: auto"
+                v-model="formData.discountRate"
+                :min="0.03"
+                :max="100"
+                :decimal-places="2"
+                suffix="%"
+                style="width: auto"
               />
             </t-form-item>
           </t-col>
@@ -128,12 +116,12 @@
           <t-col :xs="12" :sm="6" :md="4">
             <t-form-item label="永续增长率g">
               <t-input-number
-                  v-model="formData.terminalGrowthRate"
-                  :min="-50"
-                  :max="10"
-                  :decimal-places="2"
-                  suffix="%"
-                  style="width: auto"
+                v-model="formData.terminalGrowthRate"
+                :min="-50"
+                :max="10"
+                :decimal-places="2"
+                suffix="%"
+                style="width: auto"
               />
             </t-form-item>
           </t-col>
@@ -142,11 +130,11 @@
           <t-col :xs="12" :sm="6" :md="4">
             <t-form-item label="总股本（亿股）">
               <t-input-number
-                  v-model="formData.totalShares"
-                  :min="0"
-                  :decimal-places="2"
-                  suffix="亿股"
-                  style="width: auto"
+                v-model="formData.totalShares"
+                :min="0"
+                :decimal-places="2"
+                suffix="亿股"
+                style="width: auto"
               />
             </t-form-item>
           </t-col>
@@ -155,26 +143,14 @@
           <!-- 现金 -->
           <t-col :xs="12" :sm="6" :md="4">
             <t-form-item label="现金及现金等价物（亿元）">
-              <t-input-number
-                  v-model="formData.cash"
-                  :min="0"
-                  :decimal-places="2"
-                  suffix="亿元"
-                  style="width: auto"
-              />
+              <t-input-number v-model="formData.cash" :min="0" :decimal-places="2" suffix="亿元" style="width: auto" />
             </t-form-item>
           </t-col>
 
           <!-- 有息负债 -->
           <t-col :xs="12" :sm="6" :md="4">
             <t-form-item label="有息负债（亿元）">
-              <t-input-number
-                  v-model="formData.debt"
-                  :min="0"
-                  :decimal-places="2"
-                  suffix="亿元"
-                  style="width: auto"
-              />
+              <t-input-number v-model="formData.debt" :min="0" :decimal-places="2" suffix="亿元" style="width: auto" />
             </t-form-item>
           </t-col>
 
@@ -182,12 +158,12 @@
           <t-col :xs="12" :sm="6" :md="4">
             <t-form-item label="安全边际">
               <t-input-number
-                  v-model="formData.marginOfSafety"
-                  :min="0"
-                  :max="90"
-                  :decimal-places="2"
-                  suffix="%"
-                  style="width: auto"
+                v-model="formData.marginOfSafety"
+                :min="0"
+                :max="90"
+                :decimal-places="2"
+                suffix="%"
+                style="width: auto"
               />
             </t-form-item>
           </t-col>
@@ -197,104 +173,64 @@
       <!-- =========================
            参数检查
       ========================== -->
-      <t-alert
-          v-if="!isValid"
-          theme="error"
-          :message="validationMessage"
-          class="result-alert"
-      />
+      <t-alert v-if="!isValid" theme="error" :message="validationMessage" class="result-alert" />
 
       <template v-if="isValid">
         <!-- =========================
              核心估值结果
         ========================== -->
-        <t-divider/>
-        <t-typography-title level="h4">
-          <span class="border-left-title"></span>估值结果
-        </t-typography-title>
+        <t-divider />
+        <t-typography-title level="h4"> <span class="border-left-title"></span>估值结果 </t-typography-title>
         <t-row :gutter="[16, 16]">
           <t-col :xs="12" :sm="6" :md="3">
-            <t-statistic
-                title="预测期FCF现值"
-                :value="formatNumber(pvOfForecast)"
-                suffix="亿元"
-            />
+            <t-statistic title="预测期FCF现值" :value="formatNumber(pvOfForecast)" suffix="亿元" />
           </t-col>
 
           <t-col :xs="12" :sm="6" :md="3">
-            <t-statistic
-                title="终值TV"
-                :value="formatNumber(terminalValue)"
-                suffix="亿元"
-            />
+            <t-statistic title="终值TV" :value="formatNumber(terminalValue)" suffix="亿元" />
           </t-col>
 
           <t-col :xs="12" :sm="6" :md="3">
-            <t-statistic
-                title="终值现值"
-                :value="formatNumber(pvOfTerminalValue)"
-                suffix="亿元"
-            />
+            <t-statistic title="终值现值" :value="formatNumber(pvOfTerminalValue)" suffix="亿元" />
           </t-col>
           <t-col :xs="12" :sm="6" :md="3">
-            <t-statistic
-                title="企业价值EV"
-                :value="formatNumber(enterpriseValue)"
-                suffix="亿元"
-            />
+            <t-statistic title="企业价值EV" :value="formatNumber(enterpriseValue)" suffix="亿元" />
           </t-col>
         </t-row>
         <t-row :gutter="[16, 16]" class="result-row">
           <t-col :xs="12" :sm="6" :md="3">
-            <t-statistic
-                title="股权价值"
-                :value="formatNumber(equityValue)"
-                suffix="亿元"
-            />
+            <t-statistic title="股权价值" :value="formatNumber(equityValue)" suffix="亿元" />
           </t-col>
           <t-col :xs="12" :sm="6" :md="3">
-            <t-statistic
-                title="每股内在价值"
-                :value="formatNumber(intrinsicValuePerShare)"
-                suffix="元"
-            />
+            <t-statistic title="每股内在价值" :value="formatNumber(intrinsicValuePerShare)" suffix="元" />
           </t-col>
           <t-col :xs="12" :sm="6" :md="3">
-            <t-statistic
-                title="安全边际价格"
-                :value="formatNumber(safetyMarginPrice)"
-                suffix="元"
-            />
+            <t-statistic title="安全边际价格" :value="formatNumber(safetyMarginPrice)" suffix="元" />
           </t-col>
           <t-col :xs="12" :sm="6" :md="3">
-            <t-statistic
-                title="终值占企业价值"
-                :value="formatPercent(terminalValueRatio)"
-            />
+            <t-statistic title="终值占企业价值" :value="formatPercent(terminalValueRatio)" />
           </t-col>
         </t-row>
 
         <!-- =========================
              估值判断
         ========================== -->
-        <t-divider/>
-        <t-typography-title level="h4">
-          <span class="border-left-title"></span>估值判断
-        </t-typography-title>
+        <t-divider />
+        <t-typography-title level="h4"> <span class="border-left-title"></span>估值判断 </t-typography-title>
 
         <t-row :gutter="[16, 16]">
           <t-col :xs="12" :sm="6" :md="4">
             <t-card title="内在价值">
               <template #content>
                 <Ticker
-                    :value="formatNumber(intrinsicValuePerShare)"
-                    :duration="800"
-                    easing="linear"
-                    direction="ANY"
-                    suffix="元"
-                    characterLists={[Presets.CURRENCY]}
-                    :number-format="formatter"
-                    class="metric-value"
+                  :value="formatNumber(intrinsicValuePerShare)"
+                  :duration="800"
+                  easing="linear"
+                  direction="ANY"
+                  suffix="元"
+                  :character-lists="[Presets.CURRENCY]"
+                  :number-format="formatter"
+                  class="metric-value"
                 />
               </template>
             </t-card>
@@ -304,15 +240,15 @@
             <t-card title="30%安全边际价格">
               <template #content>
                 <Ticker
-                    :value="formatNumber(intrinsicValuePerShare*0.7)"
-                    :duration="800"
-                    easing="linear"
-                    direction="ANY"
-                    suffix="元"
-                    characterLists={[Presets.CURRENCY]}
-                    :number-format="formatter"
-                    class="metric-value"
-                    autoScale
+                  :value="formatNumber(intrinsicValuePerShare * 0.7)"
+                  :duration="800"
+                  easing="linear"
+                  direction="ANY"
+                  suffix="元"
+                  :character-lists="[Presets.CURRENCY]"
+                  :number-format="formatter"
+                  class="metric-value"
+                  autoScale
                 />
               </template>
             </t-card>
@@ -322,14 +258,14 @@
             <t-card title="20%安全边际价格">
               <template #content>
                 <Ticker
-                    :value="formatNumber(intrinsicValuePerShare*0.8)"
-                    :duration="800"
-                    easing="linear"
-                    direction="ANY"
-                    suffix="元"
-                    characterLists={[Presets.CURRENCY]}
-                    :number-format="formatter"
-                    class="metric-value"
+                  :value="formatNumber(intrinsicValuePerShare * 0.8)"
+                  :duration="800"
+                  easing="linear"
+                  direction="ANY"
+                  suffix="元"
+                  :character-lists="[Presets.CURRENCY]"
+                  :number-format="formatter"
+                  class="metric-value"
                 />
               </template>
             </t-card>
@@ -339,71 +275,36 @@
         <!-- =========================
              FCF预测表
         ========================== -->
-        <t-divider/>
-        <t-typography-title level="h4">
-          <span class="border-left-title"></span>未来现金流预测
-        </t-typography-title>
+        <t-divider />
+        <t-typography-title level="h4"> <span class="border-left-title"></span>未来现金流预测 </t-typography-title>
 
-        <t-table
-            :data="forecastData"
-            :columns="columns"
-            row-key="year"
-            bordered
-            stripe
-            hover
-            size="small"
-        />
+        <t-table :data="forecastData" :columns="columns" row-key="year" bordered stripe hover size="small" />
 
         <!-- =========================
              关键指标
         ========================== -->
-        <t-divider/>
+        <t-divider />
 
-        <t-typography-title level="h4">
-          <span class="border-left-title"></span>关键估值指标
-        </t-typography-title>
+        <t-typography-title level="h4"> <span class="border-left-title"></span>关键估值指标 </t-typography-title>
 
-        <t-descriptions
-            bordered
-            :column="3"
-            size="small"
-        >
-          <t-descriptions-item label="基准 FCF">
-            {{ formatNumber(formData.baseFcf) }} 亿元
-          </t-descriptions-item>
+        <t-descriptions bordered :column="3" size="small">
+          <t-descriptions-item label="基准 FCF"> {{ formatNumber(formData.baseFcf) }} 亿元 </t-descriptions-item>
 
-          <t-descriptions-item label="第一阶段增长率">
-            {{ formData.growthRate.toFixed(2) }}%
-          </t-descriptions-item>
+          <t-descriptions-item label="第一阶段增长率"> {{ formData.growthRate.toFixed(2) }}% </t-descriptions-item>
 
-          <t-descriptions-item label="折现率">
-            {{ formData.discountRate.toFixed(2) }}%
-          </t-descriptions-item>
+          <t-descriptions-item label="折现率"> {{ formData.discountRate.toFixed(2) }}% </t-descriptions-item>
 
-          <t-descriptions-item label="永续增长率">
-            {{ formData.terminalGrowthRate.toFixed(2) }}%
-          </t-descriptions-item>
+          <t-descriptions-item label="永续增长率"> {{ formData.terminalGrowthRate.toFixed(2) }}% </t-descriptions-item>
 
-          <t-descriptions-item label="预测期">
-            {{ totalForecastYears }} 年
-          </t-descriptions-item>
+          <t-descriptions-item label="预测期"> {{ totalForecastYears }} 年 </t-descriptions-item>
 
           <t-descriptions-item label="r-g">
-            {{
-              (
-                  formData.discountRate -
-                  formData.terminalGrowthRate
-              ).toFixed(2)
-            }}%
+            {{ (formData.discountRate - formData.terminalGrowthRate).toFixed(2) }}%
           </t-descriptions-item>
 
-          <t-descriptions-item label="预测期FCF现值">
-            {{ formatNumber(pvOfForecast) }} 亿元
-          </t-descriptions-item>
+          <t-descriptions-item label="预测期FCF现值"> {{ formatNumber(pvOfForecast) }} 亿元 </t-descriptions-item>
 
-          <t-descriptions-item label="终值现值">
-            {{ formatNumber(pvOfTerminalValue) }} 亿元
-          </t-descriptions-item>
+          <t-descriptions-item label="终值现值"> {{ formatNumber(pvOfTerminalValue) }} 亿元 </t-descriptions-item>
 
           <t-descriptions-item label="终值占EV">
             {{ formatPercent(terminalValueRatio) }}
@@ -413,10 +314,8 @@
         <!-- =========================
              计算公式
         ========================== -->
-        <t-divider/>
-        <t-typography-title level="h4">
-          <span class="border-left-title"></span>计算公式
-        </t-typography-title>
+        <t-divider />
+        <t-typography-title level="h4"> <span class="border-left-title"></span>计算公式 </t-typography-title>
 
         <div class="formula-box">
           <div>
@@ -465,10 +364,13 @@
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, watch} from 'vue'
-import type {TableProps} from 'tdesign-vue-next'
-import {formatter} from "../common/utils.ts";
-import {Ticker} from "@tombcato/smart-ticker/vue";
+import {computed, reactive, watch} from 'vue';
+import type {TableProps} from 'tdesign-vue-next';
+import {formatter} from '../common/utils.ts';
+// 注意：必须从 /vue 子路径导入。
+// 该包根入口(@tombcato/smart-ticker)是 React 实现（依赖 react/jsx-runtime），
+// 误用会导致构建期 MISSING_EXPORT 报错。
+import {Presets, Ticker} from '@tombcato/smart-ticker/vue';
 
 /**
  * ==========================================
@@ -487,13 +389,13 @@ import {Ticker} from "@tombcato/smart-ticker/vue";
  * 元
  */
 
-type GrowthMode = 'single' | 'two-stage'
+type GrowthMode = 'single' | 'two-stage';
 
 interface DcfFormData {
   /**
    * 基准年份（FCF0所属年份，默认上一年）
    */
-  baseYear: number
+  baseYear: number;
   /**
    * 估值模式
    *
@@ -503,70 +405,70 @@ interface DcfFormData {
    * two-stage:
    *   两阶段增长
    */
-  growthMode: GrowthMode
+  growthMode: GrowthMode;
 
   /**
    * 基准 FCF
    */
-  baseFcf: number
+  baseFcf: number;
 
   /**
    * 第一阶段增长率
    */
-  growthRate: number
+  growthRate: number;
   /**
    * 第一阶段年数
    */
-  forecastYears: number
+  forecastYears: number;
   /**
    * 第二阶段增长率
    */
-  secondGrowthRate: number
+  secondGrowthRate: number;
 
   /**
    * 第二阶段年数
    */
-  secondStageYears: number
+  secondStageYears: number;
 
   /**
    * 折现率 r
    */
-  discountRate: number
+  discountRate: number;
 
   /**
    * 永续增长率 g
    */
-  terminalGrowthRate: number
+  terminalGrowthRate: number;
 
   /**
    * 总股本
    */
-  totalShares: number
+  totalShares: number;
 
   /**
    * 现金
    */
-  cash: number
+  cash: number;
 
   /**
    * 有息负债
    */
-  debt: number
+  debt: number;
 
   /**
    * 安全边际
    */
-  marginOfSafety: number
+  marginOfSafety: number;
 }
 
 interface ForecastRow {
-  year: number
-  stage: string
-  growthRate: number
-  fcf: number
-  discountFactor: number
-  presentValue: number,
-  label: string
+  year: number;
+  stage: string;
+  growthRate: number;
+  fcf: number;
+  discountFactor: number;
+  presentValue: number;
+  label: string;
 }
 
 /**
@@ -584,7 +486,7 @@ interface ForecastRow {
  * 安全边际 = 30%
  */
 const defaultFormData: DcfFormData = {
-  baseYear: new Date().getFullYear()-1,
+  baseYear: new Date().getFullYear() - 1,
   growthMode: 'single',
   baseFcf: 18,
   growthRate: 6,
@@ -597,66 +499,59 @@ const defaultFormData: DcfFormData = {
   cash: 0,
   debt: 0,
   marginOfSafety: 30,
-}
+};
 
-const formData = reactive<DcfFormData>(loadFromLocalStorage())
+const formData = reactive<DcfFormData>(loadFromLocalStorage());
 
 /**
  * 预测期选项
  */
-const yearOptions = Array.from(
-    {length: 10},
-    (_, index) => index + 1,
-)
+const yearOptions = Array.from({length: 10}, (_, index) => index + 1);
 
 /**
  * 第二阶段年数
  */
-const secondStageYearOptions = Array.from(
-    {length: 10},
-    (_, index) => index + 1,
-)
+const secondStageYearOptions = Array.from({length: 10}, (_, index) => index + 1);
 
 /**
  * ==========================================
- * 百分比转换
+ * 百分比 -> 小数
  * ==========================================
  *
- * 例如：
- *
- * 10 -> 0.10
+ * 表单里所有比率参数（折现率、增长率、永续增长率、安全边际等）
+ * 均以「百分数」录入（如 10 表示 10%），计算前需统一除以 100 转为小数（如 10 -> 0.10）。
  */
 const toRate = (value: number) => {
-  return value / 100
-}
+  return value / 100;
+};
 
 /**
  * 折现率
  */
 const r = computed(() => {
-  return toRate(formData.discountRate)
-})
+  return toRate(formData.discountRate);
+});
 
 /**
  * 永续增长率
  */
 const terminalGrowth = computed(() => {
-  return toRate(formData.terminalGrowthRate)
-})
+  return toRate(formData.terminalGrowthRate);
+});
 
 /**
  * 第一阶段增长率
  */
 const firstGrowth = computed(() => {
-  return toRate(formData.growthRate)
-})
+  return toRate(formData.growthRate);
+});
 
 /**
  * 第二阶段增长率
  */
 const secondGrowth = computed(() => {
-  return toRate(formData.secondGrowthRate)
-})
+  return toRate(formData.secondGrowthRate);
+});
 
 /**
  * ==========================================
@@ -665,14 +560,11 @@ const secondGrowth = computed(() => {
  */
 const totalForecastYears = computed(() => {
   if (formData.growthMode === 'single') {
-    return formData.forecastYears
+    return formData.forecastYears;
   }
 
-  return (
-      formData.forecastYears +
-      formData.secondStageYears
-  )
-})
+  return formData.forecastYears + formData.secondStageYears;
+});
 
 /**
  * ==========================================
@@ -681,78 +573,69 @@ const totalForecastYears = computed(() => {
  */
 const isValid = computed(() => {
   return (
-      Number.isFinite(formData.baseFcf) &&
-      formData.baseFcf > 0 &&
-      formData.forecastYears > 0 &&
-      formData.discountRate > 0 &&
-      terminalGrowth.value < r.value
-  )
-})
+    Number.isFinite(formData.baseFcf) &&
+    formData.baseFcf > 0 &&
+    formData.forecastYears > 0 &&
+    formData.discountRate > 0 &&
+    terminalGrowth.value < r.value
+  );
+});
 
 /**
  * 参数错误信息
  */
 const validationMessage = computed(() => {
-  if (
-      !Number.isFinite(formData.baseFcf) ||
-      formData.baseFcf <= 0
-  ) {
-    return '基准 FCF 必须大于 0。'
+  if (!Number.isFinite(formData.baseFcf) || formData.baseFcf <= 0) {
+    return '基准 FCF 必须大于 0。';
   }
 
   if (formData.discountRate <= 0) {
-    return '折现率 r 必须大于 0。'
+    return '折现率 r 必须大于 0。';
   }
 
-  if (
-      terminalGrowth.value >= r.value
-  ) {
-    return '永续增长率 g 必须小于折现率 r，否则终值无法计算。'
+  if (terminalGrowth.value >= r.value) {
+    return '永续增长率 g 必须小于折现率 r，否则终值无法计算。';
   }
 
-  if (
-      formData.growthMode === 'two-stage' &&
-      formData.secondStageYears <= 0
-  ) {
-    return '第二阶段年数必须大于 0。'
+  if (formData.growthMode === 'two-stage' && formData.secondStageYears <= 0) {
+    return '第二阶段年数必须大于 0。';
   }
 
-  return '未知错误'
-})
+  return '未知错误';
+});
 
 /**
  * ==========================================
- * 生成未来 FCF
+ * 未来自由现金流预测（逐年）
  * ==========================================
+ * 数据流（单位：亿元）：
+ *   FCF₁..FCFₙ：每个预测年的自由现金流
+ *   discountFactor = (1+r)ⁿ ：第 n 年的折现因子
+ *   presentValue   = FCFₙ ÷ discountFactor ：第 n 年现金流的现值
+ * 阶段切换：单阶段全程用 firstGrowth；
+ *          两阶段时，前 forecastYears 年用 firstGrowth，year > forecastYears 后切换为 secondGrowth。
  */
 const forecastData = computed<ForecastRow[]>(() => {
-  const result: ForecastRow[] = []
+  const result: ForecastRow[] = [];
 
-  let previousFcf = formData.baseFcf
+  let previousFcf = formData.baseFcf;
 
-  for (
-      let year = 1;
-      year <= totalForecastYears.value;
-      year++
-  ) {
-    let currentGrowth = firstGrowth.value
-    let stage = '第一阶段'
+  for (let year = 1; year <= totalForecastYears.value; year++) {
+    let currentGrowth = firstGrowth.value;
+    let stage = '第一阶段';
 
     /**
      * 两阶段模型
      */
-    if (
-        formData.growthMode === 'two-stage' &&
-        year > formData.forecastYears
-    ) {
-      currentGrowth = secondGrowth.value
-      stage = '第二阶段'
+    if (formData.growthMode === 'two-stage' && year > formData.forecastYears) {
+      currentGrowth = secondGrowth.value;
+      stage = '第二阶段';
     }
 
     /**
      * FCFn = FCF(n-1) × (1 + growth)
      */
-    const fcf = previousFcf *(1 + currentGrowth);
+    const fcf = previousFcf * (1 + currentGrowth);
 
     /**
      * PV = FCF / (1+r)^n
@@ -767,14 +650,14 @@ const forecastData = computed<ForecastRow[]>(() => {
       fcf,
       discountFactor,
       presentValue,
-      label: (year + formData.baseYear).toString()
-    })
+      label: (year + formData.baseYear).toString(),
+    });
 
-    previousFcf = fcf
+    previousFcf = fcf;
   }
 
-  return result
-})
+  return result;
+});
 
 /**
  * ==========================================
@@ -782,12 +665,8 @@ const forecastData = computed<ForecastRow[]>(() => {
  * ==========================================
  */
 const pvOfForecast = computed(() => {
-  return forecastData.value.reduce(
-      (sum, item) =>
-          sum + item.presentValue,
-      0,
-  )
-})
+  return forecastData.value.reduce((sum, item) => sum + item.presentValue, 0);
+});
 
 /**
  * ==========================================
@@ -795,14 +674,14 @@ const pvOfForecast = computed(() => {
  * ==========================================
  */
 const finalYearFcf = computed(() => {
-  const data = forecastData.value
+  const data = forecastData.value;
 
   if (!data.length) {
-    return 0
+    return 0;
   }
 
-  return data[data.length - 1].fcf
-})
+  return data[data.length - 1].fcf;
+});
 
 /**
  * ==========================================
@@ -817,25 +696,22 @@ const finalYearFcf = computed(() => {
  *
  * = FCF(n+1)/(r-g)
  */
-const terminalYearFcf = computed(() => finalYearFcf.value *(1 + terminalGrowth.value));
+const terminalYearFcf = computed(() => finalYearFcf.value * (1 + terminalGrowth.value));
 
 const terminalValue = computed(() => {
-  return (
-      terminalYearFcf.value /
-      (r.value - terminalGrowth.value)
-  )
-})
+  return terminalYearFcf.value / (r.value - terminalGrowth.value);
+});
 
 /**
  * ==========================================
- * 终值现值
+ * 终值现值（PV of Terminal Value）
  * ==========================================
+ * 终值 TV 是在「最后一个显式预测年末（第 n 年）」时点的价值，
+ * 需再向前折现 n 期：PV(TV) = TV ÷ (1+r)ⁿ，n = totalForecastYears。
  */
 const pvOfTerminalValue = computed(() => {
-  return (
-      terminalValue.value / Math.pow(1 + r.value, totalForecastYears.value,)
-  )
-})
+  return terminalValue.value / Math.pow(1 + r.value, totalForecastYears.value);
+});
 
 /**
  * ==========================================
@@ -849,11 +725,8 @@ const pvOfTerminalValue = computed(() => {
  * 终值现值
  */
 const enterpriseValue = computed(() => {
-  return (
-      pvOfForecast.value +
-      pvOfTerminalValue.value
-  )
-})
+  return pvOfForecast.value + pvOfTerminalValue.value;
+});
 
 /**
  * ==========================================
@@ -867,12 +740,8 @@ const enterpriseValue = computed(() => {
  * - Debt
  */
 const equityValue = computed(() => {
-  return (
-      enterpriseValue.value +
-      formData.cash -
-      formData.debt
-  )
-})
+  return enterpriseValue.value + formData.cash - formData.debt;
+});
 
 /**
  * ==========================================
@@ -884,20 +753,12 @@ const equityValue = computed(() => {
  * = Equity Value / Total Shares
  */
 const intrinsicValuePerShare = computed(() => {
-  if (
-      !Number.isFinite(
-          formData.totalShares,
-      ) ||
-      formData.totalShares <= 0
-  ) {
-    return 0
+  if (!Number.isFinite(formData.totalShares) || formData.totalShares <= 0) {
+    return 0;
   }
 
-  return (
-      equityValue.value /
-      formData.totalShares
-  )
-})
+  return equityValue.value / formData.totalShares;
+});
 
 /**
  * ==========================================
@@ -908,7 +769,7 @@ const intrinsicValuePerShare = computed(() => {
  *
  * = IV × (1-MOS)
  */
-const safetyMarginPrice = computed(() => intrinsicValuePerShare.value * (1 -formData.marginOfSafety / 100));
+const safetyMarginPrice = computed(() => intrinsicValuePerShare.value * (1 - formData.marginOfSafety / 100));
 
 /**
  * ==========================================
@@ -916,16 +777,12 @@ const safetyMarginPrice = computed(() => intrinsicValuePerShare.value * (1 -form
  * ==========================================
  */
 const terminalValueRatio = computed(() => {
-  if (
-      enterpriseValue.value <= 0
-  ) {
-    return 0
+  if (enterpriseValue.value <= 0) {
+    return 0;
   }
 
-  return (
-      pvOfTerminalValue.value / enterpriseValue.value
-  )
-})
+  return pvOfTerminalValue.value / enterpriseValue.value;
+});
 
 /**
  * ==========================================
@@ -952,75 +809,65 @@ const columns: TableProps['columns'] = [
     title: '增长率',
     width: 100,
     align: 'right',
-    cell: (h, {row}) =>
-        formatPercent(row.growthRate),
+    cell: (_h, {row}) => formatPercent(row.growthRate),
   },
 
   {
     colKey: 'fcf',
     title: '预测 FCF（亿元）',
     align: 'right',
-    cell: (h, {row}) =>
-        formatNumber(row.fcf),
+    cell: (_h, {row}) => formatNumber(row.fcf),
   },
 
   {
     colKey: 'discountFactor',
     title: '折现因子',
     align: 'right',
-    cell: (h, {row}) =>
-        row.discountFactor.toFixed(4),
+    cell: (_h, {row}) => row.discountFactor.toFixed(4),
   },
 
   {
     colKey: 'presentValue',
     title: 'FCF 现值（亿元）',
     align: 'right',
-    cell: (h, {row}) =>
-        formatNumber(row.presentValue),
+    cell: (_h, {row}) => formatNumber(row.presentValue),
   },
-]
+];
 
 /**
  * ==========================================
  * 格式化
  * ==========================================
  */
-function formatNumber(
-    value: number,
-) {
+function formatNumber(value: number) {
   if (!Number.isFinite(value)) {
-    return '—'
+    return '—';
   }
 
-  return value.toFixed(2)
+  return value.toFixed(2);
 }
 
-function formatPercent(
-    value: number,
-) {
+function formatPercent(value: number) {
   if (!Number.isFinite(value)) {
-    return '—'
+    return '—';
   }
 
-  return `${(
-      value * 100
-  ).toFixed(2)}%`
+  return `${(value * 100).toFixed(2)}%`;
 }
 
 // ==================== LocalStorage持久化Key ====================
-const STORAGE_KEY = 'dcf'
+const STORAGE_KEY = 'dcf';
 // 读取本地缓存
 function loadFromLocalStorage(): DcfFormData {
   try {
-    const str = localStorage.getItem(STORAGE_KEY)
-    if (!str) return {...defaultFormData}
-    const parsed = JSON.parse(str) as Partial<DcfFormData>
+    const str = localStorage.getItem(STORAGE_KEY);
+    if (!str) return {...defaultFormData};
+    const parsed = JSON.parse(str) as Partial<DcfFormData>;
     // 合并：缺字段使用默认值，防止旧缓存字段缺失报错
-    return {...defaultFormData, ...parsed}
+    return {...defaultFormData, ...parsed};
   } catch (e) {
     // JSON解析异常，回退默认配置
-    return {...defaultFormData}
+    return {...defaultFormData};
   }
 }
 
@@ -1028,16 +875,13 @@ function loadFromLocalStorage(): DcfFormData {
 watch(
   formData,
   (val) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(val))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(val));
   },
-  {deep: true}
-)
-
+  {deep: true},
+);
 </script>
 
 <style scoped>
-
-
 .dcf-form {
   margin-top: 16px;
 }
@@ -1081,9 +925,17 @@ watch(
 }
 
 .metric-value {
-  font-family: 'Roboto', -apple-system-font, BlinkMacSystemFont, "Microsoft YaHei",
-  "Microsoft YaHei UI", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
-  Arial, sans-serif;
+  font-family:
+    'Roboto',
+    -apple-system-font,
+    BlinkMacSystemFont,
+    'Microsoft YaHei',
+    'Microsoft YaHei UI',
+    'Helvetica Neue',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    Arial,
+    sans-serif;
   font-size: 22px;
   font-weight: 600;
 }

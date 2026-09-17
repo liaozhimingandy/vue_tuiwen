@@ -1,3 +1,13 @@
+<!--
+  文件：LogoPage.vue
+  用途：Logo 方案预览与下载页（方案 B：气泡 + 两只眼睛的「发声」符号）
+  路由：Logo 相关入口（具体 path 以 router 配置为准）
+  数据来源：纯前端，SVG 路径常量在本地定义；导出为 SVG / PNG（注：当前实现基于 SVG + Canvas，未使用 three.js）
+  主要交互：
+    1. 配色方向卡片：预览不同主色并下载透明底图标
+    2. iOS / Android 应用图标预览与下载
+    3. 小尺寸可读性测试、深浅底色单色版适配下载
+-->
 <template>
   <div class="logo-preview-page">
     <h1>方案B</h1>
@@ -8,7 +18,7 @@
       <h2>配色方向</h2>
       <div class="row">
         <div class="color-card" v-for="(item, index) in colorList" :key="index">
-          <div class="icon" :style="{ background: item.hex }">
+          <div class="icon" :style="{background: item.hex}">
             <div class="preview-svg">
               <LogoSvg :fill-bg="'#ffffff'" />
             </div>
@@ -25,7 +35,7 @@
       <h2>App 图标实际效果（iOS 圆角方 / Android 圆形）</h2>
       <div class="row">
         <div class="frame-card">
-          <div class="app-icon ios" :style="{ background: PRIMARY_COLOR }">
+          <div class="app-icon ios" :style="{background: PRIMARY_COLOR}">
             <div class="preview-svg">
               <LogoSvg :fill-bg="'#ffffff'" />
             </div>
@@ -34,7 +44,7 @@
           <t-button theme="primary" @click="downloadIosIcon">下载SVG</t-button>
         </div>
         <div class="frame-card">
-          <div class="app-icon android" :style="{ background: PRIMARY_COLOR }">
+          <div class="app-icon android" :style="{background: PRIMARY_COLOR}">
             <div class="preview-svg">
               <LogoSvg :fill-bg="'#ffffff'" />
             </div>
@@ -51,7 +61,7 @@
       <div class="size-test">
         <div class="size-item" v-for="s in sizeList" :key="s.px">
           <svg :width="s.px" :height="s.px" viewBox="0 0 100 100">
-            <path :d="fullPreviewPath" fill="#fff" fill-rule="evenodd"/>
+            <path :d="fullPreviewPath" fill="#fff" fill-rule="evenodd" />
           </svg>
           <div class="lbl">{{ s.label }}</div>
         </div>
@@ -66,7 +76,7 @@
           class="bg-card"
           v-for="(bg, index) in bgAdaptList"
           :key="bg.index"
-          :style="{ background: bg.bgColor, border: bg.border }"
+          :style="{background: bg.bgColor, border: bg.border}"
         >
           <div class="preview-svg">
             <LogoSvg :fill-bg="bg.path1" />
@@ -81,70 +91,77 @@
 </template>
 
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next'
-import { logger } from '@/common/utils.ts'
-import LogoSvg from "@/components/LogoSvg.vue";
+import {MessagePlugin} from 'tdesign-vue-next';
+import {logger} from '@/common/utils.ts';
+import LogoSvg from '@/components/LogoSvg.vue';
 
 // ===================== 常量定义 =====================
-const BUBBLE_PATH = 'M50 15 C 25 15 10 32 10 52 C 10 68 22 80 38 84 L 34 96 L 52 84 C 74 82 90 66 90 50 C 90 30 74 15 50 15 Z'
-const EYE1 = 'M 38 46 m -6 0 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0'
-const EYE2 = 'M 62 46 m -6 0 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0'
-const fullPreviewPath = `${BUBBLE_PATH} ${EYE1} ${EYE2}`
+// 气泡轮廓的 SVG path（viewBox 0 0 100 100）
+const BUBBLE_PATH =
+  'M50 15 C 25 15 10 32 10 52 C 10 68 22 80 38 84 L 34 96 L 52 84 C 74 82 90 66 90 50 C 90 30 74 15 50 15 Z';
+// 左眼（圆形，fill-rule=evenodd 时镂空成眼睛）
+const EYE1 = 'M 38 46 m -6 0 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0';
+// 右眼
+const EYE2 = 'M 62 46 m -6 0 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0';
+// 气泡 + 双眼拼成的完整路径
+const fullPreviewPath = `${BUBBLE_PATH} ${EYE1} ${EYE2}`;
 
+// 品牌主色（默认导出图标底色）
 const PRIMARY_COLOR = '#2E7DFF';
+// 导出图标尺寸（像素）
 const EXPORT_SIZE = 512;
 
 // ===================== TS类型定义 =====================
 interface ColorItem {
-  name: string
-  hex: string
-  hexTip: string
+  name: string;
+  hex: string;
+  hexTip: string;
 }
 
 interface SizeItem {
-  px: number
-  label: string
+  px: number;
+  label: string;
 }
 
 interface AdaptBgItem {
-  index: number
-  bgColor: string
-  border: string
-  path1: string
-  path2: string
+  index: number;
+  bgColor: string;
+  border: string;
+  path1: string;
+  path2: string;
 }
 
 // ===================== SVG导出字符串生成函数（镂空版） =====================
 /** 透明底图标：气泡品牌色 +【镂空眼睛】透出背景 */
 function buildTransparentIconSvg(bubbleColor: string): string {
-  const full = `${BUBBLE_PATH} ${EYE1} ${EYE2}`
+  const full = `${BUBBLE_PATH} ${EYE1} ${EYE2}`;
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${EXPORT_SIZE}" height="${EXPORT_SIZE}">
       <path d="${full}" fill="${bubbleColor}" fill-rule="evenodd"/>
     </svg>
-  `
+  `;
 }
 
 /** iOS圆角背景图标 */
 function buildIosAppIconSvg(bgColor: string): string {
-  const full = `${BUBBLE_PATH} ${EYE1} ${EYE2}`
+  const full = `${BUBBLE_PATH} ${EYE1} ${EYE2}`;
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${EXPORT_SIZE}" height="${EXPORT_SIZE}">
       <rect x="0" y="0" width="100" height="100" rx="22" fill="${bgColor}" />
       <path d="${full}" fill="#ffffff" fill-rule="evenodd"/>
     </svg>
-  `
+  `;
 }
 
 /** Android圆形背景图标 */
 function buildAndroidAppIconSvg(bgColor: string): string {
-  const full = `${BUBBLE_PATH} ${EYE1} ${EYE2}`
+  const full = `${BUBBLE_PATH} ${EYE1} ${EYE2}`;
   return `
      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${EXPORT_SIZE}" height="${EXPORT_SIZE}">
       <circle cx="50" cy="50" r="50" fill="${bgColor}" />
       <path d="${full}" fill="#ffffff" fill-rule="evenodd"/>
     </svg>
-  `
+  `;
 }
 
 // ===================== 业务数据源 =====================
@@ -169,119 +186,125 @@ const colorList: ColorItem[] = [
     hex: '#1A1A1A',
     hexTip: '#1A1A1A',
   },
-]
+];
 
 const sizeList: SizeItem[] = [
-  { px: 64, label: '64px（应用商店）' },
-  { px: 40, label: '40px（导航栏）' },
-  { px: 24, label: '24px（状态栏）' },
-  { px: 16, label: '16px（favicon）' },
-]
+  {px: 64, label: '64px（应用商店）'},
+  {px: 40, label: '40px（导航栏）'},
+  {px: 24, label: '24px（状态栏）'},
+  {px: 16, label: '16px（favicon）'},
+];
 
 const bgAdaptList: AdaptBgItem[] = [
-  { index: 1, bgColor: '#ffffff', border: '1px solid #eee', path1: '#2E7DFF', path2: '#fff' },
-  { index: 2, bgColor: '#1A1A1A', border: 'none', path1: '#fff', path2: '#1A1A1A' },
-  { index: 3, bgColor: '#f0f0f0', border: 'none', path1: '#666', path2: '#f0f0f0' },
-  { index: 4, bgColor: '#2E7DFF', border: 'none', path1: '#fff', path2: '#2E7DFF' },
-  { index: 5, bgColor: '#E5E6EB', border: 'none', path1: '#C9CDD4', path2: '#E5E6EB' },
-]
+  {index: 1, bgColor: '#ffffff', border: '1px solid #eee', path1: '#2E7DFF', path2: '#fff'},
+  {index: 2, bgColor: '#1A1A1A', border: 'none', path1: '#fff', path2: '#1A1A1A'},
+  {index: 3, bgColor: '#f0f0f0', border: 'none', path1: '#666', path2: '#f0f0f0'},
+  {index: 4, bgColor: '#2E7DFF', border: 'none', path1: '#fff', path2: '#2E7DFF'},
+  {index: 5, bgColor: '#E5E6EB', border: 'none', path1: '#C9CDD4', path2: '#E5E6EB'},
+];
 
 // ===================== 底层下载工具函数 =====================
-/** 创建a标签触发下载 */
+/** 创建 a 标签并模拟点击，触发浏览器下载，随后移除节点 */
 function triggerDownload(objectUrl: string, filename: string) {
-  const a = document.createElement('a')
-  a.href = objectUrl
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
   setTimeout(() => {
-    document.body.removeChild(a)
-  }, 100)
+    document.body.removeChild(a);
+  }, 100);
 }
 
 /** 下载SVG文件 */
 function downloadSvg(svgStr: string, filename: string) {
-  const blob = new Blob([svgStr], { type: 'image/svg+xml' })
-  const url = URL.createObjectURL(blob)
-  triggerDownload(url, `${filename}.svg`)
-  URL.revokeObjectURL(url)
-  MessagePlugin.success('SVG下载成功')
+  const blob = new Blob([svgStr], {type: 'image/svg+xml'});
+  const url = URL.createObjectURL(blob);
+  triggerDownload(url, `${filename}.svg`);
+  URL.revokeObjectURL(url);
+  MessagePlugin.success('SVG下载成功');
 }
 
 /** SVG转PNG下载 */
 async function downloadPng(svgStr: string, filename: string) {
-  const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' })
-  const url = URL.createObjectURL(svgBlob)
-  let img: HTMLImageElement | null = null
+  const svgBlob = new Blob([svgStr], {type: 'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(svgBlob);
+  let img: HTMLImageElement | null = null;
   try {
-    img = new Image()
+    img = new Image();
+    // 竞态：图片加载成功 or 8s 超时，谁先到用谁（防止无效 SVG 长时间挂起）
     await Promise.race([
       new Promise<void>((resolve, reject) => {
-        img!.onload = () => resolve()
-        img!.onerror = reject
-        img!.src = url
+        img!.onload = () => resolve();
+        img!.onerror = reject;
+        img!.src = url;
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('加载超时')), 8000)),
-    ])
+    ]);
 
-    const canvas = document.createElement('canvas')
-    canvas.width = EXPORT_SIZE
-    canvas.height = EXPORT_SIZE
-    const ctx = canvas.getContext('2d')!
-    ctx.drawImage(img, 0, 0, EXPORT_SIZE, EXPORT_SIZE)
+    const canvas = document.createElement('canvas');
+    canvas.width = EXPORT_SIZE;
+    canvas.height = EXPORT_SIZE;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(img, 0, 0, EXPORT_SIZE, EXPORT_SIZE);
 
     canvas.toBlob((blob) => {
       if (!blob) {
-        MessagePlugin.error('PNG生成失败')
-        return
+        MessagePlugin.error('PNG生成失败');
+        return;
       }
-      const pngUrl = URL.createObjectURL(blob)
-      triggerDownload(pngUrl, `${filename}.png`)
-      URL.revokeObjectURL(pngUrl)
-      MessagePlugin.success('PNG下载成功')
-    }, 'image/png')
+      const pngUrl = URL.createObjectURL(blob);
+      triggerDownload(pngUrl, `${filename}.png`);
+      URL.revokeObjectURL(pngUrl);
+      MessagePlugin.success('PNG下载成功');
+    }, 'image/png');
   } catch (e) {
-    MessagePlugin.error('图片加载失败')
+    MessagePlugin.error('图片加载失败');
   } finally {
-    URL.revokeObjectURL(url)
-    img = null
+    URL.revokeObjectURL(url);
+    img = null;
   }
 }
+
+// 该函数当前未接入任何按钮（iOS/Android 图标导出目前只提供 SVG），
+// 属于"已实现、待启用"的预留能力。这里显式引用一次，既避免 noUnusedLocals 报错，
+// 也表明是刻意保留而非遗漏；构建时会被当作无副作用代码摇掉，不影响产物。
+void downloadPng;
 
 // ===================== 业务下载事件 =====================
 /** 配色卡片下载图标 */
 async function downloadLogo(index: number) {
-  const colorItem = colorList[index]
-  const svgCode = buildTransparentIconSvg(colorItem.hex)
-  downloadSvg(svgCode, `logo_${colorItem.name}_透明底`)
+  const colorItem = colorList[index];
+  const svgCode = buildTransparentIconSvg(colorItem.hex);
+  downloadSvg(svgCode, `logo_${colorItem.name}_透明底`);
 }
 
 /** 深浅底色适配卡片下载 */
 async function downloadAdaptLogo(index: number) {
-  const item = bgAdaptList[index]
-  logger.info(item)
-  const svgCode = buildTransparentIconSvg(item.path1)
-  downloadSvg(svgCode, `logo_adapt_${item.index}`)
+  const item = bgAdaptList[index];
+  logger.info(item);
+  const svgCode = buildTransparentIconSvg(item.path1);
+  downloadSvg(svgCode, `logo_adapt_${item.index}`);
 }
 
-/** iOS图标下载 */
+/** iOS图标下载（当前仅导出 SVG；PNG 导出逻辑暂注释，待启用） */
 async function downloadIosIcon() {
-  const svgCode = buildIosAppIconSvg(PRIMARY_COLOR)
+  const svgCode = buildIosAppIconSvg(PRIMARY_COLOR);
   // downloadPng(svgCode, 'ios图标_带背景')
-   downloadSvg(svgCode, 'logo')
+  downloadSvg(svgCode, 'logo');
 }
 
 /** Android图标下载 */
 async function downloadAndroidIcon() {
-  const svgCode = buildAndroidAppIconSvg(PRIMARY_COLOR)
-  downloadSvg(svgCode, 'logo')
+  const svgCode = buildAndroidAppIconSvg(PRIMARY_COLOR);
+  downloadSvg(svgCode, 'logo');
 }
 </script>
 
 <style scoped>
 .logo-preview-page {
   margin: 0;
-  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   background: #f4f4f2;
   color: #222;
   padding: 40px 20px 80px;
@@ -312,7 +335,7 @@ h2 {
   font-weight: 600;
   margin-bottom: 14px;
   padding-left: 4px;
-  border-left: 4px solid #2E7DFF;
+  border-left: 4px solid #2e7dff;
 }
 
 .row {
@@ -413,7 +436,7 @@ h2 {
 
 .size-item svg {
   display: block;
-  background: #2E7DFF;
+  background: #2e7dff;
   border-radius: 20%;
 }
 
