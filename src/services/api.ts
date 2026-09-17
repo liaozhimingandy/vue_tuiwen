@@ -73,27 +73,11 @@ export const apiUrls = {
   // 其它
   check_health: () => '/health-check/', //检查服务健康状态
   /** 把后端返回的相对路径拼成完整静态资源地址（走运行时 API 地址） */
-  static_links: (link: string) => `${getApiBaseUrl()}${link}`,
+  static_links: (link: string) => `${config.CDN_BASE_URL}}${link}`,
   two_step_verification: () => '/auth/two_step_verification/', //人机检测
   feedback: () => '/feedbacks/', // 用户建议或反馈
 };
 
-<<<<<<< HEAD
-/**
- * 拉取并更新"当前登录用户"的资料到全局 Store
- * @param account_id 当前登录用户 ID
- */
-=======
-    // 其它
-    check_health: () => "/health-check/", //检查服务健康状态
-    static_links: (link: string) => `${config.CDN_BASE_URL}${link}`,//获取文件链接地址
-    two_step_verification: () => "/auth/two_step_verification/", //人机检测
-    feedback: () => "/feedbacks/" // 用户建议或反馈
-
-}
-
-// 更新本帐户信息
->>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
 export const update_self_account = async (account_id: string) => {
   await instance.get(apiUrls.get_account(account_id)).then((r: any) => {
     appStore.useAccountStore.update_account(r.data as IAccount);

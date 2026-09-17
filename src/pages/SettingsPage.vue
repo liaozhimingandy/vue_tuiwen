@@ -260,10 +260,6 @@ const onUploadFail: UploadProps['onFail'] = ({file}) => {
   MessagePlugin.error(`文件 ${file.name} 上传失败`);
 };
 
-<<<<<<< HEAD
-// 是否正在校验用户名（用于显示 loading 状态）
-const checkingName = ref(false);
-=======
 // 是否正在校验中（显示loading）
 const checkingName = ref(false)
 
@@ -274,7 +270,6 @@ const formatUploadResp = (resp: any) => {
     rawUrl: relativeUrl // 保存原始相对路径，用于发布帖子存入数据库
   }
 }
->>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
 </script>
 
 <template>
@@ -300,19 +295,6 @@ const formatUploadResp = (resp: any) => {
                   <t-space direction="vertical">
                     <t-form-item label="头像">
                       <t-upload
-<<<<<<< HEAD
-                        v-model="files"
-                        :action="apiUrls.upload_image_url()"
-                        :size-limit="sizeLimit"
-                        theme="image"
-                        accept="image/*"
-                        :show-image-preview="true"
-                        :max="1"
-                        :autoUpload="true"
-                        :headers="{Authorization: `Bearer ${appStore.useAccountStore.token.access_token}`}"
-                        @fail="onUploadFail"
-                        @success="onUploadSuccess"
-=======
                           v-model="files"
                           :action="apiUrls.upload_image_url()"
                           :size-limit="sizeLimit"
@@ -325,7 +307,6 @@ const formatUploadResp = (resp: any) => {
                           :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
                           @fail="onUploadFail"
                           @success="onUploadSuccess"
->>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
                       />
                     </t-form-item>
                     <t-form-item label="用户名" name="username">

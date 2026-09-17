@@ -430,27 +430,13 @@ onMounted(async () => {
           </template>
         </t-comment>
         <!-- 评论列表 -->
-<<<<<<< HEAD
-        <t-list v-if="select_item === 'c'" :header="`${comments.length} 条评论`" :split="true">
+        <t-list v-if="select_item === 'comment'" :header="`${comments.length} 条评论`" :split="true">
           <t-list-item v-for="(item, index) in comments" :key="index">
             <t-comment
               :author="user_map[item.account_id]?.nick_name"
               :avatar="getResourceUrl(user_map[item.account_id]?.avatar)"
               :content="item.content"
               :datetime="timestampFormat(getEntityTime(item))"
-=======
-        <t-list
-            v-if="select_item === 'comment'"
-            :header="`${comments.length} 条评论`"
-            :split="true"
-        >
-          <t-list-item v-for="(item, index) in comments" :key="index">
-            <t-comment
-                :author="user_map[item.account_id]?.nick_name"
-                :avatar="getResourceUrl(user_map[item.account_id]?.avatar)"
-                :content="item.content"
-                :datetime="timestampFormat(item.create_at)"
->>>>>>> 59059d1206c365f1480f54f5a9dae1805901bc58
             />
           </t-list-item>
         </t-list>
