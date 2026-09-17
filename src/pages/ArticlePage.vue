@@ -133,7 +133,7 @@ const onPublish = async () => {
     </t-header>
     <t-content style="margin-top: 2px">
       <t-row justify="center">
-        <t-col :md="{offset: 0, span: 6}" :xs="12" :sm="12">
+        <t-col :md="{offset: 0, span: 8}" :xs="12" :sm="12">
           <!-- 编辑器就绪前的骨架由 ArticleEditor 的 loadingComponent 负责，这里不用再写 v-if -->
           <ArticleEditor
             ref="editorComp"

@@ -32,7 +32,7 @@ interface Props {
   /** 用户昵称，生成首字母 */
   nickname?: string;
   /** 头像尺寸，支持数字 / 'small' | 'medium' | 'large' */
-  size?: number | 'small' | 'medium' | 'large';
+  size?: string | 'small' | 'medium' | 'large';
 }
 
 // ✅ withDefaults 设置默认值

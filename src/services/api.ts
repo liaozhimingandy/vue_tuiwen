@@ -73,7 +73,7 @@ export const apiUrls = {
   // 其它
   check_health: () => '/health-check/', //检查服务健康状态
   /** 把后端返回的相对路径拼成完整静态资源地址（走运行时 API 地址） */
-  static_links: (link: string) => `${config.CDN_BASE_URL}}${link}`,
+  static_links: (link: string) => `${config.CDN_BASE_URL}${link}`,
   two_step_verification: () => '/auth/two_step_verification/', //人机检测
   feedback: () => '/feedbacks/', // 用户建议或反馈
 };

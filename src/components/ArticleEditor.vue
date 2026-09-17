@@ -90,9 +90,10 @@ const editorConfig = {
 
           // 后端实际返回结构待确认：此处取 res.data.image_url，
           // 与上方 wangEditor 约定的 { errno, data:{url} } 不一致（口径待确认）
-          const url = res.data.image_url;
+          const url = res.data.url;
+          const cdn_url = apiUrls.static_links(url);
           // 插入图片到编辑器
-          insertFn(url);
+          insertFn(cdn_url);
         } catch (err) {
           console.error('上传失败', err);
         }

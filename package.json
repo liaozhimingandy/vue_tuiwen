@@ -1,7 +1,7 @@
 {
   "name": "vue_tuiwen",
   "private": true,
-  "version": "1.0.5",
+  "version": "26.9.17",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -24,6 +24,7 @@
     "js-md5": "^0.8.3",
     "lodash": "^4.18.1",
     "nprogress": "^0.2.0",
+    "ogl": "^1.0.11",
     "pinia": "^4.0.2",
     "pinia-plugin-persistedstate": "^4.7.1",
     "tdesign-vue-next": "^1.20.6",
