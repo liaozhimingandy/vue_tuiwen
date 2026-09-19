@@ -10,7 +10,7 @@
  *   改用户名 apiUrls.update_username()；资料更新 apiUrls.update_account()。
  * 主要交互：资料表单提交、密码表单提交、头像上传成功后回填 avatar。
  */
-import {onMounted, reactive, ref, type ComponentPublicInstance} from 'vue';
+import {onMounted, reactive, ref, type ComponentPublicInstance, computed, onBeforeUnmount} from 'vue';
 import {MessagePlugin} from 'tdesign-vue-next';
 import Header from '@/components/Header.vue';
 import instance from '@/services';
@@ -79,6 +79,7 @@ const validateConfirmPassword = async (value: string, context?: {formData: typeo
 };
 
 import type {CustomValidator} from 'tdesign-vue-next';
+import {notificationManager} from "@/common/notification-manager.ts";
 
 /**
  * 用户名唯一性校验器（TDesign CustomValidator）
@@ -249,8 +250,6 @@ const onUploadSuccess: UploadProps['onSuccess'] = ({file}) => {
   MessagePlugin.success(`头像上传成功`);
 };
 
-// 通用设置：是否接收通知（开关）
-const allow_beep = ref<boolean>(true);
 
 /**
  * 头像上传失败回调
@@ -270,6 +269,230 @@ const formatUploadResp = (resp: any) => {
     rawUrl: relativeUrl // 保存原始相对路径，用于发布帖子存入数据库
   }
 }
+
+
+/* =========================================================
+ * 通用设置
+ * ======================================================= */
+
+/**
+ * 通知声音
+ *
+ * 这是 App 自己的业务设置。
+ *
+ * 与浏览器 Notification.permission 完全独立。
+ */
+const allow_beep = ref(true);
+
+
+/**
+ * 浏览器通知权限
+ *
+ * default
+ * granted
+ * denied
+ */
+const notificationPermission =
+  ref<NotificationPermission>(
+    notificationManager.getPermission(),
+  );
+
+
+/**
+ * 浏览器是否支持系统通知
+ */
+const notificationSupported =
+  ref(
+    notificationManager.isSupported(),
+  );
+
+
+/**
+ * 是否已经允许系统通知
+ *
+ * 注意：
+ *
+ * 这是计算属性，不要直接修改。
+ */
+const allow_notification =
+  computed(() => {
+    return (
+      notificationPermission.value ===
+      'granted'
+    );
+  });
+
+
+/**
+ * 是否已经拒绝通知
+ */
+const notificationDenied =
+  computed(() => {
+    return (
+      notificationPermission.value ===
+      'denied'
+    );
+  });
+
+
+/**
+ * 是否还没有决定
+ */
+const notificationDefault =
+  computed(() => {
+    return (
+      notificationPermission.value ===
+      'default'
+    );
+  });
+
+
+/**
+ * 请求系统通知权限
+ *
+ * 只有 default 状态才会真正弹出浏览器授权框。
+ *
+ * denied 状态下不会重复请求。
+ */
+const enableNotification =
+  async () => {
+
+    const permission =
+      await notificationManager
+        .requestPermission();
+
+    notificationPermission.value =
+      permission;
+
+    if (
+      permission === 'granted'
+    ) {
+
+      MessagePlugin.success(
+        '系统通知已开启',
+      );
+
+      return;
+    }
+
+    if (
+      permission === 'denied'
+    ) {
+
+      MessagePlugin.warning(
+        '通知权限已被浏览器禁止，请到浏览器的网站设置中重新允许通知',
+      );
+    }
+  };
+
+
+/**
+ * 重新检测浏览器通知权限。
+ *
+ * 用户可能：
+ *
+ * 1. 在当前页面点击设置
+ * 2. 修改浏览器网站权限
+ * 3. 回到当前页面
+ *
+ * 此时需要重新读取 Notification.permission。
+ */
+const refreshNotificationPermission =
+  () => {
+
+    notificationPermission.value =
+      notificationManager.getPermission();
+
+    notificationSupported.value =
+      notificationManager.isSupported();
+  };
+
+
+/**
+ * 点击系统通知开关
+ *
+ * 开启：
+ *   -> 请求浏览器权限
+ *
+ * 关闭：
+ *   -> 浏览器不允许网站通过 JS 撤销权限
+ *   -> 引导用户去浏览器设置
+ */
+const handleNotificationSwitch =
+  async (
+    value: boolean,
+  ) => {
+    if (value) {
+      await enableNotification();
+      return;
+    }
+    /**
+     * 浏览器权限不能通过 JS 设置成 denied。
+     */
+    await MessagePlugin.info(
+      '如需关闭系统通知，请到浏览器的网站设置中关闭通知权限',
+    );
+    refreshNotificationPermission();
+  };
+
+
+/* =========================================================
+ * 生命周期
+ * ======================================================= */
+
+onMounted(() => {
+
+  /**
+   * 初始化页面高度
+   */
+  updateContentHeight();
+
+
+  /**
+   * 初始化头像
+   */
+  (files.value ??= []).push({
+    name: 'avator',
+    url: getResourceUrl(
+      account.value.avatar,
+    ),
+  });
+
+
+  /**
+   * 窗口尺寸变化
+   */
+  window.addEventListener(
+    'resize',
+    updateContentHeight,
+  );
+
+
+  /**
+   * 用户从浏览器设置页面回来时，
+   * 页面通常会重新获得 focus。
+   *
+   * 重新读取 Notification.permission。
+   */
+  window.addEventListener(
+    'focus',
+    refreshNotificationPermission,
+  );
+});
+
+
+onBeforeUnmount(() => {
+
+  window.removeEventListener(
+    'resize',
+    updateContentHeight,
+  );
+
+  window.removeEventListener(
+    'focus',
+    refreshNotificationPermission,
+  );
+});
 </script>
 
 <template>
@@ -373,8 +596,70 @@ const formatUploadResp = (resp: any) => {
               <t-tab-panel :value="3" label="通用设置">
                 <t-typography-title level="h4">通用设置</t-typography-title>
                 <t-form>
-                  <t-form-item label="接收通知" name="allow_beep">
-                    <t-switch v-model:value="allow_beep" :label="['开', '关']" size="large"> </t-switch>
+                   <!-- =================================================
+                       系统通知
+                  ================================================== -->
+                  <t-form-item label="系统通知">
+                    <t-space direction="vertical" size="small">
+                      <!--
+                        浏览器已经允许
+                      -->
+                      <t-switch
+                        v-model:value="account.allow_vibration"
+                        :label="['开', '关']"
+                        size="large"
+                      />
+                      <!--
+                        浏览器拒绝
+                      -->
+                      <t-alert v-if="notificationDenied"
+                        theme="warning"
+                        message="浏览器已禁止通知，请在浏览器的网站设置中重新允许。"
+                      />
+
+
+                      <!--
+                        用户修改浏览器权限后，
+                        回到页面重新检测
+                      -->
+
+                      <t-button
+                        v-if="notificationDenied"
+                        variant="outline"
+                        size="small"
+                        @click="refreshNotificationPermission"
+                      >我已开启，重新检测</t-button>
+
+
+                      <!--
+                        浏览器还没有选择
+                      -->
+
+                      <t-button
+                        v-if="notificationDefault"
+                        theme="primary"
+                        variant="outline"
+                        size="small"
+                        @click="enableNotification"
+                      >
+                        开启系统通知
+                      </t-button>
+                      <!--
+                        浏览器不支持
+                      -->
+                      <t-alert v-if="!notificationSupported" theme="warning" message="当前浏览器不支持系统通知。"/>
+                    </t-space>
+                  </t-form-item>
+
+
+                  <!-- =================================================
+                       通知声音
+                  ================================================== -->
+                  <t-form-item label="通知声音" name="allow_beep">
+                    <t-switch v-model:value="account.allow_beep"
+                      :label="['开', '关']"
+                      size="large"
+                    />
                   </t-form-item>
                 </t-form>
               </t-tab-panel>

@@ -183,7 +183,7 @@ const changeHandler: MenuProps['onChange'] = (active) => {
 };
 
 // 热点信息
-const list_hot = ref();
+const list_hot = ref([]);
 // 请求后端热搜接口
 const fetchHotList = async () => {
   try {
@@ -252,7 +252,7 @@ const fetchHotList = async () => {
             <t-space direction="vertical" style="width: 100%;">
               <t-alert message="禁止非法及不良言论" theme="warning"/>
               <t-list header="今日热搜" :split="true">
-                <t-list-item v-for="(item, index) in list_hot.slice(0, 10)" :key="index">
+                <t-list-item v-for="(item, index) in list_hot.slice(0,list_hot.length>10? 10 : list_hot.length)" :key="index">
                   <!-- 左侧排名 -->
                   <span class="rank" :class="{ top1: index === 0, top2: index === 1, top3: index === 2 }">{{
                       index + 1

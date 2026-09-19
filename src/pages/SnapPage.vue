@@ -1,9 +1,8 @@
 <template>
-  <Galaxy style="height: 100%; background-color: black; position: absolute;width: 100%;overflow:hidden;"/>
   <t-layout style="height: 100vh; background-color: #f7f7fa; z-index: 1;">
-      <!-- 自定义顶部头部 -->
-      <t-header
-          style="
+    <!-- 自定义顶部头部 -->
+    <t-header
+        style="
         height: 56px;
         background: rgba(20, 20, 35, 0.95);
         display: flex;
@@ -17,169 +16,169 @@
         z-index: 99;
         color: white;
       "
-      >
-        <t-button theme="danger" @click="$router.push('/')">退出树洞</t-button>
-        <t-typography-title level="h4" style="color: white">
-          <SvgIcon name="snap" :size="32" color="white"/>
-          深夜来一发
-        </t-typography-title>
-        <t-typography-text :class="{warn: isWarningTime}" style="color: white" strong
-        >{{ countDownText }}
-        </t-typography-text>
-      </t-header>
-      <t-content style="flex: 1; overflow: hidden; padding: 60px 0 0 0">
-        <t-row justify="center" style="height: 100%">
-          <t-col :md="7" :xs="11" :sm="12" style="height: 100%; display: flex; flex-direction: column">
-            <!-- 非开放时段 -->
-            <div v-if="!isOpen" class="closed-wrap">
-              <t-empty description="板块休息中,每日23:00-次日06:00开放" size="large">
-                <template #image>
-                  <error-circle-icon size="64" color="var(--td-text-color-placeholder)"/>
-                </template>
-              </t-empty>
-              <div>距离开板还有:{{ countDownText }}</div>
-              <t-button theme="primary" @click="subscribeRemind">订阅开板提醒</t-button>
-            </div>
+    >
+      <t-button theme="danger" @click="$router.push('/')">退出树洞</t-button>
+      <t-typography-title level="h4" style="color: white">
+        <SvgIcon name="snap" :size="32" color="white"/>
+        深夜来一发
+      </t-typography-title>
+      <t-typography-text :class="{warn: isWarningTime}" style="color: white" strong
+      >{{ countDownText }}
+      </t-typography-text>
+    </t-header>
+    <t-content style="flex: 1; overflow: hidden; padding: 60px 0 0 0">
+      <t-row justify="center" style="height: 100%">
+        <t-col :md="7" :xs="11" :sm="12" style="height: 100%; display: flex; flex-direction: column">
+          <!-- 非开放时段 -->
+          <div v-if="!isOpen" class="closed-wrap">
+            <t-empty description="板块休息中,每日23:00-次日06:00开放" size="large">
+              <template #image>
+                <error-circle-icon size="64" color="var(--td-text-color-placeholder)"/>
+              </template>
+            </t-empty>
+            <div>距离开板还有:{{ countDownText }}</div>
+            <t-button theme="primary" @click="subscribeRemind">订阅开板提醒</t-button>
+          </div>
 
-            <!-- 开放时段 -->
-            <div v-else style="display: flex; flex-direction: column; flex: 1; overflow: hidden">
-              <t-alert theme="warning" message="🌙今夜所有动态早上6点全部永久清除,不留痕迹,放心倾诉" close-btn/>
-              <t-empty v-if="snaps.length == 0"/>
-              <!-- 帖子列表 -->
-              <t-list v-else ref="list" style="flex: 1" :async-loading="asyncLoading" split @load-more="loadMore">
-                <t-list-item
-                    v-for="(item, index) in snaps"
-                    :key="index"
-                    :style="{backgroundColor: emotionBgColor[item.emotion]}"
-                >
-                  <t-list-item-meta :title="item.alias_name">
-                    <template #description>
-                      <TextCollapse>
-                        <div v-html="item.content.text"></div>
-                      </TextCollapse>
-                      <!--                    <LineClamp :text="item.content.text" :max-lines="2"-->
-                      <!--                              :expanded="snap_id_expanded == item.id">-->
-                      <!--                      <template #after="{ clamped }">-->
-                      <!--                        <t-link v-if="clamped || snap_id_expanded==item.id" theme="primary" @click="() => snap_id_expanded = clamped ? item.id : null">-->
-                      <!--                          {{ clamped ? "展开" : "收起" }}-->
-                      <!--                        </t-link>-->
-                      <!--                      </template>-->
-                      <!--                    </LineClamp>-->
-                    </template>
-                    <template #image>
-                      <div
-                          style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center">
-                        <UserAvatar :nickname="item.alias_name" style="width: 100%; height: 100%"/>
-                      </div>
-                    </template>
-                  </t-list-item-meta>
-                  <template #action>
-                    <t-space>
-                      <t-button
-                          size="large"
-                          variant="text"
-                          style="width: auto"
-                          shape="square"
-                          @click="() => likeSnap(item.id)"
-                      >
-                        <template #icon>
-                          <heart-icon/>
-                        </template>
-                        <Ticker
-                            v-if="item.like > 0"
-                            :value="item.like"
-                            :duration="800"
-                            easing="linear"
-                            direction="ANY"
-                            :number-format="formatter"
-                        />
-                      </t-button>
-                      <t-button size="large" variant="text" style="width: auto" shape="square">
-                        <template #icon>
-                          <time-icon/>
-                        </template>
-                        {{ timestampFormat(getEntityTime(item)) }}
-                      </t-button>
-                    </t-space>
-                  </template>
-                </t-list-item>
-              </t-list>
-            </div>
-          </t-col>
-        </t-row>
-      </t-content>
-      <t-back-top
-          :offset="[20, 0]"
-          :visible-height="0"
-          shape="circle"
-          style="position: absolute; right: 20px; bottom: 20px"
-          theme="primary"
-          @click="visible = !visible"
-      >
-        <template #content>
-          <SvgIcon name="edit" :size="24" color="white"/>
-        </template>
-      </t-back-top>
-
-      <t-drawer
-          v-model:visible="visible"
-          header="今晚想说什么?"
-          :show-overlay="false"
-          :on-overlay-click="() => (visible = false)"
-          placement="right"
-          @confirm="onConfirm"
-          :confirm-btn="isOpen ? '说出来' : null"
-          @cancel="onCancel"
-      >
-        <t-form ref="formRef" :data="formData" :rules="formRules" label-align="top">
-          <!-- 情绪标签 -->
-          <t-form-item label="选择情绪" name="emotion">
-            <t-space direction="horizontal" break-line>
-              <t-check-tag
-                  v-for="(item, index) in emotionsOptions"
-                  :checked="formData.emotion == item.value"
+          <!-- 开放时段 -->
+          <div v-else style="display: flex; flex-direction: column; flex: 1; overflow: hidden">
+            <t-alert theme="warning" message="🌙今夜所有动态早上6点全部永久清除,不留痕迹,放心倾诉" close-btn/>
+            <t-empty v-if="snaps.length == 0"/>
+            <!-- 帖子列表 -->
+            <t-list v-else ref="list" style="flex: 1" :async-loading="asyncLoading" split @load-more="loadMore">
+              <t-list-item
+                  v-for="(item, index) in snaps"
                   :key="index"
-                  @click="formData.emotion = item.value"
+                  :style="{backgroundColor: emotionBgColor[item.emotion]}"
               >
-                {{ item.label }}
-              </t-check-tag>
-            </t-space>
-          </t-form-item>
-          <t-form-item label="心事内容" name="content.text">
-            <t-textarea
-                v-model="formData.content.text"
-                :autosize="{minRows: 3, maxRows: 5}"
-                placeholder="写下一句深夜心事，天亮就消失..."
-                :maxlength="512"
-                tips="所有内容早上6点永久清除，发布不可撤回"
-            />
-          </t-form-item>
+                <t-list-item-meta :title="item.alias_name">
+                  <template #description>
+                    <TextCollapse>
+                      <div v-html="item.content.text"></div>
+                    </TextCollapse>
+                    <!--                    <LineClamp :text="item.content.text" :max-lines="2"-->
+                    <!--                              :expanded="snap_id_expanded == item.id">-->
+                    <!--                      <template #after="{ clamped }">-->
+                    <!--                        <t-link v-if="clamped || snap_id_expanded==item.id" theme="primary" @click="() => snap_id_expanded = clamped ? item.id : null">-->
+                    <!--                          {{ clamped ? "展开" : "收起" }}-->
+                    <!--                        </t-link>-->
+                    <!--                      </template>-->
+                    <!--                    </LineClamp>-->
+                  </template>
+                  <template #image>
+                    <div
+                        style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center">
+                      <UserAvatar :nickname="item.alias_name" style="width: 100%; height: 100%"/>
+                    </div>
+                  </template>
+                </t-list-item-meta>
+                <template #action>
+                  <t-space>
+                    <t-button
+                        size="large"
+                        variant="text"
+                        style="width: auto"
+                        shape="square"
+                        @click="() => likeSnap(item.id)"
+                    >
+                      <template #icon>
+                        <heart-icon/>
+                      </template>
+                      <Ticker
+                          v-if="item.like > 0"
+                          :value="item.like"
+                          :duration="800"
+                          easing="linear"
+                          direction="ANY"
+                          :number-format="formatter"
+                      />
+                    </t-button>
+                    <t-button size="large" variant="text" style="width: auto" shape="square">
+                      <template #icon>
+                        <time-icon/>
+                      </template>
+                      {{ timestampFormat(getEntityTime(item)) }}
+                    </t-button>
+                  </t-space>
+                </template>
+              </t-list-item>
+            </t-list>
+          </div>
+        </t-col>
+      </t-row>
+    </t-content>
+    <t-back-top
+        :offset="[20, 0]"
+        :visible-height="0"
+        shape="circle"
+        style="position: absolute; right: 20px; bottom: 20px"
+        theme="primary"
+        @click="visible = !visible"
+    >
+      <template #content>
+        <SvgIcon name="edit" :size="24" color="white"/>
+      </template>
+    </t-back-top>
 
-          <t-form-item label="匿名昵称(选填)" name="alias_name">
-            <t-input
-                v-model="formData.alias_name"
-                placeholder="填写你的匿名昵称（选填）"
-                maxlength="20"
-                clearable
-                tips="您的网名,我们不会记录你的名字,可能会和其他人重复"
-            />
-          </t-form-item>
-        </t-form>
-      </t-drawer>
-      <t-sticky-tool
-          v-if="!isMobileDevice()"
-          placement="right-center"
-          shape="round"
-          :offset="[-50, -24]"
-          @click="onHandleClick"
-      >
-        <t-sticky-item label="意见反馈">
-          <template #icon>
-            <chat-double-icon/>
-          </template>
-        </t-sticky-item>
-      </t-sticky-tool>
-      <FeedbackDialog ref="feedbackDialogRef"/>
+    <t-drawer
+        v-model:visible="visible"
+        header="今晚想说什么?"
+        :show-overlay="false"
+        :on-overlay-click="() => (visible = false)"
+        placement="right"
+        @confirm="onConfirm"
+        :confirm-btn="isOpen ? '说出来' : null"
+        @cancel="onCancel"
+    >
+      <t-form ref="formRef" :data="formData" :rules="formRules" label-align="top">
+        <!-- 情绪标签 -->
+        <t-form-item label="选择情绪" name="emotion">
+          <t-space direction="horizontal" break-line>
+            <t-check-tag
+                v-for="(item, index) in emotionsOptions"
+                :checked="formData.emotion == item.value"
+                :key="index"
+                @click="formData.emotion = item.value"
+            >
+              {{ item.label }}
+            </t-check-tag>
+          </t-space>
+        </t-form-item>
+        <t-form-item label="心事内容" name="content.text">
+          <t-textarea
+              v-model="formData.content.text"
+              :autosize="{minRows: 3, maxRows: 5}"
+              placeholder="写下一句深夜心事，天亮就消失..."
+              :maxlength="512"
+              tips="所有内容早上6点永久清除，发布不可撤回"
+          />
+        </t-form-item>
+
+        <t-form-item label="匿名昵称(选填)" name="alias_name">
+          <t-input
+              v-model="formData.alias_name"
+              placeholder="填写你的匿名昵称（选填）"
+              maxlength="20"
+              clearable
+              tips="您的网名,我们不会记录你的名字,可能会和其他人重复"
+          />
+        </t-form-item>
+      </t-form>
+    </t-drawer>
+    <t-sticky-tool
+        v-if="!isMobileDevice()"
+        placement="right-center"
+        shape="round"
+        :offset="[-50, -24]"
+        @click="onHandleClick"
+    >
+      <t-sticky-item label="意见反馈">
+        <template #icon>
+          <chat-double-icon/>
+        </template>
+      </t-sticky-item>
+    </t-sticky-tool>
+    <FeedbackDialog ref="feedbackDialogRef"/>
   </t-layout>
 </template>
 
@@ -202,6 +201,11 @@ const visible = ref(false);
 const isOpen = ref(isLateNightTime());
 let sec = ref(getRemainingSecondsTo6AM());
 const snaps = ref<Array<any>>([]);
+// 播放声音
+const {
+  notifyWithSound
+} = useNotification();
+import notificationSound from '@/assets/sounds/notification.mp3'
 
 // 倒计时定时器
 let timer: number | null = null;
@@ -232,6 +236,7 @@ function tick() {
 async function fetch_snap_latest() {
   try {
     loading.value = true;
+    let count = snaps.value.length;
     const res = await instance.get(apiUrls.get_snap_latest());
     const combined = [...snaps.value, ...res.data.items];
 
@@ -242,6 +247,18 @@ async function fetch_snap_latest() {
     }
     // 排序：最新在前
     snaps.value = Array.from(map.values()).sort(compareByTimeDesc);
+
+    let count_latest = snaps.value.length;
+    if(count_latest > count) {
+      // 系统通知
+      await notifyWithSound('新消息', {
+            body: '为你刷新了帖子',
+            icon: '/logo.png',
+          },
+          notificationSound
+      );
+    }
+
   } catch (err) {
     // 请求失败静默跳过，不打断轮询
     console.error('获取帖子失败', err);
@@ -452,7 +469,7 @@ watch(
 import type {StickyToolProps} from 'tdesign-vue-next';
 import {isMobileDevice} from '../common/device.ts';
 import TextCollapse from '../components/TextCollapse.vue';
-import Galaxy from "@/components/Galaxy.vue";
+import {useNotification} from "@/common/useNotification.ts";
 
 const feedbackDialogRef = ref();
 const onHandleClick: StickyToolProps['onClick'] = (context) => {

@@ -65,6 +65,7 @@ export interface IAccount {
   allow_add_friend?: boolean;
   allow_beep?: boolean;
   allow_vibration?: boolean;
+  allow_notification?: boolean;
   area_code?: string;
   avatar?: string;
   mail?: null | string;

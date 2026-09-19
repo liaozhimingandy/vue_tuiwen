@@ -41,7 +41,7 @@ const formData = ref({
  * @param context 表单上下文，含完整 formData
  * @returns 一致返回 { result: true }；不一致返回错误提示
  */
-const validateConfirmPassword = async (value: string, context?: {formData: typeof formData.value}) => {
+const validateConfirmPassword = async (value: string, context?: { formData: typeof formData.value }) => {
   if (value !== context?.formData.password) {
     return {
       result: false,
@@ -92,12 +92,12 @@ const handleRegister: FormProps['onSubmit'] = async ({validateResult, firstError
 
   // 调用注册接口
   instance
-    .post(apiUrls.register(), data)
-    .then(() => {
-      MessagePlugin.success('注册成功,请登录!');
-      router.push({name: 'login'});
-    })
-    .catch((err: any) => MessagePlugin.error(err.response.data.detail));
+      .post(apiUrls.register(), data)
+      .then(() => {
+        MessagePlugin.success('注册成功,请登录!');
+        router.push({name: 'login'});
+      })
+      .catch((err: any) => MessagePlugin.error(err.response.data.detail));
 };
 
 const handleLogin = () => window.location.replace('/login/');
@@ -114,64 +114,110 @@ const mailOptions = computed<AutoCompleteProps['options']>(() => {
 </script>
 
 <template>
-  <div style="height: 100vh; background-color: #e9ebee; display: flex; justify-content: center; align-items: center">
-    <t-card style="width: 400px" header-bordered>
-      <!-- Logo区域 -->
-      <template #title>
-        <div style="display: flex; align-items: center; gap: 8px">
-          <img src="../assets/icons/logo.svg" alt="logo" width="32" />
-          <t-typography-title level="h4" style="margin: 0; line-height: 16px">注册</t-typography-title>
-        </div>
-      </template>
-      <t-form :data="formData" :rules="rules" ref="formRef" @submit="handleRegister">
-        <t-form-item label="电子邮箱" name="mail" :status-icon="true">
-          <t-auto-complete filterable :options="mailOptions" v-model="formData.mail">
-            <template #default>
-              <t-input v-model="formData.mail" placeholder="电子邮箱">
-                <template #prefix-icon>
-                  <mail-icon />
-                </template>
-              </t-input>
-            </template>
-          </t-auto-complete>
-        </t-form-item>
-        <t-form-item label="密码" name="password" :status-icon="true">
-          <t-input v-model:value="formData.password" placeholder="请输入密码" type="password" autocomplete="password">
-            <template #prefix-icon>
-              <lock-on-icon />
-            </template>
-          </t-input>
-        </t-form-item>
-        <t-form-item label="确认密码" name="confirmPassword" :status-icon="true">
-          <t-input
-            v-model:value="formData.confirmPassword"
-            placeholder="请确认密码"
-            type="password"
-            autocomplete="confirmPassword"
-          >
-            <template #prefix-icon>
-              <lock-on-icon />
-            </template>
-          </t-input>
-        </t-form-item>
-        <t-divider />
-        <t-form-item name="nick_name" label="显示名称" :status-icon="true">
-          <t-input v-model:value="formData.nick_name"></t-input>
-        </t-form-item>
-        <t-form-item label="出生日期" name="gmt_birth" :status-icon="true">
-          <t-date-picker v-model:value="formData.gmt_birth" value-format="YYYY-MM-DD" style="width: 100%" />
-        </t-form-item>
-        <t-form-item name="sex" label="性别" :status-icon="true">
-          <t-select v-model:value="formData.sex" :options="sexListOptions" />
-        </t-form-item>
-        <t-divider />
-        <div style="display: flex; gap: 24px; justify-content: space-evenly">
-          <t-button type="submit">注册</t-button>
-          <t-button theme="default" @click="handleLogin">已有账号？登录</t-button>
-        </div>
-      </t-form>
-    </t-card>
+  <!-- 最外层容器：铺满屏幕、禁止滚动、相对定位 -->
+  <div class="login-container">
+    <!-- 背景装饰圆 -->
+    <div class="circle circle-purple"></div>
+    <div class="circle circle-teal"></div>
+    <div style="height: 100vh; background-color: #e9ebee; display: flex; justify-content: center; align-items: center">
+      <t-card style="width: 400px" header-bordered>
+        <!-- Logo区域 -->
+        <template #title>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <img src="../assets/icons/logo.svg" alt="logo" width="32"/>
+            <t-typography-title level="h4" style="margin: 0; line-height: 16px">注册</t-typography-title>
+          </div>
+        </template>
+        <t-form :data="formData" :rules="rules" ref="formRef" @submit="handleRegister">
+          <t-form-item label="电子邮箱" name="mail" :status-icon="true">
+            <t-auto-complete filterable :options="mailOptions" v-model="formData.mail">
+              <template #default>
+                <t-input v-model="formData.mail" placeholder="电子邮箱">
+                  <template #prefix-icon>
+                    <mail-icon/>
+                  </template>
+                </t-input>
+              </template>
+            </t-auto-complete>
+          </t-form-item>
+          <t-form-item label="密码" name="password" :status-icon="true">
+            <t-input v-model:value="formData.password" placeholder="请输入密码" type="password" autocomplete="password">
+              <template #prefix-icon>
+                <lock-on-icon/>
+              </template>
+            </t-input>
+          </t-form-item>
+          <t-form-item label="确认密码" name="confirmPassword" :status-icon="true">
+            <t-input
+                v-model:value="formData.confirmPassword"
+                placeholder="请确认密码"
+                type="password"
+                autocomplete="confirmPassword"
+            >
+              <template #prefix-icon>
+                <lock-on-icon/>
+              </template>
+            </t-input>
+          </t-form-item>
+          <t-divider/>
+          <t-form-item name="nick_name" label="显示名称" :status-icon="true">
+            <t-input v-model:value="formData.nick_name"></t-input>
+          </t-form-item>
+          <t-form-item label="出生日期" name="gmt_birth" :status-icon="true">
+            <t-date-picker v-model:value="formData.gmt_birth" value-format="YYYY-MM-DD" style="width: 100%"/>
+          </t-form-item>
+          <t-form-item name="sex" label="性别" :status-icon="true">
+            <t-select v-model:value="formData.sex" :options="sexListOptions"/>
+          </t-form-item>
+          <t-divider/>
+          <div style="display: flex; gap: 24px; justify-content: space-evenly">
+            <t-button type="submit">注册</t-button>
+            <t-button theme="default" @click="handleLogin">已有账号？登录</t-button>
+          </div>
+        </t-form>
+      </t-card>
+    </div>
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+/* 关键：铺满屏幕、隐藏滚动条、禁止内容撑开高度 */
+.login-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background-color: #e9ebee;
+  overflow: hidden; /* 核心：禁止滚动条 */
+  margin: 0;
+  padding: 0;
+}
+
+/* 让flex容器也占满 */
+.login-center {
+  width: 100%;
+  height: 100%;
+}
+
+/* 背景圆形绝对定位，不占文档流 */
+.circle {
+  position: absolute;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.circle-purple {
+  width: 32vw;
+  height: 32vw;
+  background: #027aff;
+  left: -12vw;
+  bottom: -10vw;
+}
+
+.circle-teal {
+  width: 30vw;
+  height: 30vw;
+  background: #8c6cd9;
+  right: -10vw;
+  top: -8vw;
+}
+</style>
