@@ -67,13 +67,13 @@ const scrollToTop = () => {
  */
 const get_past_latest = async () => {
   instance
-    .get(apiUrls.get_posts_latest())
-    .then((r: any) => {
-      appStore.usePostStore.addPosts(r.data.items as IPost[]);
-      is_show_success.value = true;
-      MessagePlugin.success(`成功更新${r.data.items.length}条数据`);
-    })
-    .catch((e: any) => MessagePlugin.error(`拉取数据失败:${e}`));
+      .get(apiUrls.get_posts_latest())
+      .then((r: any) => {
+        appStore.usePostStore.addPosts(r.data.items as IPost[]);
+        is_show_success.value = true;
+        MessagePlugin.success(`成功更新${r.data.items.length}条数据`);
+      })
+      .catch((e: any) => MessagePlugin.error(`拉取数据失败:${e}`));
 };
 
 /**
@@ -98,6 +98,7 @@ onMounted(async () => {
   window.addEventListener('resize', checkDeviceSize);
   checkDeviceSize();
   await get_post();
+  await fetchHotList();
   // 启动5分钟自动轮询
   startPoll();
   // 监听页面标签切换，后台时暂停轮询（优化请求）
@@ -133,6 +134,7 @@ const startPoll = () => {
   pollTimer.value = window.setInterval(async () => {
     if (!isLoading.value) {
       await get_past_latest();
+      await fetchHotList();
     }
   }, POLL_TIME);
 };
@@ -179,12 +181,25 @@ const changeHandler: MenuProps['onChange'] = (active) => {
       break;
   }
 };
+
+// 热点信息
+const list_hot = ref();
+// 请求后端热搜接口
+const fetchHotList = async () => {
+  try {
+    const res = await fetch('https://60s.viki.moe/v2/60s')
+    const json = await res.json()
+    list_hot.value = json.data.news || []
+  } catch (e) {
+    console.error('热搜加载失败', e)
+  }
+}
 </script>
 
 <template>
   <t-layout style="min-height: 100vh; text-align: center">
     <t-header ref="headerRef" :style="{width: '100%', 'background-color': 'white'}">
-      <Header selected-keys="home" />
+      <Header selected-keys="home"/>
     </t-header>
     <t-content style="padding-top: 8px">
       <t-row style="background-color: #e9ebee">
@@ -196,19 +211,19 @@ const changeHandler: MenuProps['onChange'] = (active) => {
               <t-menu default-value="none" @change="changeHandler" style="width: 100%">
                 <t-menu-item value="user">
                   <template #icon>
-                    <user-circle-icon />
+                    <user-circle-icon/>
                   </template>
                   用户中心
                 </t-menu-item>
                 <t-menu-item value="setting">
                   <template #icon>
-                    <setting-icon />
+                    <setting-icon/>
                   </template>
                   设置
                 </t-menu-item>
               </t-menu>
               <t-typography-text style="text-align: center"
-                >{{ new Date().getFullYear() }}
+              >{{ new Date().getFullYear() }}
                 <t-button variant="text" disabled>内侧中</t-button>
                 <t-button href="https://www.alsoapp.com/privacy/" target="_blank" variant="text">隐私政策</t-button>
               </t-typography-text>
@@ -217,35 +232,51 @@ const changeHandler: MenuProps['onChange'] = (active) => {
         </t-col>
 
         <!-- 博客列表 (第二列) -->
-        <t-col :md="{offset: 1, span: 5}" :xs="11" :sm="11">
+        <t-col :md="{offset: 1, span: 5}" :xs="12" :sm="12">
           <c-scrollbar trigger="hover" class="content" @scroll="handleScroll" ref="scrollbarRef">
             <t-col :md="11">
               <!--            发布推文输入框 -->
-              <NewPost />
+              <NewPost/>
               <!-- 博客列表内容 -->
               <t-card v-if="posts.length < 1">
-                <t-empty />
+                <t-empty/>
               </t-card>
-              <Post v-for="post in posts" style="padding-top: 2px" :post="post" />
+              <Post v-for="post in posts" style="padding-top: 2px" :post="post"/>
             </t-col>
           </c-scrollbar>
         </t-col>
 
         <!-- 推荐内容 (第三列) -->
-        <t-col :md="3" v-if="!isMobile" style="padding-right: 16px">
+        <t-col :md="3" v-if="!isMobile" style="padding-right: 16px;">
           <c-scrollbar trigger="hover" class="content">
-            <t-alert message="禁止非法及不良言论" theme="warning" />
-            <t-card title="推荐内容" v-show="false"> </t-card>
+            <t-space direction="vertical" style="width: 100%;">
+              <t-alert message="禁止非法及不良言论" theme="warning"/>
+              <t-list header="今日热搜" :split="true">
+                <t-list-item v-for="(item, index) in list_hot.slice(0, 10)" :key="index">
+                  <!-- 左侧排名 -->
+                  <span class="rank" :class="{ top1: index === 0, top2: index === 1, top3: index === 2 }">{{
+                      index + 1
+                    }}
+      </span>
+                  <!-- 热搜标题，左对齐 -->
+                  <!-- 标题：单行截断 + TDesign tooltip悬浮看全文 -->
+                  <t-tooltip :content="item" placement="top">
+                    <div class="hot-title">{{ item }}</div>
+                  </t-tooltip>
+                </t-list-item>
+              </t-list>
+
+            </t-space>
           </c-scrollbar>
         </t-col>
       </t-row>
     </t-content>
     <t-back-top
-      shape="circle"
-      :offset="[20, 0]"
-      :visible-height="0"
-      style="position: absolute; right: 20px; bottom: 20px"
-      @click="scrollToTop"
+        shape="circle"
+        :offset="[20, 0]"
+        :visible-height="0"
+        style="position: absolute; right: 20px; bottom: 20px"
+        @click="scrollToTop"
     ></t-back-top>
   </t-layout>
 </template>
@@ -253,7 +284,44 @@ const changeHandler: MenuProps['onChange'] = (active) => {
 <style scoped>
 .content {
   align-content: center;
-  height: v-bind(contentHeight + 'px');
+  height: v-bind(contentHeight+ 'px');
   background-color: #e9ebee;
+}
+
+
+.rank {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  background: #eee;
+  flex-shrink: 0;
+}
+
+.rank.top1 {
+  background: #f43f3f;
+  color: #fff
+}
+
+.rank.top2 {
+  background: #ff7838;
+  color: #fff
+}
+
+.rank.top3 {
+  background: #ffb800;
+  color: #fff
+}
+
+/* =========重点：单行截断，超长文字显示省略号========= */
+.hot-title {
+  flex: 1;
+  color: #222;
+  /* 单行截断三件套 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

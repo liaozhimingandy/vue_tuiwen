@@ -37,7 +37,7 @@
                   <error-circle-icon size="64" color="var(--td-text-color-placeholder)"/>
                 </template>
               </t-empty>
-              <div class="closed-tip">距离开板还有:{{ countDownText }}</div>
+              <div>距离开板还有:{{ countDownText }}</div>
               <t-button theme="primary" @click="subscribeRemind">订阅开板提醒</t-button>
             </div>
 
@@ -471,5 +471,7 @@ const onHandleClick: StickyToolProps['onClick'] = (context) => {
 .closed-wrap {
   margin-top: 120px;
   text-align: center;
+  width: auto;
+  background-color: white;
 }
 </style>
