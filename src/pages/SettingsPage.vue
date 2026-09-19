@@ -275,14 +275,6 @@ const formatUploadResp = (resp: any) => {
  * 通用设置
  * ======================================================= */
 
-/**
- * 通知声音
- *
- * 这是 App 自己的业务设置。
- *
- * 与浏览器 Notification.permission 完全独立。
- */
-const allow_beep = ref(true);
 
 
 /**
@@ -305,22 +297,6 @@ const notificationSupported =
   ref(
     notificationManager.isSupported(),
   );
-
-
-/**
- * 是否已经允许系统通知
- *
- * 注意：
- *
- * 这是计算属性，不要直接修改。
- */
-const allow_notification =
-  computed(() => {
-    return (
-      notificationPermission.value ===
-      'granted'
-    );
-  });
 
 
 /**
@@ -368,7 +344,7 @@ const enableNotification =
       permission === 'granted'
     ) {
 
-      MessagePlugin.success(
+      await MessagePlugin.success(
         '系统通知已开启',
       );
 
@@ -379,7 +355,7 @@ const enableNotification =
       permission === 'denied'
     ) {
 
-      MessagePlugin.warning(
+    await MessagePlugin.warning(
         '通知权限已被浏览器禁止，请到浏览器的网站设置中重新允许通知',
       );
     }
@@ -406,35 +382,6 @@ const refreshNotificationPermission =
     notificationSupported.value =
       notificationManager.isSupported();
   };
-
-
-/**
- * 点击系统通知开关
- *
- * 开启：
- *   -> 请求浏览器权限
- *
- * 关闭：
- *   -> 浏览器不允许网站通过 JS 撤销权限
- *   -> 引导用户去浏览器设置
- */
-const handleNotificationSwitch =
-  async (
-    value: boolean,
-  ) => {
-    if (value) {
-      await enableNotification();
-      return;
-    }
-    /**
-     * 浏览器权限不能通过 JS 设置成 denied。
-     */
-    await MessagePlugin.info(
-      '如需关闭系统通知，请到浏览器的网站设置中关闭通知权限',
-    );
-    refreshNotificationPermission();
-  };
-
 
 /* =========================================================
  * 生命周期
