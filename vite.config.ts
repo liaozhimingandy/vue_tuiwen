@@ -9,6 +9,7 @@ import Components from 'unplugin-vue-components/vite';
 import removeConsole from 'vite-plugin-remove-console';
 import {TDesignResolver} from '@tdesign-vue-next/auto-import-resolver';
 import {createSvgIconsPlugin} from 'vite-plugin-svg-icons';
+import tailwindcss from '@tailwindcss/vite';
 
 const __dirname = import.meta.dirname;
 
@@ -23,6 +24,7 @@ export default defineConfig({
   },
   plugins: [
     vue(),
+    tailwindcss(),
     AutoImport({
       resolvers: [
         TDesignResolver({

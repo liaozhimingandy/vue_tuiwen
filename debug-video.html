@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>video-kit 播放调试页（绕过后端/路由）</title>
+  <style>html,body{margin:0;padding:0;background:#111;height:100%}</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+  // 独立调试入口：不经过 main.ts 的健康检查/路由/鉴权，直接挂载 VideoFeed
+  import {createApp, h} from 'vue';
+  import VideoFeed from '/src/video-kit/components/VideoFeed.vue';
+  import {fetchVideoPage} from '/src/video-kit/services/mockVideos.ts';
+
+  createApp({
+    render: () =>
+      h(VideoFeed, {
+        fetchPage: fetchVideoPage,
+        pageSize: 5,
+        variant: 'shorts',
+      }),
+  }).mount('#app');
+</script>
+</body>
+</html>

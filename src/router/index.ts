@@ -71,6 +71,13 @@ const routes: RouteRecordRaw[] = [
     meta: {title: '搜索结果'},
   },
   {path: '/friends/', name: 'friends', component: () => import('@/pages/FriendsPage.vue'), meta: {title: '朋友'}},
+  {path: '/shorts/', name: 'shorts', component: () => import('@/pages/ShortsPage.vue'), meta: {title: '短视频'}},
+  {
+    path: '/videos/',
+    name: 'video_feed',
+    component: () => import('@/pages/VideoFeedPage.vue'),
+    meta: {title: '视频'},
+  },
   {path: '/hot/', name: 'hot', component: () => import('@/pages/HotPage.vue'), meta: {title: '热点'}},
   {path: '/logo/', name: 'logo', component: () => import('@/pages/LogoPage.vue'), meta: {title: 'logo'}},
   {path: '/snaps/', name: 'snap', component: () => import('@/pages/SnapPage.vue'), meta: {title: '天亮即焚'}},
@@ -154,7 +161,7 @@ router.beforeEach((to, _) => {
   // ==========================================
 
   /** 免登录可访问的路由名（分享页、天亮即焚、DCF 模型等对外内容） */
-  const whiteList = ['login', 'register', 'reset_password', 'post', 'two_step_verification', 'test', 'snap', 'dcf'];
+  const whiteList = ['login', 'register', 'reset_password', 'post', 'two_step_verification', 'shorts', 'test', 'snap', 'dcf', 'video_feed'];
   const isWhiteList = whiteList.includes(to.name as string);
   const hasToken = !!appStore.useAccountStore.token?.access_token;
 

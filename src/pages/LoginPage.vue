@@ -158,7 +158,7 @@ const onSearch = async (val: string) => {
           style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%"
       >
         <t-space direction="vertical" :size="0">
-          <img src="../assets/icons/logo.svg" alt="logo" style="width: 60px; height: 60px"/>
+          <img src="../assets/icons/logo.svg" alt="logo" style="width: 100px; height: 100px"/>
           <t-typography-title level="h1">
           <ShinyText
               text="做你喜欢的事情 - Enjoy yourself!"
@@ -231,7 +231,7 @@ const onSearch = async (val: string) => {
           </t-form>
         </t-card>
       </div>
-      <div class="copyright">
+      <div class="absolute bottom-0 left-0 w-full text-center">
         <t-typography-text theme="secondary">© {{ new Date().getFullYear()}} tuiwen. All rights reserved.</t-typography-text>
       </div>
     </t-col>
@@ -249,19 +249,12 @@ const onSearch = async (val: string) => {
         <t-button theme="primary" @click="onSearch(customApiUrl)">测试连接</t-button>
       </template>
     </t-input>
-    <div style="margin-top: 8px; font-size: 12px; color: #999">
+    <div style="margin-top: 8px; font-size: 12px; color: #999;">
       留空并保存可恢复默认接口地址:{{ config.API_BASE_URL_ORI }}
     </div>
   </t-dialog>
 </template>
 
 <style scoped>
-.copyright {
-  position: absolute;
-  bottom:0;
-  left:0;
-  width:100%;
-  text-align: center; /* ✅ 文字水平居中 */
-}
 </style>
 

@@ -20,7 +20,7 @@
         <div class="color-card" v-for="(item, index) in colorList" :key="index">
           <div class="icon" :style="{background: item.hex}">
             <div class="preview-svg">
-              <LogoSvg :fill-bg="'#ffffff'" />
+              <LogoSvg :fill-bg="'#ffffff'"/>
             </div>
           </div>
           <div class="cname">{{ item.name }}</div>
@@ -37,7 +37,7 @@
         <div class="frame-card">
           <div class="app-icon ios" :style="{background: PRIMARY_COLOR}">
             <div class="preview-svg">
-              <LogoSvg :fill-bg="'#ffffff'" />
+              <LogoSvg :fill-bg="'#ffffff'"/>
             </div>
           </div>
           <div class="frame-label">iOS 圆角方形</div>
@@ -46,7 +46,7 @@
         <div class="frame-card">
           <div class="app-icon android" :style="{background: PRIMARY_COLOR}">
             <div class="preview-svg">
-              <LogoSvg :fill-bg="'#ffffff'" />
+              <LogoSvg :fill-bg="'#ffffff'"/>
             </div>
           </div>
           <div class="frame-label">Android 圆形</div>
@@ -61,7 +61,7 @@
       <div class="size-test">
         <div class="size-item" v-for="s in sizeList" :key="s.px">
           <svg :width="s.px" :height="s.px" viewBox="0 0 100 100">
-            <path :d="fullPreviewPath" fill="#fff" fill-rule="evenodd" />
+            <path :d="fullPreviewPath" fill="#fff" fill-rule="evenodd"/>
           </svg>
           <div class="lbl">{{ s.label }}</div>
         </div>
@@ -73,13 +73,13 @@
       <h2>深浅底 / 单色版适配</h2>
       <div class="row">
         <div
-          class="bg-card"
-          v-for="(bg, index) in bgAdaptList"
-          :key="bg.index"
-          :style="{background: bg.bgColor, border: bg.border}"
+            class="bg-card"
+            v-for="(bg, index) in bgAdaptList"
+            :key="bg.index"
+            :style="{background: bg.bgColor, border: bg.border}"
         >
           <div class="preview-svg">
-            <LogoSvg :fill-bg="bg.path1" />
+            <LogoSvg :fill-bg="bg.path1"/>
           </div>
           <div>
             <t-button theme="primary" size="small" @click="downloadAdaptLogo(index)">下载图标</t-button>
@@ -94,11 +94,12 @@
 import {MessagePlugin} from 'tdesign-vue-next';
 import {logger} from '@/common/utils.ts';
 import LogoSvg from '@/components/LogoSvg.vue';
+import LogoSvg2 from "@/components/LogoSvg2.vue";
 
 // ===================== 常量定义 =====================
 // 气泡轮廓的 SVG path（viewBox 0 0 100 100）
 const BUBBLE_PATH =
-  'M50 15 C 25 15 10 32 10 52 C 10 68 22 80 38 84 L 34 96 L 52 84 C 74 82 90 66 90 50 C 90 30 74 15 50 15 Z';
+    'M50 15 C 25 15 10 32 10 52 C 10 68 22 80 38 84 L 34 96 L 52 84 C 74 82 90 66 90 50 C 90 30 74 15 50 15 Z';
 // 左眼（圆形，fill-rule=evenodd 时镂空成眼睛）
 const EYE1 = 'M 38 46 m -6 0 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0';
 // 右眼
@@ -142,6 +143,23 @@ function buildTransparentIconSvg(bubbleColor: string): string {
   `;
 }
 
+function buildTransparentIconSvgA(bubbleColor: string): string {
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" t="1790067415011" class="icon" viewBox="0 0 1269 1024" version="1.1" p-id="8743" width="247.8515625" height="200">
+<defs>
+<mask id="eyeMask">
+<rect x="0" y="0" width="1269" height="1024" :fill="${bubbleColor}"/>
+<circle cx="988" cy="280" r="60" fill="black"/>
+</mask>
+</defs>
+<g mask="url(#eyeMask)">
+<path d="M751.424512 922.19392a712.66304 712.66304 0 0 1-417.28-98.46784 590.76608 590.76608 0 0 1-285.94176 153.00608c237.69088 51.6096 623.86176 86.65088 810.35264-69.71392 6.69696-5.69344 13.18912-11.79648 19.68128-17.92a280.82176 280.82176 0 0 1-126.81216 33.09568zM1121.047552 354.46784a433.23392 433.23392 0 0 1 136.27392-118.1696c-98.46784-5.69344-129.18784-34.44736-167.19872-64.18432-48.2304-38.01088-102.78912-80.93696-185.30304-78.76608-140.00128 2.94912-199.4752 87.81824-232.16128 151.63392-10.4448 19.68128-33.66912 78.76608-77.0048 170.72128a736.29696 736.29696 0 0 0 91.56608-12.00128 263.4752 263.4752 0 0 1 321.78176 313.87648c78.76608-154.58304 59.86304-290.44736 112.04608-363.1104zM387.699712 0a699.26912 699.26912 0 0 0-60.64128 381.05088 703.22176 703.22176 0 0 0 252.84608 35.4304c19.68128-39.38304 34.46784-74.21952 46.4896-101.21216A712.45824 712.45824 0 0 1 387.699712 0z" fill="#000000" p-id="8744"/>
+<path d="M980.247552 557.30176a252.06784 252.06784 0 0 0-162.46784-139.24352c-98.44736-26.37824-128 17.14176-289.0752 12.61568a712.45824 712.45824 0 0 1-527.7696-256 699.47392 699.47392 0 0 0 671.5392 735.10912 512 512 0 0 0 139.59168-9.64608 248.91392 248.91392 0 0 0 168.18176-342.8352z" fill="#000000" p-id="8745"/>
+</g>
+</svg>
+  `;
+}
+
 /** iOS圆角背景图标 */
 function buildIosAppIconSvg(bgColor: string): string {
   const full = `${BUBBLE_PATH} ${EYE1} ${EYE2}`;
@@ -151,6 +169,24 @@ function buildIosAppIconSvg(bgColor: string): string {
       <path d="${full}" fill="#ffffff" fill-rule="evenodd"/>
     </svg>
   `;
+};
+
+function buildIosAppIconSvgA(bgColor: string): string {
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" t="1790067415011" class="icon" viewBox="0 0 1269 1024" version="1.1" p-id="8743" width="247.8515625" height="200">
+<defs>
+<mask id="eyeMask">
+<rect x="0" y="0" width="1269" height="1024" :fill="${bgColor}"/>
+<circle cx="988" cy="280" r="60" fill="black"/>
+</mask>
+</defs>
+<g mask="url(#eyeMask)">
+<path d="M751.424512 922.19392a712.66304 712.66304 0 0 1-417.28-98.46784 590.76608 590.76608 0 0 1-285.94176 153.00608c237.69088 51.6096 623.86176 86.65088 810.35264-69.71392 6.69696-5.69344 13.18912-11.79648 19.68128-17.92a280.82176 280.82176 0 0 1-126.81216 33.09568zM1121.047552 354.46784a433.23392 433.23392 0 0 1 136.27392-118.1696c-98.46784-5.69344-129.18784-34.44736-167.19872-64.18432-48.2304-38.01088-102.78912-80.93696-185.30304-78.76608-140.00128 2.94912-199.4752 87.81824-232.16128 151.63392-10.4448 19.68128-33.66912 78.76608-77.0048 170.72128a736.29696 736.29696 0 0 0 91.56608-12.00128 263.4752 263.4752 0 0 1 321.78176 313.87648c78.76608-154.58304 59.86304-290.44736 112.04608-363.1104zM387.699712 0a699.26912 699.26912 0 0 0-60.64128 381.05088 703.22176 703.22176 0 0 0 252.84608 35.4304c19.68128-39.38304 34.46784-74.21952 46.4896-101.21216A712.45824 712.45824 0 0 1 387.699712 0z" fill="#000000" p-id="8744"/>
+<path d="M980.247552 557.30176a252.06784 252.06784 0 0 0-162.46784-139.24352c-98.44736-26.37824-128 17.14176-289.0752 12.61568a712.45824 712.45824 0 0 1-527.7696-256 699.47392 699.47392 0 0 0 671.5392 735.10912 512 512 0 0 0 139.59168-9.64608 248.91392 248.91392 0 0 0 168.18176-342.8352z" fill="#000000" p-id="8745"/>
+</g>
+</svg>
+  `;
+  ;
 }
 
 /** Android圆形背景图标 */
