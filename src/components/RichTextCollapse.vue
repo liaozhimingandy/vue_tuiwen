@@ -346,12 +346,8 @@ const collapse = () => {
 };
 
 const toggle = () => {
-  console.log('[RichTextCollapse]', {
-    isExpanded: isExpanded.value,
-    isOverflow: isOverflow.value,
-    isControlled: isControlled.value,
-  });
-
+  // 调试日志已移除：toggle 在每次展开/收起时都会走到，
+  // 留在生产包里既刷控制台又白白构造一个对象
   if (isExpanded.value) {
     collapse();
   } else {

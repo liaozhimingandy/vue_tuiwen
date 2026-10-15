@@ -7,6 +7,9 @@ import {apiUrls} from '../services/api.ts';
 import {MessagePlugin} from 'tdesign-vue-next';
 import {compareByTimeDesc} from '../common/utils.ts';
 
+/** 草稿持久化的 localStorage key（logout 时需要一并清理） */
+const DRAFT_STORAGE_KEY = 'post_draft';
+
 /**
  * 帖子列表状态库
  * 负责首页/用户页推文列表的本地维护（新增、去重合并、删除、排序）
@@ -17,9 +20,19 @@ export const usePostStore = defineStore('posts', () => {
 
   /**
    * 新增单条推文数据
+   *
+   * 注意先按 post_id 查重：发布回调重复触发、或发帖组件重新挂载时，
+   * 直接 push 会让同一条推文在信息流里出现两次（用户看到"发了两遍"）。
+   *
    * @param data 新发布的推文
    */
   const addPost = (data: IPost) => {
+    const index = posts.value.findIndex((p) => p.post_id === data.post_id);
+    if (index !== -1) {
+      posts.value[index] = data;
+      posts.value = posts.value.sort(compareByTimeDesc);
+      return;
+    }
     posts.value.push(data);
     posts.value = posts.value.sort(compareByTimeDesc);
   };
@@ -97,11 +110,18 @@ export const useAccountStore = defineStore(
       account.value = {account_id: ''};
     };
 
-    /** 退出登录统一方法：清空内存状态与本地存储 */
+    /**
+     * 退出登录统一方法：清空内存状态与本地存储
+     *
+     * 草稿也要一并清掉：草稿是按 localStorage key 存的，
+     * 不清的话换一个账号登录后看到的仍是上一个人的未发布内容。
+     */
     const logout = () => {
       reset_account();
       reset_token();
       localStorage.removeItem('account');
+      // 直接调用同模块的 store 工厂（此处已在 pinia 上下文中）
+      useDraftStore().clearDraft();
     };
 
     return {
@@ -134,9 +154,17 @@ export const useDraftStore = defineStore(
     /** 草稿内容：文本 + 已上传图片 + 创建时间 */
     const post_draft = ref<IPostDraft | null>(null);
 
-    /** 清除草稿（同时清掉持久化数据） */
+    /**
+     * 清除草稿
+     *
+     * ⚠️ 必须同时清内存 act 和 localStorage：
+     * 原先只执行了 localStorage.removeItem，内存里的 post_draft 仍有值，
+     * 于是①依赖 post_draft 渲染的 UI 不会更新；②下一次 watch 触发时
+     * 持久化插件又把旧草稿原封不动写了回去，"清空"完全没生效。
+     */
     const clearDraft = () => {
-      localStorage.removeItem('post_draft');
+      post_draft.value = null;
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
     };
 
     return {
@@ -146,7 +174,7 @@ export const useDraftStore = defineStore(
   },
   {
     persist: {
-      key: 'post_draft', // 本地存储的自定义 key
+      key: DRAFT_STORAGE_KEY, // 本地存储的自定义 key
       storage: localStorage, // 用 localStorage，支持跨标签页共享
       pick: ['post_draft'], // 只持久化草稿字段（v4 使用 pick，见上）
     },
@@ -162,8 +190,18 @@ export const useDraftStore = defineStore(
 export const useCacheStore = defineStore('cache', () => {
   /** 缓存所有用户信息 { account_id: IAccount } */
   const account_map = ref<Record<string, IAccount>>({});
-  /** 缓存正在请求中的 Promise，避免并发重复请求同一用户 */
-  const pending_map = ref<Record<string, Promise<IAccount>>>({});
+
+  /**
+   * 缓存正在请求中的 Promise，避免并发重复请求同一用户
+   *
+   * ⚠️ 这里刻意**不用 ref**：
+   * 1. ref 是深层响应式，Promise 属于普通对象，会被 Vue 加上 reactive 代理。
+   *    代理后 await 出来的结果自带一层 Proxy，与直接 fetch 拿到的对象
+   *    不再是同一个引用，'===' 比较、浅比较都会失效；
+   * 2. 它只是"请求去重表"，不参与任何渲染，放进响应式系统是纯粹的开销。
+   * 因此用模块作用域的普通 Map。
+   */
+  const pending_map = new Map<string, Promise<IAccount>>();
 
   /**
    * 获取用户资料（含关注状态），带缓存与并发去重
@@ -177,7 +215,7 @@ export const useCacheStore = defineStore('cache', () => {
     }
 
     // 已有相同请求在途，复用同一个 Promise（并发去重）
-    const pending = pending_map.value[account_id];
+    const pending = pending_map.get(account_id);
     if (pending) {
       return pending;
     }
@@ -185,27 +223,34 @@ export const useCacheStore = defineStore('cache', () => {
     const promise = Promise.all([
       instance.get(apiUrls.get_account(account_id)),
       instance.get(apiUrls.get_account_follow(account_id)),
-    ])
-      .then(([r1, r2]) => {
-        // 合并成一个完整对象
-        const account = {
-          ...r1.data,
-          follow: r2.data,
-        };
+    ]).then(([r1, r2]) => {
+      // 合并成一个完整对象
+      const account = {
+        ...r1.data,
+        follow: r2.data,
+      };
 
-        account_map.value[account_id] = account;
-        return account;
-      })
-      .finally(() => {
-        delete pending_map.value[account_id];
-      });
+      account_map.value[account_id] = account;
+      return account;
+    });
 
     // 注意：这里记录的是"进行中"的 Promise，必须写入 pending_map。
     // 之前误写成 account_map.value[account_id] = promise，
     // 会把 Promise 当成用户信息塞进 account_map，
     // 导致组件读到 Promise（如 Post.vue 直接取 account_map[id].follow）
     // 在接口返回前出现瞬时错误数据。
-    pending_map.value[account_id] = promise;
+    pending_map.set(account_id, promise);
+
+    // 副作用单独一条链：无论成功失败都摘掉占位。
+    // 末尾的 catch 是必需的——它让这个 Promise 被标记为"已处理"，
+    // 否则调用方没写 catch 时（Post.vue 里就是直接调用）会抛 unhandled rejection。
+    // 注意这里 return 的是原始 promise，失败照常透传给调用方。
+    promise
+      .finally(() => {
+        pending_map.delete(account_id);
+      })
+      .catch(() => {});
+
     return promise;
   };
 

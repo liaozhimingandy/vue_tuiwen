@@ -9,7 +9,7 @@
     - 可见范围下拉选项来自 @/common/constants 的 post_right_map（selected_status 即 right_status）。
 -->
 <script setup lang="ts">
-import {onMounted, ref, watch} from 'vue';
+import {onMounted, onUnmounted, ref, watch} from 'vue';
 import {ChevronDownIcon, ImageAddIcon, SmileIcon} from 'tdesign-icons-vue-next';
 import type {DropdownProps, UploadProps, CheckboxProps} from 'tdesign-vue-next';
 import {MessagePlugin} from 'tdesign-vue-next';
@@ -22,7 +22,6 @@ import {apiUrls, publish_post} from '@/services/api.ts';
 import {trimEmptyParagraph} from '@/common/utils.ts';
 import FacePicker from '@/components/FacePicker.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
-
 
 const draftStore = storeToRefs(appStore.useDraftStore);
 const content = ref(''); // 内容
@@ -59,50 +58,94 @@ const dropdownOptions: DropdownProps['options'] = Object.entries(post_right_map)
 })) as DropdownProps['options'];
 
 // 处理发布博客
-const handlePublish = () => {
+const handlePublish = async () => {
+  // 防重复提交：连点发布会压出多条一模一样的推文
+  if (submitting.value) return;
   submitting.value = true;
-  // 判断是否有图片上传（fileList.value 在清空后可能为 undefined，做兜底）
-  const images = (fileList.value ?? []).map((file?) => (file as any).response?.rawUrl as string | undefined).filter(Boolean) as string[];
+  try {
+    // 判断是否有图片上传（fileList.value 在清空后可能为 undefined，做兜底）
+    const images = (fileList.value ?? [])
+      .map((file?) => (file as any).response?.rawUrl as string | undefined)
+      .filter(Boolean) as string[];
 
-  let post: IPost = {
-    post_id: crypto.randomUUID(),
-    account_id: appStore.useAccountStore.account.account_id,
-    right_status: Number(selected_status.value),
-    content: {text: content.value, images: images},
-    post_type: 1,
-    from_device: 9,
-    status: 1,
-  };
+    let post: IPost = {
+      post_id: crypto.randomUUID(),
+      account_id: appStore.useAccountStore.account.account_id,
+      right_status: Number(selected_status.value),
+      content: {text: content.value, images: images},
+      post_type: 1,
+      from_device: 9,
+      status: 1,
+    };
 
-  // 调发布接口
-  publish_post(post);
+    // ⚠️ 必须 await：publish_post 返回的是 Promise。
+    // 不 await 的话请求还没回来就提示"发布成功"、清空输入框并清掉草稿，
+    // 一旦发布失败（网络异常 / 4xx），用户既看不到任何错误，内容也找不回来了。
+    await publish_post(post);
 
-  is_open.value = false;
-  content.value = '';
-  fileList.value = [];
-  submitting.value = false;
-  MessagePlugin.success('发布成功');
-  appStore.useDraftStore.clearDraft();
+    is_open.value = false;
+    content.value = '';
+    fileList.value = [];
+    MessagePlugin.success('发布成功');
+    // 立即清一次：不依赖下面 watch 的 800ms 防抖（组件可能先被卸载）
+    appStore.useDraftStore.clearDraft();
+  } catch {
+    // 失败时全局拦截器已弹过提示，这里只保证不走进"发布成功"分支、草稿得以保留
+  } finally {
+    submitting.value = false;
+  }
+};
+
+/** 草稿写入的防抖定时器句柄 */
+let draftTimer: ReturnType<typeof window.setTimeout> | null = null;
+
+/** 取消尚未执行的草稿写入（组件卸载时也要调用） */
+const cancelDraftSave = () => {
+  if (draftTimer !== null) {
+    clearTimeout(draftTimer);
+    draftTimer = null;
+  }
 };
 
 onMounted(() => {
-  if (draftStore.post_draft.value) {
-    const rawText = draftStore.post_draft.value.text;
-    content.value = trimEmptyParagraph(rawText);
+  const draft = draftStore.post_draft.value;
+  if (!draft) return;
+
+  if (draft.text) {
+    content.value = trimEmptyParagraph(draft.text);
+  }
+
+  // 恢复草稿里的图片：草稿只存了后端相对路径，
+  // 需要还原成 Upload 组件认得的 { url, response:{ rawUrl } } 结构，
+  // 否则刷新后草稿里的图片会无声消失（已上传到服务器的图白丢了）。
+  if (draft.images?.length) {
+    fileList.value = draft.images.map((raw) => ({
+      url: apiUrls.static_links(raw),
+      name: raw.split('/').pop() || raw,
+      status: 'success',
+      response: {url: raw, rawUrl: raw},
+    })) as unknown as UploadProps['value'];
   }
 });
 
 watch(
   [content, fileList],
   () => {
-    window.setTimeout(() => {
+    // ⚠️ 必须先 clearTimeout：原先每次变更都新起一个 800ms 定时器且从不清理，
+    // 连续输入会堆出几十个定时器一起到期 → 反复读写 localStorage，
+    // 而且里面的 clearDraft 也被拖到最后才执行，时序完全不可控。
+    cancelDraftSave();
+    draftTimer = window.setTimeout(() => {
+      draftTimer = null;
       // 空内容直接清空草稿
       if (!content.value.trim()) {
         appStore.useDraftStore.clearDraft();
         return;
       }
       // 提取已上传的图片链接（fileList.value 可能为 undefined，做兜底）
-      const images = (fileList.value ?? []).map((el: any) => el.response?.rawUrl as string | undefined).filter(Boolean) as string[];
+      const images = (fileList.value ?? [])
+        .map((el: any) => el.response?.rawUrl as string | undefined)
+        .filter(Boolean) as string[];
       // 更新草稿，插件会自动同步到本地存储
       draftStore.post_draft.value = {
         text: content.value,
@@ -113,6 +156,8 @@ watch(
   },
   {deep: true},
 );
+
+onUnmounted(cancelDraftSave);
 
 // 保存光标位置
 const saveCursor = () => {
@@ -136,15 +181,13 @@ const handleFail: UploadProps['onFail'] = ({file}) => {
   MessagePlugin.error(`文件 ${file.name} 上传失败`);
 };
 
-
 const formatUploadResp = (resp: any) => {
-  const relativeUrl = resp.url // 后端返回的纯相对路径 /static/xxx
+  const relativeUrl = resp.url; // 后端返回的纯相对路径 /static/xxx
   return {
     url: apiUrls.static_links(relativeUrl), // 给t-upload预览用，开发环境带域名
-    rawUrl: relativeUrl // 保存原始相对路径，用于发布帖子存入数据库
-  }
-}
-
+    rawUrl: relativeUrl, // 保存原始相对路径，用于发布帖子存入数据库
+  };
+};
 </script>
 
 <template>
@@ -243,25 +286,25 @@ const formatUploadResp = (resp: any) => {
       <t-divider />
       <!--          图片上传功能 TDesign t-upload -->
       <t-upload
-          ref="uploadRef3"
-          :allow-upload-duplicate-file="true"
-          v-model="fileList"
-          :action="apiUrls.upload_image_url()"
-          theme="image"
-          tips="最多只能上传9张图片"
-          v-show="is_open_upload_image"
-          accept="image/*"
-          :size-limit="sizeLimit"
-          :abridge-name="abridgeName"
-          :disabled="disabled"
-          :auto-upload="autoUpload"
-          :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
-          :upload-button="showUploadButton ? undefined : null"
-          :cancel-upload-button="showUploadButton ? { theme: 'default', content: '取消上传' } : null"
-          multiple
-          :max="9"
-          :format-response="formatUploadResp"
-          @fail="handleFail"
+        ref="uploadRef3"
+        :allow-upload-duplicate-file="true"
+        v-model="fileList"
+        :action="apiUrls.upload_image_url()"
+        theme="image"
+        tips="最多只能上传9张图片"
+        v-show="is_open_upload_image"
+        accept="image/*"
+        :size-limit="sizeLimit"
+        :abridge-name="abridgeName"
+        :disabled="disabled"
+        :auto-upload="autoUpload"
+        :headers="{Authorization: `Bearer ${appStore.useAccountStore.token.access_token}`}"
+        :upload-button="showUploadButton ? undefined : null"
+        :cancel-upload-button="showUploadButton ? {theme: 'default', content: '取消上传'} : null"
+        multiple
+        :max="9"
+        :format-response="formatUploadResp"
+        @fail="handleFail"
       >
       </t-upload>
       <t-divider v-if="is_open_upload_image" />
