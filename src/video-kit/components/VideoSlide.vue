@@ -36,6 +36,8 @@ const props = defineProps<{
   showRotate: boolean;
   /** 点击切换播放/暂停 */
   paused: boolean;
+  /** 当前位播放失败的错误信息（非空时展示重试入口） */
+  playError?: string;
   /**
    * 布局变体：
    * - fullscreen：抖音式，侧边栏/信息覆盖在视频上，视频铺满屏幕
@@ -52,6 +54,10 @@ const emit = defineEmits<{
   toggleMute: [];
   setVolume: [v: number];
   togglePlay: [];
+  /** 长按倍速：true=进入倍速，false=恢复 */
+  speed: [active: boolean];
+  /** 播放失败后点「重试」 */
+  retry: [];
 }>();
 
 /** 布局变体（默认抖音式全屏） */
@@ -123,9 +129,107 @@ const showRotate = computed(() => props.showRotate && orientation.value === 'lan
 /** 画面是否需要旋转铺满（全屏 + 横屏视频 + 竖持屏幕） */
 const hostRotate = computed(() => rotated.value && screenPortrait.value && orientation.value === 'landscape');
 
-function onSurfaceTap() {
-  emit('togglePlay');
+/**
+ * ---------- 手势：单击播放/暂停、双击点赞、长按倍速 ----------
+ *
+ * 单击必须延后一个「双击窗口」再执行，否则双击会先暂停一下再点赞
+ * （画面明显闪一下）。抖音/Shorts 都是这个做法。
+ */
+const DOUBLE_TAP_WINDOW = 260; // 双击判定间隔（ms）
+const LONG_PRESS_MS = 400; // 长按触发倍速的时长（ms）
+
+let lastTapAt = 0;
+let singleTapTimer: ReturnType<typeof window.setTimeout> | null = null;
+let longPressTimer: ReturnType<typeof window.setTimeout> | null = null;
+/** 长按已触发：松手后浏览器补发的那次 click 要吞掉，否则会顺带暂停视频 */
+let suppressClick = false;
+/** 是否处于长按倍速中（展示 2x 提示） */
+const speeding = ref(false);
+
+/** 双击爱心：每次点击生成一颗，动画结束自动移除 */
+interface HeartMark {
+  id: number;
+  x: number;
+  y: number;
 }
+const hearts = ref<HeartMark[]>([]);
+let heartSeq = 0;
+/** 爱心回收定时器：组件卸载时统一清理，避免定时器留在已销毁的组件上 */
+const heartTimers = new Set<ReturnType<typeof window.setTimeout>>();
+
+function spawnHeart(clientX: number, clientY: number) {
+  const rect = rootEl.value?.getBoundingClientRect();
+  const id = ++heartSeq;
+  hearts.value = [...hearts.value, {id, x: rect ? clientX - rect.left : 0, y: rect ? clientY - rect.top : 0}];
+  const timer = window.setTimeout(() => {
+    hearts.value = hearts.value.filter((h) => h.id !== id);
+    heartTimers.delete(timer);
+  }, 900);
+  heartTimers.add(timer);
+}
+
+function onSurfaceTap(e: MouseEvent) {
+  if (suppressClick) {
+    // 这次 click 是长按倍速松手后补发的，不算一次点击
+    suppressClick = false;
+    return;
+  }
+
+  const now = Date.now();
+  if (now - lastTapAt < DOUBLE_TAP_WINDOW && props.video) {
+    // 双击：取消待执行的单击，直接点赞
+    if (singleTapTimer) {
+      clearTimeout(singleTapTimer);
+      singleTapTimer = null;
+    }
+    lastTapAt = 0;
+    spawnHeart(e.clientX, e.clientY);
+    emit('like');
+    return;
+  }
+
+  lastTapAt = now;
+  if (singleTapTimer) clearTimeout(singleTapTimer);
+  singleTapTimer = window.setTimeout(() => {
+    singleTapTimer = null;
+    emit('togglePlay');
+  }, DOUBLE_TAP_WINDOW);
+}
+
+function onPressStart(e: PointerEvent) {
+  // 先复位：上一轮长按若没等来 click（比如手指移开了），别把这次点击吃掉
+  suppressClick = false;
+  // 只对触摸/手写笔启用长按倍速：鼠标点击天生就慢，
+  // 400ms 阈值很容易把一次"按久了点"的普通点击误判成长按，反而吞掉播放/暂停
+  if (e.pointerType === 'mouse') return;
+  if (longPressTimer) clearTimeout(longPressTimer);
+  longPressTimer = window.setTimeout(() => {
+    longPressTimer = null;
+    // 只对当前播放位生效：邻居 slide 不参与交互；暂停中倍速没有意义
+    if (!props.active || !props.video || props.paused) return;
+    speeding.value = true;
+    suppressClick = true;
+    emit('speed', true);
+  }, LONG_PRESS_MS);
+}
+
+function onPressEnd() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+  if (speeding.value) {
+    speeding.value = false;
+    emit('speed', false);
+  }
+}
+
+onBeforeUnmount(() => {
+  if (singleTapTimer) clearTimeout(singleTapTimer);
+  if (longPressTimer) clearTimeout(longPressTimer);
+  heartTimers.forEach((t) => clearTimeout(t));
+  heartTimers.clear();
+});
 </script>
 
 <template>
@@ -133,20 +237,51 @@ function onSurfaceTap() {
     <!-- 播放器挂载点（video.js 实例由 PlayerPool 注入） -->
     <div ref="playerHost" class="player-host" :class="[`fit-${fit}`, {'host-rotate': hostRotate}]"></div>
 
-    <!-- 点击热区（不遮挡侧边栏） -->
-    <div class="tap-surface" @click.stop="onSurfaceTap"></div>
+    <!-- 点击热区（不遮挡侧边栏）：单击播放/暂停、双击点赞、长按倍速 -->
+    <div
+      class="tap-surface"
+      @click.stop="onSurfaceTap"
+      @pointerdown="onPressStart"
+      @pointerup="onPressEnd"
+      @pointercancel="onPressEnd"
+      @pointerleave="onPressEnd"
+    ></div>
 
     <!-- 顶部渐变遮罩：保证白色文字可读 -->
     <div class="shade shade-top"></div>
     <div class="shade shade-bottom"></div>
 
-    <!-- 暂停指示 -->
-    <div v-if="active && paused" class="pause-badge" aria-hidden="true">
+    <!-- 双击点赞的爱心 -->
+    <div
+      v-for="h in hearts"
+      :key="h.id"
+      class="heart-burst"
+      :style="{left: `${h.x}px`, top: `${h.y}px`}"
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+        />
+      </svg>
+    </div>
+
+    <!-- 暂停指示（播放失败/缓冲时不展示，避免与错误态打架） -->
+    <div v-if="active && paused && !buffering && !playError" class="pause-badge" aria-hidden="true">
       <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
     </div>
 
     <!-- 缓冲中 -->
-    <div v-if="active && buffering" class="spinner" aria-label="加载中"></div>
+    <div v-if="active && buffering && !playError" class="spinner" aria-label="加载中"></div>
+
+    <!-- 播放失败：给一个明确的重试入口，而不是让用户干等或直接划走 -->
+    <div v-if="active && playError" class="play-error">
+      <div class="pe-text">播放失败</div>
+      <button class="pe-btn" @click.stop="emit('retry')">点击重试</button>
+    </div>
+
+    <!-- 长按倍速提示 -->
+    <div v-if="active && speeding" class="speed-badge">2x 倍速中</div>
 
     <!-- 自动播放降级提示 -->
     <button v-if="active && showUnmuteHint" class="unmute-hint" @click.stop="emit('toggleMute')">
@@ -329,6 +464,91 @@ function onSurfaceTap() {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ---------- 双击点赞爱心 ---------- */
+.heart-burst {
+  position: absolute;
+  width: 108px;
+  height: 108px;
+  margin: -54px 0 0 -54px;
+  z-index: 18;
+  pointer-events: none;
+  animation: heart-pop 0.9s ease-out forwards;
+}
+
+.heart-burst svg {
+  width: 100%;
+  height: 100%;
+  fill: #ff2c55;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.35));
+}
+
+@keyframes heart-pop {
+  0% {
+    transform: scale(0.3) rotate(-18deg);
+    opacity: 0;
+  }
+  25% {
+    transform: scale(1.15) rotate(-8deg);
+    opacity: 1;
+  }
+  45% {
+    transform: scale(0.95) rotate(-6deg);
+  }
+  70% {
+    transform: scale(1) rotate(-8deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.05) translateY(-56px) rotate(-12deg);
+    opacity: 0;
+  }
+}
+
+/* ---------- 长按倍速提示 ---------- */
+.speed-badge {
+  position: absolute;
+  top: 128px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 22;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+/* ---------- 播放失败重试 ---------- */
+.play-error {
+  position: absolute;
+  inset: 0;
+  z-index: 19;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+}
+
+.pe-text {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.pe-btn {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 999px;
+  padding: 7px 18px;
+  font-size: 13px;
+  cursor: pointer;
 }
 
 .unmute-hint {

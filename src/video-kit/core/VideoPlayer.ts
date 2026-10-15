@@ -234,6 +234,29 @@ export class VideoPlayer implements VideoPlayerInstance {
     this.player?.currentTime(seconds);
   }
 
+  /** 设置播放倍速（长按倍速等场景） */
+  setPlaybackRate(rate: number): void {
+    this.player?.playbackRate(rate);
+  }
+
+  /** 当前倍速 */
+  getPlaybackRate(): number {
+    return this.player?.playbackRate() ?? 1;
+  }
+
+  /**
+   * 重新装载当前视频（播放失败后点「重试」用）
+   *
+   * 注意先把 loadedVideo 置空：load() 有「同一视频直接跳过」的幂等保护，
+   * 不清掉的话重试会被当成重复装载而什么都不做。
+   */
+  reload(): void {
+    const video = this.loadedVideo;
+    if (!video) return;
+    this.loadedVideo = null;
+    this.load(video, this.wantAutoplay);
+  }
+
   /** 动态调整 preload（网络策略变化 / 角色从 next 变为 current 时调用） */
   setPreload(value: 'auto' | 'metadata' | 'none'): void {
     this.player?.preload(value);

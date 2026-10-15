@@ -12,7 +12,7 @@
 import {h, onMounted, ref} from 'vue';
 import {MessagePlugin} from 'tdesign-vue-next';
 import type {DropdownProps, MenuProps} from 'tdesign-vue-next';
-import {LogoutIcon, MailIcon, SearchIcon, NotificationIcon, HomeIcon} from 'tdesign-icons-vue-next';
+import {LogoutIcon, MailIcon, PlayCircleIcon, SearchIcon, NotificationIcon, HomeIcon} from 'tdesign-icons-vue-next';
 
 import appStore from '@/stores';
 import router from '@/router';
@@ -58,6 +58,12 @@ const items = ref([
     label: h('a', {href: '/test/', target: '_blank'}, ''),
     title: '天亮即焚',
   },
+  {
+    // 短视频：/shorts/ 是 fixed 全屏浮层（会盖住顶栏），页内自带返回按钮与 Esc
+    key: 'shorts',
+    icon: h(PlayCircleIcon),
+    title: '短视频',
+  },
 ]);
 // selectedKeys 是字符串，用 ref 包一层供 t-head-menu 的 v-model:value 双向绑定（并非数组）
 const current = ref(props.selectedKeys);
@@ -85,6 +91,9 @@ const onChangeHandler: MenuProps['onChange'] = (active) => {
       break;
     case 'snap':
       router.push({name: 'snap'});
+      break;
+    case 'shorts':
+      router.push({name: 'shorts'});
       break;
     default:
       MessagePlugin.warning('不支持的菜单');

@@ -40,6 +40,14 @@ export function useVideoFeed(options: VideoFeedOptions) {
   const currentIndex = ref(0);
   const loadingMore = ref(false);
   const initialized = ref(false);
+  /** 分页已到底（fetchPage 返回空数组）——用于展示"已经看完了" */
+  const ended = ref(false);
+  /** 最近一次分页失败的原因（空表示无错误） */
+  const loadError = ref('');
+  /** 当前位播放失败的原因（空表示正常）——用于展示"播放失败，点击重试" */
+  const playError = ref('');
+  /** 当前播放倍速（长按倍速时切换，切换视频后要重新应用到新实例） */
+  const playbackRate = ref(1);
   /** 自动播放被浏览器策略拦截、已降级为静音（展示"点按开启声音"提示） */
   const autoplayMuted = ref(false);
   /** 当前是否静音（初始静音，手势后放开） */
@@ -167,6 +175,11 @@ export function useVideoFeed(options: VideoFeedOptions) {
       // 播放错误直接打 error 级别，避免被浏览器默认过滤掉，方便排查（如 type 标错、跨域、403）
       // eslint-disable-next-line no-console
       console.error(`[video-kit] 播放失败 video=${video.id} url=${video.url}`, payload.error);
+      // 暴露到 UI：否则用户只能看到一个转圈或直接划走，没有任何重试入口
+      playError.value = payload.error ? String(payload.error) : '播放失败';
+      playing.value = false;
+      buffering.value = false;
+      stopHeartbeat();
     }
   };
 
@@ -190,29 +203,52 @@ export function useVideoFeed(options: VideoFeedOptions) {
   // ---------- 虚拟分页 ----------
   let page = 0;
   async function loadMore(): Promise<void> {
-    if (loadingMore.value) return;
+    // 已到底 / 正在加载 / 上次失败尚未重试：都不再发请求
+    if (loadingMore.value || ended.value || loadError.value) return;
     loadingMore.value = true;
+    loadError.value = '';
     try {
-      const batch = await options.fetchPage(page);
+      const batch = (await options.fetchPage(page)) ?? [];
+      const isFirstPage = !initialized.value;
       if (batch.length > 0) {
         videos.value = [...videos.value, ...batch];
         page += 1;
-        if (!initialized.value) {
-          initialized.value = true;
+        // 只有首屏需要主动调度播放并记曝光；后续分页由 goTo / 预取逻辑驱动，
+        // 在这里重复记一次 impression 会把同一条视频的曝光数算多遍
+        if (isFirstPage) {
           pool.loadAround(currentIndex.value, videos.value, true);
           if (currentVideo.value) {
             stat('impression', currentVideo.value);
           }
         }
+      } else {
+        // 接口返回空数组 = 没有更多内容
+        ended.value = true;
       }
+      // ⚠️ 首屏必须在「首次请求成功」后就置位，而不只在拿到数据时：
+      // 否则接口返回空数组（确实没有内容）时 initialized 永远为 false，
+      // 首屏遮罩会一直转圈，用户既看不到"暂无内容"也走不到重试。
+      initialized.value = true;
+    } catch (err) {
+      // ⚠️ 原先没有 catch：loadMore 是 async，调用方写作 `void feed.loadMore()`，
+      // 失败会变成 unhandled rejection，且界面上完全没有反馈（只在控制台可见）。
+      loadError.value = err instanceof Error ? err.message : '加载失败';
+      // eslint-disable-next-line no-console
+      console.error('[video-kit] 分页加载失败', err);
     } finally {
       loadingMore.value = false;
     }
   }
 
+  /** 分页失败后手动重试（先清错误态，否则 loadMore 会被自己的守卫挡住） */
+  function retryLoadMore(): void {
+    loadError.value = '';
+    void loadMore();
+  }
+
   /** 滑到接近尾部时提前取下一页，保证永远有「下一条」可滑 */
   async function maybePrefetchPage(): Promise<void> {
-    if (!initialized.value || loadingMore.value) return;
+    if (!initialized.value || loadingMore.value || ended.value || loadError.value) return;
     if (videos.value.length - currentIndex.value <= pageSize) {
       await loadMore();
     }
@@ -234,9 +270,13 @@ export function useVideoFeed(options: VideoFeedOptions) {
     autoplayMuted.value = false;
     playing.value = false;
     buffering.value = false;
+    playError.value = '';
     reportedMilestones.delete(video.id);
 
     pool.loadAround(index, videos.value, true);
+    // 倍速是「播放器实例」的属性而非 feed 的属性：槽位里装的是新视频/新实例，
+    // 切换后必须重新下发，否则长按 2x 滑到下一条就偷偷回到 1x
+    pool.get(index)?.setPlaybackRate(playbackRate.value);
     stat('impression', video);
     void maybePrefetchPage();
 
@@ -321,15 +361,51 @@ export function useVideoFeed(options: VideoFeedOptions) {
     stat('share', video);
   }
 
-  /** 页面暂停：隐藏时全部暂停，回前台恢复当前位 */
-  function handlePageVisibility(visible: boolean): void {
+  /**
+   * 暂停当前位并记录「是否要续播」
+   *
+   * ⚠️ 原先 handlePageVisibility(true) 无条件 play()：
+   * 用户手动暂停后切后台再回来，视频会自己播起来，等于覆盖了用户的操作。
+   * 这里以「暂停前的真实播放状态」为准决定是否续播。
+   */
+  let resumeWanted = false;
+
+  /** 暂停全部（标签页隐藏 / keep-alive 失活） */
+  function suspend(): void {
     if (!initialized.value) return;
-    if (visible) {
+    resumeWanted = pool.get(currentIndex.value)?.isPlaying() ?? false;
+    pool.pauseAll();
+    stopHeartbeat();
+  }
+
+  /** 恢复（回到前台 / keep-alive 激活），仅在暂停前确实在播时才续播 */
+  function resume(): void {
+    if (!initialized.value) return;
+    if (resumeWanted) {
       void pool.get(currentIndex.value)?.play();
-    } else {
-      pool.pauseAll();
-      stopHeartbeat();
     }
+  }
+
+  /** 页面可见性变化：隐藏→暂停，回前台→按需续播 */
+  function handlePageVisibility(visible: boolean): void {
+    if (visible) {
+      resume();
+    } else {
+      suspend();
+    }
+  }
+
+  /** 播放失败后重试：重新装载当前视频 */
+  function retryPlay(): void {
+    playError.value = '';
+    buffering.value = false;
+    pool.get(currentIndex.value)?.reload();
+  }
+
+  /** 设置倍速（长按倍速等），同时下发到当前实例 */
+  function setPlaybackRate(rate: number): void {
+    playbackRate.value = Math.min(3, Math.max(0.5, rate));
+    pool.get(currentIndex.value)?.setPlaybackRate(playbackRate.value);
   }
 
   // ---------- 互动（点赞/评论由组件注入真实实现） ----------
@@ -367,6 +443,10 @@ export function useVideoFeed(options: VideoFeedOptions) {
     hasNext,
     loadingMore,
     initialized,
+    ended,
+    loadError,
+    playError,
+    playbackRate,
     progress,
     autoplayMuted,
     muted,
@@ -377,15 +457,20 @@ export function useVideoFeed(options: VideoFeedOptions) {
     likedMap,
     // 动作
     loadMore,
+    retryLoadMore,
+    retryPlay,
     maybePrefetchPage,
     goTo,
     goNext,
     goPrev,
     togglePlay,
+    suspend,
+    resume,
     unmute,
     mute,
     toggleMute,
     setVolume,
+    setPlaybackRate,
     toggleLike,
     isLiked,
     openComments,
