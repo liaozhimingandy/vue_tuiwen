@@ -2,7 +2,7 @@
  * 路由配置与全局导航守卫
  *
  * 守卫职责（按执行顺序）：
- * 1. 打开顶部进度条 NProgress，并按 meta.title 设置页面标题
+ * 1. 打开顶部进度条 NProgress（仅换页时），并按 meta.title 设置页面标题
  * 2. 需要人机预检的页面（meta.need_two_step_verification）先校验本地凭证
  * 3. 白名单页面无需登录；已登录用户访问登录/注册页时重定向回首页
  * 4. 其余页面未登录统一跳登录页并带 redirect
@@ -155,8 +155,14 @@ const router = createRouter({
   routes: routes,
 });
 
-router.beforeEach((to, _) => {
-  NProgress.start();
+router.beforeEach((to, from) => {
+  // ⚠️ 只在「换页」时才启动进度条：
+  // 短视频信息流每滑一条都会用 replace 把当前 id 写回地址栏（?v=），
+  // 这类导航页面没换、组件也没重建，start 一次只会让顶部进度条跟着闪一下。
+  const isSamePage = !!from.name && from.name === to.name && from.path === to.path;
+  if (!isSamePage) {
+    NProgress.start();
+  }
 
   const siteSuffix = 'alsoapp';
   if (to.meta.title) {

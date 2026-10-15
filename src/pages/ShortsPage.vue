@@ -16,9 +16,16 @@
 import {onBeforeUnmount, onMounted} from 'vue';
 import {useRouter} from 'vue-router';
 import VideoFeed from '@/video-kit/components/VideoFeed.vue';
-import {fetchVideoPage} from '@/video-kit/services/mockVideos';
+import {useVideoDeepLink} from '@/video-kit/composables/useVideoDeepLink';
+import {fetchVideoById, fetchVideoPage} from '@/video-kit/services/mockVideos';
 
 const router = useRouter();
+
+/**
+ * 深链：`/shorts/?v=<id>` 直接定位到指定视频（YouTube 同款）
+ * 分享出去的链接被打开时，信息流会从这一条开始，后续内容跟在它后面
+ */
+const {initialVideoId, syncToUrl} = useVideoDeepLink();
 
 /**
  * 退出短视频浮层
@@ -52,7 +59,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
         <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
       </svg>
     </button>
-    <VideoFeed variant="shorts" :fetch-page="fetchVideoPage" :page-size="5" fit="cover" />
+    <VideoFeed
+      variant="shorts"
+      :fetch-page="fetchVideoPage"
+      :resolve-video="fetchVideoById"
+      :initial-video-id="initialVideoId"
+      :page-size="5"
+      fit="cover"
+      @change="syncToUrl"
+    />
   </div>
 </template>
 

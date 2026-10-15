@@ -23,6 +23,15 @@ import {getNetworkInfo, getPreloadStrategy, watchNetworkInfo} from '@/video-kit/
 export interface VideoFeedOptions {
   /** 分页拉取视频列表（返回空数组表示没有更多了） */
   fetchPage: (page: number) => Promise<VideoInfo[]>;
+  /**
+   * 按 id 直接取单条视频（深链 `?v=<id>` 用）
+   *
+   * 不传也能工作：此时只在已拉取的页里找，找不到就提示并从第一条开始。
+   * 传了才能像 YouTube 那样「直接进来就定位到那一条」。
+   */
+  resolveVideo?: (id: string | number) => Promise<VideoInfo | null>;
+  /** 深链目标视频 id（来自路由 query，空值表示普通进入） */
+  initialVideoId?: string | number;
   /** 每页条数 */
   pageSize?: number;
   /** 埋点上报器，默认打印控制台 */
@@ -51,6 +60,8 @@ export function useVideoFeed(options: VideoFeedOptions) {
   const playerReady = ref(isVideoJsReady());
   /** 内核加载失败的原因（空表示正常） */
   const playerError = ref('');
+  /** 深链目标没找到（视频不存在/已被删除），已退回第一条播放 */
+  const initialMissing = ref(false);
   /** 当前播放倍速（长按倍速时切换，切换视频后要重新应用到新实例） */
   const playbackRate = ref(1);
   /** 自动播放被浏览器策略拦截、已降级为静音（展示"点按开启声音"提示） */
@@ -244,6 +255,71 @@ export function useVideoFeed(options: VideoFeedOptions) {
 
   // ---------- 虚拟分页 ----------
   let page = 0;
+
+  /**
+   * 已装载过的视频 id
+   *
+   * 分页去重用：深链定位会把目标视频插到队首，而它本来可能就在后面的某一页里，
+   * 不去重的话用户下滑会看到同一条出现两次。后端分页偶发重叠时同样靠它兜住。
+   */
+  const knownIds = new Set<string>();
+
+  /** 追加一批视频（自动跳过已存在的 id），返回实际新增条数 */
+  function appendVideos(batch: VideoInfo[]): number {
+    const fresh = batch.filter((v) => !knownIds.has(String(v.id)));
+    if (fresh.length === 0) return 0;
+    fresh.forEach((v) => knownIds.add(String(v.id)));
+    videos.value = [...videos.value, ...fresh];
+    return fresh.length;
+  }
+
+  /** 把深链目标插到队首（成为第 0 条，后续分页跟在它后面） */
+  function prependVideo(video: VideoInfo): void {
+    if (knownIds.has(String(video.id))) return;
+    knownIds.add(String(video.id));
+    videos.value = [video, ...videos.value];
+  }
+
+  /**
+   * 深链目标（只消费一次）
+   *
+   * ⚠️ 消费后必须置空：否则后续每次分页都会去「重新定位」，
+   * 用户滑到第 10 条时会被硬拽回目标视频。
+   */
+  let initialTarget: string | number | null =
+    options.initialVideoId === undefined || options.initialVideoId === '' ? null : options.initialVideoId;
+
+  /**
+   * 定位深链目标（YouTube `?v=<id>` 同款）
+   *
+   * ⚠️ 必须在首屏 pool.loadAround() **之前**完成：
+   * 否则会先装载并播放第 0 条、再 goTo 跳过去 —— 白白解码一次视频，
+   * 用户还会看到第一条的画面闪一下。
+   */
+  async function applyInitialTarget(seedPromise: Promise<VideoInfo | null> | null): Promise<void> {
+    if (initialTarget === null) return;
+    const target = String(initialTarget);
+    initialTarget = null;
+
+    // 1) 已经加载的页里就有，直接定位（省一次请求）
+    const idx = videos.value.findIndex((v) => String(v.id) === target);
+    if (idx >= 0) {
+      currentIndex.value = idx;
+      return;
+    }
+
+    // 2) 按 id 直接取（YouTube 也是这个思路：先拿到这条，再把推荐流续在后面）
+    const seed = seedPromise ? await seedPromise : null;
+    if (seed) {
+      prependVideo(seed);
+      currentIndex.value = 0;
+      return;
+    }
+
+    // 3) 取不到：提示后从第一条开始，不要让用户卡在空白页
+    initialMissing.value = true;
+  }
+
   async function loadMore(): Promise<void> {
     // 已到底 / 正在加载 / 上次失败尚未重试：都不再发请求
     if (loadingMore.value || ended.value || loadError.value) return;
@@ -252,23 +328,33 @@ export function useVideoFeed(options: VideoFeedOptions) {
     // 内核与分页请求并行：分页在跑的同时 chunk 也在下；
     // 若上次内核下载失败（句柄已清空），这里顺带重试一次
     void ensurePlayerCore();
+
+    // 深链目标与首屏分页并行解析：串行会多等一个往返才出画面
+    // ⚠️ 这里必须就地 catch：若目标就在首屏页里，applyInitialTarget 会在第 1 步返回，
+    // 这个 Promise 就没人 await —— 一旦 reject 就是 unhandled rejection
+    const seedPromise =
+      initialTarget !== null && options.resolveVideo ? options.resolveVideo(initialTarget).catch(() => null) : null;
+
     try {
       const batch = (await options.fetchPage(page)) ?? [];
       const isFirstPage = !initialized.value;
-      if (batch.length > 0) {
-        videos.value = [...videos.value, ...batch];
-        page += 1;
-        // 只有首屏需要主动调度播放并记曝光；后续分页由 goTo / 预取逻辑驱动，
-        // 在这里重复记一次 impression 会把同一条视频的曝光数算多遍
-        if (isFirstPage) {
-          pool.loadAround(currentIndex.value, videos.value, true);
-          if (currentVideo.value) {
-            stat('impression', currentVideo.value);
-          }
-        }
-      } else {
+      appendVideos(batch);
+      if (batch.length === 0) {
         // 接口返回空数组 = 没有更多内容
         ended.value = true;
+      } else {
+        // ⚠️ 整页都是重复项时**不能**判定「到底了」：那只能说明这一页已装载过，
+        // 下一页很可能还有新内容。只有接口真返回空数组才算没有更多。
+        page += 1;
+      }
+      // 只有首屏需要主动调度播放并记曝光；后续分页由 goTo / 预取逻辑驱动，
+      // 在这里重复记一次 impression 会把同一条视频的曝光数算多遍
+      if (isFirstPage) {
+        await applyInitialTarget(seedPromise);
+        pool.loadAround(currentIndex.value, videos.value, true);
+        if (currentVideo.value) {
+          stat('impression', currentVideo.value);
+        }
       }
       // ⚠️ 首屏必须在「首次请求成功」后就置位，而不只在拿到数据时：
       // 否则接口返回空数组（确实没有内容）时 initialized 永远为 false，
@@ -499,6 +585,7 @@ export function useVideoFeed(options: VideoFeedOptions) {
     playError,
     playerReady,
     playerError,
+    initialMissing,
     playbackRate,
     progress,
     autoplayMuted,

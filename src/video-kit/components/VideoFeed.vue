@@ -11,7 +11,7 @@
  * 上下滑：touch 手势 + 滚轮 + 键盘方向键三种输入统一走 goTo()
  * 虚拟页面：本地只持有已拉取页；DOM 永远只有 3 个槽位，无限列表零压力
  */
-import {computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref} from 'vue';
+import {computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch} from 'vue';
 // ⚠️ 这里不再静态 import 'video.js/dist/video-js.css'：video.js 是 700KB 的异步 chunk，
 // 样式随内核一起由 core/videojs-loader 动态加载，避免进短视频页先背这一整包。
 import type {VideoInfo} from '@/video-kit/types';
@@ -25,6 +25,13 @@ import type {StatsReporter} from '@/video-kit/core/stats';
 const props = defineProps<{
   /** 分页数据源（返回空数组表示没有更多） */
   fetchPage: (page: number) => Promise<VideoInfo[]>;
+  /** 按 id 直接取单条视频（深链 `?v=<id>` 用，不传则只在已拉取的页里找） */
+  resolveVideo?: (id: string | number) => Promise<VideoInfo | null>;
+  /**
+   * 深链目标视频 id（YouTube `?v=` 同款）
+   * 带上它进来会直接定位到这一条，后续分页跟在它后面
+   */
+  initialVideoId?: string | number;
   /** 每页条数 */
   pageSize?: number;
   /** 画面填充方式，默认 cover（抖音式裁切铺满） */
@@ -40,12 +47,30 @@ const props = defineProps<{
   variant?: 'fullscreen' | 'shorts';
 }>();
 
+const emit = defineEmits<{
+  /**
+   * 当前视频变化（用于把 id 同步回地址栏，使地址栏永远指向正在看的那条）
+   * 首次装载到数据、以及每次上下滑都会触发
+   */
+  change: [id: string | number];
+}>();
+
 const feed = useVideoFeed({
   fetchPage: props.fetchPage,
+  resolveVideo: props.resolveVideo,
+  initialVideoId: props.initialVideoId,
   pageSize: props.pageSize,
   playerOptions: {fit: props.fit ?? 'cover'},
   statsReporter: props.statsReporter,
 });
+
+// 当前视频 id 变化 → 通知外层同步地址栏（深链分享的基础）
+watch(
+  () => feed.currentVideo.value?.id,
+  (id) => {
+    if (id !== undefined) emit('change', id);
+  },
+);
 
 /**
  * 当前位是否显示加载态
@@ -223,6 +248,14 @@ function showToast(msg: string, duration = 1800) {
     toastTimer = null;
   }, duration);
 }
+
+// 深链目标不存在（视频已删除 / id 非法）：明确告知，而不是默默从第一条开始
+watch(
+  () => feed.initialMissing.value,
+  (missing) => {
+    if (missing) showToast('未找到该视频，已从第一条开始播放', 2600);
+  },
+);
 
 /** 已经到末尾的提示（上滑越界时闪一下，避免"划了没反应"的困惑） */
 const endHint = ref(false);
@@ -456,7 +489,7 @@ function onShare(video: VideoInfo) {
   feed.shareVideo(video);
   // ⚠️ 原先链接写死成 `${location.origin}/videos/`：
   // 不管分享哪条视频，发出去都是同一个列表页地址，对方根本定位不到这条内容。
-  // 这里带上视频 id（后续 /videos/ 页面读 ?v= 定位即可完成深链）。
+  // 带上 id 后，对面打开会由 useVideoDeepLink 读 ?v= 直接定位到这一条。
   const url = `${location.origin}/videos/?v=${encodeURIComponent(String(video.id))}`;
   if (navigator.share) {
     // 系统分享面板被取消会抛 AbortError，属正常行为，静默吞掉

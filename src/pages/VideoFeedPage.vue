@@ -12,9 +12,16 @@
 import {onBeforeUnmount, onMounted} from 'vue';
 import {useRouter} from 'vue-router';
 import VideoFeed from '@/video-kit/components/VideoFeed.vue';
-import {fetchVideoPage} from '@/video-kit/services/mockVideos';
+import {useVideoDeepLink} from '@/video-kit/composables/useVideoDeepLink';
+import {fetchVideoById, fetchVideoPage} from '@/video-kit/services/mockVideos';
 
 const router = useRouter();
+
+/**
+ * 深链：`/videos/?v=<id>` 直接定位到指定视频（YouTube 同款）
+ * 分享按钮生成的就是这个链接（见 VideoFeed 的 onShare）
+ */
+const {initialVideoId, syncToUrl} = useVideoDeepLink();
 
 /** 退出全屏信息流（无历史记录时兜底回首页） */
 function goBack() {
@@ -43,7 +50,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
         <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
       </svg>
     </button>
-    <VideoFeed :fetch-page="fetchVideoPage" :page-size="5" fit="cover" />
+    <VideoFeed
+      :fetch-page="fetchVideoPage"
+      :resolve-video="fetchVideoById"
+      :initial-video-id="initialVideoId"
+      :page-size="5"
+      fit="cover"
+      @change="syncToUrl"
+    />
   </div>
 </template>
 

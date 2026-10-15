@@ -110,6 +110,9 @@ function withPoster(def: Omit<VideoInfo, 'id'>, seed: string): Omit<VideoInfo, '
 /**
  * 分页拉取视频列表（模拟网络延迟 300ms）
  * page 从 0 开始；内容按页循环复用 DEFS，保证无限下滑永远有数据
+ *
+ * id 规则：`page * DEFS.length + i`，跨页唯一且稳定 —— 这是深链（`?v=<id>`）
+ * 能精确定位的前提。接真实接口时同样要求 id 全局唯一。
  */
 export async function fetchVideoPage(page: number): Promise<VideoInfo[]> {
   await new Promise((resolve) => setTimeout(resolve, 300));
@@ -117,4 +120,25 @@ export async function fetchVideoPage(page: number): Promise<VideoInfo[]> {
     ...withPoster(def, `vk-${page}-${i}`),
     id: page * DEFS.length + i,
   }));
+}
+
+/**
+ * 按 id 直接取单条视频（模拟网络延迟 200ms）
+ *
+ * 深链专用：用户带着 `?v=<id>` 直接进来时，这条视频可能根本不在首屏那页，
+ * 靠翻页去找既不现实也慢（YouTube 同样是「先取到这条，再续上推荐流」）。
+ *
+ * 返回值：
+ * - 找到 → VideoInfo
+ * - 不存在 / id 非法 → null（上层据此提示「视频不存在或已被删除」）
+ */
+export async function fetchVideoById(id: string | number): Promise<VideoInfo | null> {
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  const n = Number(id);
+  // ⚠️ 别用 Number.isInteger 之外的宽松判断："" 会被 Number() 转成 0，
+  // 空参数会静默定位到第 0 条，看起来像"深链生效了"其实是错的
+  if (!Number.isInteger(n) || n < 0) return null;
+  const def = DEFS[n % DEFS.length];
+  if (!def) return null;
+  return {...withPoster(def, `vk-byid-${n}`), id: n};
 }
