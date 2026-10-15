@@ -2,12 +2,9 @@
  * 业务枚举 / 常量表
  *
  * 这里的数字编码必须与后端保持一致，修改需同步后端字典。
- * 说明：APP_NAME 与 `common/config.ts` 中的 `config.NAME` 重复，
- * 后续建议只保留 config.NAME 一处来源。
+ * 说明：应用名称统一以 `common/config.ts` 的 `config.NAME` 为唯一来源，
+ * 原先这里另有一份 `APP_NAME`（全项目零引用），已删除以免再次出现两套"推文"字面量。
  */
-
-/** 应用名称 */
-export const APP_NAME = '推文';
 
 /** 性别编码 → 文案 */
 export const sex_code_map: Record<number, string> = {

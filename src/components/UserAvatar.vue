@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue';
+import {ref, computed, watch} from 'vue';
 import {getResourceUrl} from '@/common/utils.ts';
 
 interface Props {
@@ -50,10 +50,26 @@ const COLOR_POOL = ['#E1F0FF', '#E8F3FF', '#F0ECFF', '#FFF1E1', '#E6F7EF', '#FFF
 
 const avatarUrl = computed(() => getResourceUrl(props.avatar));
 
+/**
+ * 头像地址变化时必须重置失败标记
+ *
+ * 否则一旦某次加载失败，组件被复用到另一个用户（列表复用、路由切换）时，
+ * 会一直停留在「首字母占位」状态，永远不再尝试加载新头像。
+ */
+watch(
+  () => props.avatar,
+  () => {
+    loadError.value = false;
+  },
+);
+
 const displayChar = computed(() => {
   const name = props.nickname ?? '';
   if (!name) return '?';
-  return name.charAt(0);
+  // 用 Array.from 按「码点」取首字符，而不是 charAt(0) 按「码元」取。
+  // 昵称以 emoji 或生僻字（如 𝄞、𠮷）开头时，charAt(0) 只会拿到代理对的高位，
+  // 渲染出来是一个乱码方块。
+  return Array.from(name)[0] ?? '?';
 });
 
 const bgColor = computed(() => {

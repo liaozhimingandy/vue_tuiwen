@@ -13,18 +13,41 @@ function getDefaultState(): DetectState {
   };
 }
 
+/**
+ * 校验 localStorage 里读出来的对象是否真的符合 DetectState 结构
+ *
+ * localStorage 是用户可改、也可能被写到一半的：
+ * 一旦读到 `{"failCount":"abc"}` 这类脏数据并直接当作 DetectState 使用，
+ * `s.failCount += 1` 会变成 NaN，退避时间永久失效（探测会退化成高频重试）。
+ */
+function isDetectState(value: unknown): value is DetectState {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return Number.isFinite(v.failCount) && Number.isFinite(v.nextDetectTimestamp);
+}
+
 export function loadDetectState(): DetectState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return getDefaultState();
-    return JSON.parse(raw) as DetectState;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isDetectState(parsed)) return getDefaultState();
+    return {
+      failCount: parsed.failCount as number,
+      nextDetectTimestamp: parsed.nextDetectTimestamp as number,
+    };
   } catch {
     return getDefaultState();
   }
 }
 
 export function saveDetectState(state: DetectState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // 隐私模式 / 存储配额用尽时写入会抛错，这里吞掉即可：
+    // 探测状态只影响"下次什么时候重试"，丢失不影响功能可用性
+  }
 }
 
 /**
@@ -42,7 +65,9 @@ const MAX_BACKOFF_DELAY = BACKOFF_DELAYS[BACKOFF_DELAYS.length - 1];
 /** 记录一次探测失败，设置对应退避时间 */
 export function recordDetectFail() {
   const s = loadDetectState();
-  s.failCount += 1;
+  // 上限保护：这个计数只用于「是否已释放遮罩」与「选退避档位」，
+  // 长期挂后台时会一直累加，给个上限避免无意义地无限增长
+  s.failCount = Math.min(s.failCount + 1, 9999);
 
   let delay: number;
   // 前3次失败：无退避，立刻可以继续探测

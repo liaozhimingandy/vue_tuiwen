@@ -1,19 +1,22 @@
 <!--这是推文组件,用于展示一条推文（tdesign-vue-next 重构版）-->
 <script setup lang="ts">
-import {h, onMounted, ref, computed} from 'vue';
+import {h, onMounted, ref, computed, watch} from 'vue';
 import {storeToRefs} from 'pinia';
 import {DeleteIcon, StopCircleIcon} from 'tdesign-icons-vue-next';
-import dayjs from 'dayjs';
 import {MessagePlugin, DialogPlugin, type DropdownProps} from 'tdesign-vue-next';
 import {HeartIcon, LinkIcon, ChatDoubleIcon, ShareIcon, MoreIcon} from 'tdesign-icons-vue-next';
-import relativeTime from 'dayjs/plugin/relativeTime';
 // 说明：原先这里 `import {ShareNetwork} from 'vue-social-sharing'`，但该包（4.0.0-alpha4）
 // 只导出 default（一个 Vue 插件），并没有具名导出 ShareNetwork，
 // 所以取到的是 undefined，模板里的 <ShareNetwork> 无法解析、微博分享按钮实际不生效。
 // 现已改为直接拼微博官方 share 链接（见 weiboShareUrl），同时省掉该依赖约 53KB。
 import type {IAccount, IComment, IPost} from '@/interface';
+// 同一模块只保留一条 import：历史上 common/utils.ts 被 `@/` 与相对路径各导入一次，
+// 功能上没问题，但会让"这个依赖到底从哪来"变得难查。
 import {
   compareByTimeDesc,
+  copyLink,
+  formatMessageToHtml,
+  formatter,
   getClampPreviewHtml,
   getEntityTime,
   getResourceUrl,
@@ -26,30 +29,42 @@ import {apiUrls} from '@/services/api.ts';
 import UserAvatar from '@/components/UserAvatar.vue';
 import {Ticker} from '@tombcato/smart-ticker/vue';
 import '@tombcato/smart-ticker/style.css';
-import {copyLink, formatMessageToHtml, formatter} from '../common/utils.ts';
 import {config} from '../common/config.ts';
 import ImageGallery from './ImageGallery/ImageGallery.vue';
 import RichTextCollapse from './RichTextCollapse.vue';
 import {isSupportedSingleEmoji} from '../common/emoji.ts';
 import SingleEmoji from './SingleEmoji.vue';
 
-dayjs.extend(relativeTime);
+// 注：这里原先还有 `dayjs` + `dayjs/plugin/relativeTime` 的引入，
+// 但全项目从未调用过 `.fromNow()`；时间展示统一走 `timestampFormat()`。
+// 已移除这两条 import，dayjs 随之退出本组件的依赖链。
 
 const props = defineProps<{
   post: IPost;
 }>();
 
+/** 点赞数据（{count, is_liked}），由 onMounted 异步拉取，请求返回前为 undefined */
+interface ILikeState {
+  count: number;
+  is_liked: boolean;
+}
+
 const feedbackDialogRef = ref();
 const account_id = appStore.useAccountStore.account.account_id;
 const select_item = ref<string>('');
-const like = ref();
+const like = ref<ILikeState>();
 const comments = ref<IComment[]>([]);
+/** 评论提交中（防止重复点击「回复」） */
 const submitting = ref<boolean>(false);
+/** 评论列表加载中（防止快速开合导致并发重复请求） */
+const commentsLoading = ref<boolean>(false);
 const comment_data = ref<string>('');
 const user_map = ref<Record<string, IAccount>>({});
 const {account_map} = storeToRefs(appStore.useCacheStore);
 const isSingleEmoji = computed(() => {
-  return isSupportedSingleEmoji(props.post?.content.text);
+  // 用 `content?.text` 而不是 `post?.content.text`：真正可能缺的是 content，
+  // 可选链写在 post 上等于没保护（这也是原写法的问题）
+  return isSupportedSingleEmoji(props.post?.content?.text ?? '');
 });
 // 构造下拉菜单选项
 const dropdownOptions = computed<DropdownProps['options']>(() => {
@@ -74,12 +89,25 @@ const dropdownOptions = computed<DropdownProps['options']>(() => {
   return opts;
 });
 
-const account = computed(() => {
-  if (!account_map.value[props.post.account_id]) {
-    appStore.useCacheStore.fetch_account(props.post.account_id);
-  }
-  return account_map.value[props.post.account_id] ?? {};
-});
+/** 推文作者资料（优先读缓存，未命中时由下方的 watch 触发加载） */
+const account = computed(() => account_map.value[props.post.account_id] ?? ({} as IAccount));
+
+/**
+ * 按需加载作者资料
+ *
+ * 这里用 watch 而不是「在 computed 里顺手发请求」：
+ * computed 应当是纯函数，在求值过程中触发副作用会让依赖收集与缓存行为难以预测
+ * （历史上正是这种写法，配合缓存逻辑把 Promise 写进了 account_map）。
+ */
+watch(
+  () => props.post.account_id,
+  (id) => {
+    if (!id) return;
+    // 单条资料失败不该影响整条推文的渲染（头像/昵称会退化成占位）
+    appStore.useCacheStore.fetch_account(id).catch((e: unknown) => logger.warn('作者资料加载失败', e));
+  },
+  {immediate: true},
+);
 
 /**
  * 微博分享链接
@@ -108,80 +136,118 @@ const follow = computed(() => {
 
 const handleFollow = () => appStore.useCacheStore.toggleFollow(account_id, props.post.account_id);
 
-const handleLike = (post_id: string) => {
-  select_item.value = select_item.value === 'like' ? '' : 'like';
-  if (!like?.value.is_liked) {
-    let data = {
-      obj_id: post_id,
+/**
+ * 点赞 / 取消点赞
+ *
+ * 关键点：
+ * 1. `like` 由 onMounted 异步拉取，未返回前是 undefined。
+ *    原写法 `like?.value.is_liked` 的可选链只保护了 `like`，
+ *    真正的 `like.value` 并没有被保护，接口慢一点就会抛
+ *    「Cannot read properties of undefined」。
+ * 2. 采用乐观更新：先改 UI 再发请求，失败回滚，点击立刻有反馈。
+ * 3. 不再顺带改写 `select_item`——那会让「赞一下」把已展开的评论面板关掉。
+ */
+const handleLike = async (post_id: string) => {
+  const current = like.value;
+  if (!current) return;
+
+  const wasLiked = !!current.is_liked;
+  const prevCount = current.count ?? 0;
+
+  current.is_liked = !wasLiked;
+  current.count = prevCount + (wasLiked ? -1 : 1);
+
+  try {
+    if (!wasLiked) {
+      await instance.post(apiUrls.post_likes(), {
+        obj_id: post_id,
+        obj_type: 1,
+        account_id: account_id,
+      });
+      await MessagePlugin.success('点赞成功');
+    } else {
+      await instance.delete(apiUrls.delete_likes(post_id));
+      await MessagePlugin.success('取消点赞成功');
+    }
+  } catch (e) {
+    // 回滚乐观更新，避免界面与后端状态不一致
+    current.is_liked = wasLiked;
+    current.count = prevCount;
+    logger.error('点赞操作失败，已回滚', e);
+  }
+};
+
+/** 提交评论 */
+const handleSubmit = async () => {
+  const content = comment_data.value.trim();
+  if (!content || submitting.value) return;
+
+  submitting.value = true;
+  try {
+    const r: any = await instance.post(apiUrls.post_comments(), {
+      content: content,
+      obj_id: props.post.post_id,
       obj_type: 1,
       account_id: account_id,
-    };
-    instance.post(apiUrls.post_likes(), {...data}).then(() => {
-      MessagePlugin.success('点赞成功');
-      like.value.count += 1;
-      like.value.is_liked = !like.value.is_liked;
     });
-  } else {
-    instance.delete(apiUrls.delete_likes(props.post.post_id)).then(() => {
-      MessagePlugin.success('取消点赞成功');
-      like.value.count -= 1;
-      like.value.is_liked = !like.value.is_liked;
-    });
+    await MessagePlugin.success('评论成功!');
+    comment_data.value = '';
+    // 用 Map 按 comment_id 去重后再按时间倒序
+    const map = new Map<string, IComment>();
+    [...comments.value, r.data].forEach((el) => map.set(el.comment_id, el));
+    comments.value = Array.from(map.values()).sort(compareByTimeDesc);
+  } catch (e) {
+    logger.error('评论提交失败', e);
+  } finally {
+    submitting.value = false;
   }
 };
 
-// 提交评论
-const handleSubmit = () => {
-  if (!comment_data.value) {
-    return;
-  }
-  submitting.value = true;
-  let data = {
-    content: comment_data.value.trim(),
-    obj_id: props.post.post_id,
-    obj_type: 1,
-    account_id: account_id,
-  };
-  instance
-    .post(apiUrls.post_comments(), {...data})
-    .then((r: any) => {
-      MessagePlugin.success('评论成功!');
-      comment_data.value = '';
-      let els = comments.value.concat(r.data);
-      let map = new Map();
-      els.forEach((el) => map.set(el.comment_id, el));
-      comments.value = Array.from(map.values());
-      // 统一按创建时间倒序（字段名用 getEntityTime 兼容 create_at / gmt_created）
-      comments.value = comments.value.sort(compareByTimeDesc);
-    })
-    .finally(() => (submitting.value = false));
+/**
+ * 拉取评论作者资料（评论列表里需要展示昵称/头像）
+ *
+ * 原实现把 `instance.get(...).then(...)` 写在 map 回调里但没有 return，
+ * 于是 async 回调立即 resolve，`await Promise.all(...)` 等在的是一批空 Promise，
+ * 等于什么都没等。这里改为 return / await 真实请求。
+ */
+const loadCommentAuthors = async () => {
+  const ids = Array.from(new Set(comments.value.map((c) => c.account_id))).filter((id) => id && !user_map.value[id]);
+  await Promise.all(
+    ids.map(async (id) => {
+      // 注意：回调参数是 AxiosResponse，用户数据在 r.data
+      const r = await instance.get(apiUrls.get_account(id));
+      user_map.value[id] = r.data as IAccount;
+    }),
+  );
 };
 
-// 加载评论
+/**
+ * 展开 / 收起评论，首次展开时拉取评论列表
+ *
+ * 用 commentsLoading 做并发护栏：快速开合不会叠加出多份重复请求。
+ */
 const handleComment = async () => {
-  select_item.value = select_item.value === 'comment' ? '' : 'comment';
-  await instance.get(apiUrls.get_comments(props.post.post_id)).then(async (r: any) => {
-    let items = comments.value.concat(r.data.items);
-    let map = new Map();
-    items.forEach((item: any) => map.set(item.comment_id, item));
-    comments.value = Array.from(map.values());
-    // 统一按创建时间倒序（字段名用 getEntityTime 兼容 create_at / gmt_created）
-    comments.value = comments.value.sort(compareByTimeDesc);
+  const willOpen = select_item.value !== 'comment';
+  select_item.value = willOpen ? 'comment' : '';
+  if (!willOpen || commentsLoading.value) return;
 
-    const accountIds = Array.from(new Set(comments.value.map((a) => a.account_id)));
-    await Promise.all(
-      accountIds.map(async (id) => {
-        if (user_map.value[id]) return;
-        // 注意：回调参数是 AxiosResponse，用户数据在 r.data
-        instance.get(apiUrls.get_account(id)).then((r) => (user_map.value[id] = r.data));
-      }),
-    );
-  });
+  commentsLoading.value = true;
+  try {
+    const r: any = await instance.get(apiUrls.get_comments(props.post.post_id));
+    const map = new Map<string, IComment>();
+    [...comments.value, ...(r.data?.items ?? [])].forEach((item) => map.set(item.comment_id, item));
+    comments.value = Array.from(map.values()).sort(compareByTimeDesc);
+    await loadCommentAuthors();
+  } catch (e) {
+    logger.error('评论加载失败', e);
+  } finally {
+    commentsLoading.value = false;
+  }
 };
 // 下拉菜单点击事件
 const handleDropdownClick = (value: string) => {
   switch (value) {
-    case '0':
+    case '0': {
       // 删除帖子 confirm
       const diaglog = DialogPlugin.confirm({
         theme: 'warning',
@@ -207,6 +273,7 @@ const handleDropdownClick = (value: string) => {
         },
       });
       break;
+    }
     case '1':
       feedbackDialogRef.value?.open();
       break;
@@ -216,8 +283,19 @@ const handleDropdownClick = (value: string) => {
 };
 
 onMounted(async () => {
-  await appStore.useCacheStore.fetch_account(props.post.account_id);
-  instance.get(apiUrls.get_likes(props.post.post_id)).then((r: any) => (like.value = r.data));
+  // 预置当前登录用户的资料：自己刚发出的评论可以立刻显示昵称/头像，
+  // 不必为"我自己"再额外发一次账号详情请求
+  if (account_id && !user_map.value[account_id]) {
+    user_map.value[account_id] = appStore.useAccountStore.account;
+  }
+
+  // 作者资料由上面的 watch 负责加载，这里只取点赞数
+  try {
+    const r: any = await instance.get(apiUrls.get_likes(props.post.post_id));
+    like.value = r.data as ILikeState;
+  } catch (e) {
+    logger.error('点赞数加载失败', e);
+  }
 });
 
 // 帖子展开或收起
@@ -405,8 +483,8 @@ onMounted(async () => {
               <div style="display: inline-flex; align-items: center; gap: 4px">
                 <span>赞</span>
                 <Ticker
-                  v-if="like?.count > 0"
-                  :value="like?.count"
+                  v-if="(like?.count ?? 0) > 0"
+                  :value="like?.count ?? 0"
                   :duration="800"
                   easing="linear"
                   direction="ANY"
@@ -425,13 +503,15 @@ onMounted(async () => {
           <template #content>
             <div class="form-container">
               <t-textarea v-model="comment_data" placeholder="请输入内容" />
-              <t-button class="form-submit" @click="handleSubmit">回复</t-button>
+              <t-button class="form-submit" :loading="submitting" :disabled="submitting" @click="handleSubmit"
+                >回复</t-button
+              >
             </div>
           </template>
         </t-comment>
         <!-- 评论列表 -->
         <t-list v-if="select_item === 'comment'" :header="`${comments.length} 条评论`" :split="true">
-          <t-list-item v-for="(item, index) in comments" :key="index">
+          <t-list-item v-for="item in comments" :key="item.comment_id">
             <t-comment
               :author="user_map[item.account_id]?.nick_name"
               :avatar="getResourceUrl(user_map[item.account_id]?.avatar)"

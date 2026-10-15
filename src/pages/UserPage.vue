@@ -239,7 +239,7 @@ const onFollow = async () => {
             </t-tab-panel>
             <t-tab-panel value="2" label="帖子">
               <t-list split @load-more="onLoadMore" :async-loading="asyncLoading">
-                <t-list-item v-for="item in posts" :key="item.key">
+                <t-list-item v-for="item in posts" :key="item.post_id">
                   <Post :post="item" style="width: 100%" />
                 </t-list-item>
               </t-list>

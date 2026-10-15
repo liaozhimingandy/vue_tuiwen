@@ -1,23 +1,30 @@
+<!--
+  LogoSvg - 气泡「发声」符号（方案B）SVG 组件
+
+  用途：渲染备选方案B 的图形——气泡外轮廓 + 两只镂空眼睛，整体像一个有表情的"发声"符号。
+  被谁使用：LogoPage.vue（配色预览 / 导出）。
+  实现要点：外轮廓与眼睛拼成一条 path，配合 fill-rule="evenodd" 让眼睛区域镂空。
+
+  注意：路径常量已抽到 `common/logo-paths.ts`，与方案A、导出逻辑共用同一份数据源，
+  避免三处各写一份后慢慢漂移。
+-->
 <template>
   <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <path :d="fullPath" :fill="fillBg" fill-rule="evenodd" />
+    <path :d="BUBBLE_FULL_PATH" :fill="fillBg" fill-rule="evenodd" />
   </svg>
 </template>
 
 <script setup lang="ts">
+import {BUBBLE_FULL_PATH} from '@/common/logo-paths.ts';
+
 // 填充色，由父组件传入，控制 Logo 前景色
-defineProps<{
-  fillBg: string;
-}>();
-
-// 气泡外轮廓路径（一段闭合贝塞尔曲线，底部带小尾巴）
-const bubblePath =
-  'M50 15 C 25 15 10 32 10 52 C 10 68 22 80 38 84 L 34 96 L 52 84 C 74 82 90 66 90 50 C 90 30 74 15 50 15 Z';
-// 左眼镂空圆孔（以 (38,46) 为圆心、半径 6 的整圆路径）
-const eye1 = 'M 38 46 m -6 0 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0';
-// 右眼镂空圆孔（以 (62,46) 为圆心、半径 6 的整圆路径）
-const eye2 = 'M 62 46 m -6 0 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0';
-
-// 将外轮廓与两只眼睛拼成一个 path；配合 evenodd 填充规则形成镂空眼孔
-const fullPath = `${bubblePath} ${eye1} ${eye2}`;
+withDefaults(
+  defineProps<{
+    /** Logo 前景填充色 */
+    fillBg?: string;
+  }>(),
+  {
+    fillBg: '#2E7DFF',
+  },
+);
 </script>

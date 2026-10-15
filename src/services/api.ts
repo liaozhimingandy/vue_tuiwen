@@ -121,27 +121,7 @@ export const publish_post = async (data: any) => {
   });
 };
 
-/**
- * 关注 / 取消关注
- *
- * 说明：该方法与 `stores/app.ts` 中的 `useCacheStore.toggleFollow` 功能重叠，
- * 当前页面实际使用的是 Store 版本（能同步缓存中的关注数），
- * 本方法暂无调用方，保留仅为兼容旧代码。
- *
- * @param is_following 当前是否已关注
- * @param follower_id 关注者（当前登录用户）
- * @param followee_id 被关注者
- */
-export const toggleFollow = async (is_following: boolean, follower_id: string, followee_id: string) => {
-  //follower_id: 关注者 followee_id:被关注者
-  if (!is_following) {
-    // 如果没有正在关注
-    const data = {
-      follower_id: follower_id,
-      followee_id: followee_id,
-    };
-    await instance.post(apiUrls.post_follow(), data);
-  } else {
-    await instance.delete(apiUrls.delete_follow(follower_id, followee_id));
-  }
-};
+// 注：这里原先还有一个 `export const toggleFollow(is_following, follower_id, followee_id)`，
+// 与 `stores/app.ts` 的 `useCacheStore.toggleFollow` 功能重叠，且**全项目零调用**
+// （页面用的始终是 Store 版本，它能同步维护缓存中的关注数）。
+// 重复实现容易在后续改动中只改一处，已删除。

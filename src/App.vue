@@ -8,46 +8,42 @@ import {ref, onMounted} from 'vue';
 import {useRouter} from 'vue-router';
 
 import 'tdesign-vue-next/es/style/index.css';
+import {logger} from '@/common/utils.ts';
 
 /** 是否仍在初始化（初始化期间显示全屏 loading，不渲染路由） */
 const is_loading = ref<boolean>(true);
 const router = useRouter();
-
-/**
- * 不需要加载全局数据的白名单页面（前缀匹配）
- * 必须与 router/index.ts 中的 path 保持一致，否则会失效
- */
-const whiteList = ['/login/', '/register/', '/reset_password/', '/s/'];
 
 onMounted(async () => {
   try {
     // 1. 等待路由准备好
     await router.isReady();
 
-    const path = router.currentRoute.value.fullPath;
+    /**
+     * 2. 公开页（meta.public）跳过全局数据加载
+     *
+     * 原先这里手写了一份路径前缀白名单，与 router 的路由表两处维护，
+     * 一旦漂移就会出现"公开页也要等登录态"的问题（历史上 `/reset-pwd` 就从未命中过）。
+     * 现在改为直接读当前匹配到的路由记录上的 meta.public，只有一处事实来源。
+     */
+    const isPublicRoute = router.currentRoute.value.matched.some((record) => record.meta?.public);
+    if (isPublicRoute) return;
 
-    // 2. 如果是白名单页面，直接不加载
-    if (whiteList.some((item) => path.startsWith(item))) {
-      return;
-    }
-
-    // 3. 非白名单 → 在这里加载你需要的全局数据
+    // 3. 非公开页 → 在这里加载需要的全局数据
     // await getSystemConfig();
     // await getDictList();
-    // await store.dispatch('user/getInfo')
   } catch (err) {
-    console.error('初始化异常', err);
+    logger.error('初始化异常', err);
   } finally {
     // 无论如何，关闭加载
     is_loading.value = false;
   }
 });
-
 </script>
 
 <template>
   <t-config-provider
-      :global-config="{
+    :global-config="{
       font: {
         family:
           'Roboto, -apple-system-font, BlinkMacSystemFont, Microsoft YaHei, Microsoft YaHei UI, Helvetica Neue, PingFang SC, Hiragino Sans GB, Arial, sans-serif',
@@ -56,10 +52,10 @@ onMounted(async () => {
   >
     <!-- 全屏加载容器 -->
     <div class="app-loading" v-if="is_loading">
-      <t-loading indicator loading preventScrollThrough text="页面加载中..." size="large" :delay="500"/>
+      <t-loading indicator loading preventScrollThrough text="页面加载中..." size="large" :delay="500" />
     </div>
     <!-- 加载完成后显示内容 -->
-    <router-view v-else/>
+    <router-view v-else />
   </t-config-provider>
 </template>
 

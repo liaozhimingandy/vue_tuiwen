@@ -25,8 +25,14 @@ const zeroize = (num: string) => {
  * @param datetime 后端返回的时间字符串
  */
 export const timestampFormat = (datetime: string) => {
-  const timestamp = parseInt((new Date(datetime).getTime() / 1000).toString());
-  const curTimestamp = parseInt((new Date().getTime() / 1000).toString()); // 当前时间戳
+  if (!datetime) return '';
+  const time = new Date(datetime).getTime();
+  // 非法时间串（后端字段缺失 / 格式异常）会得到 Invalid Date，
+  // 继续参与计算会渲染成 "NaN年NaN月NaN日 NaN:NaN"，这里直接兜底为空
+  if (Number.isNaN(time)) return '';
+
+  const timestamp = Math.floor(time / 1000);
+  const curTimestamp = Math.floor(Date.now() / 1000); // 当前时间戳
   const timestampDiff = curTimestamp - timestamp; // 参数时间戳与当前时间戳相差秒数
   const curDate = new Date(curTimestamp * 1000); // 当前时间日期对象
   const tmDate = new Date(timestamp * 1000); // 参数时间戳转换成的日期对象
@@ -45,8 +51,14 @@ export const timestampFormat = (datetime: string) => {
   } else if (curDate.getFullYear() === Y && curDate.getMonth() + 1 === m && curDate.getDate() === d) {
     return '今天' + zeroize(String(H)) + ':' + zeroize(String(i));
   } else {
-    const newDate = new Date((curTimestamp - 86400) * 1000); // 当前时间往前推一天（用于判断"昨天"）
-    if (newDate.getFullYear() === Y && newDate.getMonth() + 1 === m && newDate.getDate() === d) {
+    /**
+     * 「昨天」按**日历日期**判断，而不是「当前时间戳往前推 86400 秒」。
+     * 后者会在这些场景算错：
+     * - 夏令时切换当天（一天并不是 86400 秒）；
+     * - 今天凌晨 00:30 看昨晚 23:59 的推文：减 86400 后落到前天，被误判为「前天」。
+     */
+    const yesterday = new Date(curDate.getFullYear(), curDate.getMonth(), curDate.getDate() - 1);
+    if (yesterday.getFullYear() === Y && yesterday.getMonth() + 1 === m && yesterday.getDate() === d) {
       return '昨天' + zeroize(String(H)) + ':' + zeroize(String(i));
     } else if (curDate.getFullYear() === Y) {
       return zeroize(String(m)) + '月' + zeroize(String(d)) + '日 ' + zeroize(String(H)) + ':' + zeroize(String(i));

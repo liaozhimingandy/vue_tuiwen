@@ -166,7 +166,7 @@
       </t-form>
     </t-drawer>
     <t-sticky-tool
-        v-if="!isMobileDevice()"
+        v-if="!isMobile"
         placement="right-center"
         shape="round"
         :offset="[-50, -24]"
@@ -467,11 +467,17 @@ watch(
 
 // 用户反馈功能
 import type {StickyToolProps} from 'tdesign-vue-next';
-import {isMobileDevice} from '../common/device.ts';
+import {useDeviceWatcher} from '../common/device.ts';
 import TextCollapse from '../components/TextCollapse.vue';
 import {useNotification} from "@/common/useNotification.ts";
 
 const feedbackDialogRef = ref();
+/**
+ * 移动端断点（响应式单例）
+ * 原先模板里写的是 `!isMobileDevice()`——非响应式的一次性读取，
+ * 窗口跨断点缩放后侧边工具条不会跟着显示/隐藏。
+ */
+const {isMobile} = useDeviceWatcher();
 const onHandleClick: StickyToolProps['onClick'] = (context) => {
   console.log('click', context);
   switch (context.item.label) {

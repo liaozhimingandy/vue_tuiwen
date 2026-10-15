@@ -21,9 +21,18 @@ import {md5} from 'js-md5';
 import type {FormProps, AutoCompleteProps} from 'tdesign-vue-next';
 import {MessagePlugin} from 'tdesign-vue-next';
 import {config} from '@/common/config.ts';
-import {isMobileDevice} from '../common/device.ts';
+import {useDeviceWatcher} from '../common/device.ts';
 
 const current = ref<number>(0);
+
+/**
+ * 移动端断点（响应式单例）
+ *
+ * 模板里原先直接调用 `isMobileDevice()`，那是一次性读取、不会随窗口变化更新：
+ * 桌面端把窗口缩到手机宽度时，步骤条仍是横向布局，直到刷新页面才会变。
+ * 改用 useDeviceWatcher 返回的 isMobile 后，跨断点会自动重渲染。
+ */
+const {isMobile} = useDeviceWatcher();
 
 // 表单实例与数据（步骤1 邮箱表单 / 步骤2 验证码+密码表单）
 const formRef1 = ref();
@@ -130,7 +139,7 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
           <t-space direction="vertical" style="width: 100%">
             <t-typography-title>密码重置</t-typography-title>
             <t-divider></t-divider>
-            <t-steps :layout="isMobileDevice() ? 'vertical' : 'horizontal'" :current="current" status="process">
+            <t-steps :layout="isMobile ? 'vertical' : 'horizontal'" :current="current" status="process">
               <t-step-item title="步骤1" content="填写邮箱">
                 <template v-if="current === 0" #extra>
                   <t-button size="small" variant="base" @click="current++"> 下一步</t-button>
