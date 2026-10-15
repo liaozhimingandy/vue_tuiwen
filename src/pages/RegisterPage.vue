@@ -41,7 +41,7 @@ const formData = ref({
  * @param context 表单上下文，含完整 formData
  * @returns 一致返回 { result: true }；不一致返回错误提示
  */
-const validateConfirmPassword = async (value: string, context?: { formData: typeof formData.value }) => {
+const validateConfirmPassword = async (value: string, context?: {formData: typeof formData.value}) => {
   if (value !== context?.formData.password) {
     return {
       result: false,
@@ -92,12 +92,12 @@ const handleRegister: FormProps['onSubmit'] = async ({validateResult, firstError
 
   // 调用注册接口
   instance
-      .post(apiUrls.register(), data)
-      .then(() => {
-        MessagePlugin.success('注册成功,请登录!');
-        router.push({name: 'login'});
-      })
-      .catch((err: any) => MessagePlugin.error(err.response.data.detail));
+    .post(apiUrls.register(), data)
+    .then(() => {
+      MessagePlugin.success('注册成功,请登录!');
+      router.push({name: 'login'});
+    })
+    .catch((err: any) => MessagePlugin.error(err.response.data.detail));
 };
 
 const handleLogin = () => window.location.replace('/login/');
@@ -124,7 +124,7 @@ const mailOptions = computed<AutoCompleteProps['options']>(() => {
         <!-- Logo区域 -->
         <template #title>
           <div style="display: flex; align-items: center; gap: 8px">
-            <img src="../assets/icons/logo.svg" alt="logo" width="32"/>
+            <img src="../assets/icons/logo.svg" alt="logo" width="32" />
             <t-typography-title level="h4" style="margin: 0; line-height: 16px">注册</t-typography-title>
           </div>
         </template>
@@ -134,7 +134,7 @@ const mailOptions = computed<AutoCompleteProps['options']>(() => {
               <template #default>
                 <t-input v-model="formData.mail" placeholder="电子邮箱">
                   <template #prefix-icon>
-                    <mail-icon/>
+                    <mail-icon />
                   </template>
                 </t-input>
               </template>
@@ -143,33 +143,33 @@ const mailOptions = computed<AutoCompleteProps['options']>(() => {
           <t-form-item label="密码" name="password" :status-icon="true">
             <t-input v-model:value="formData.password" placeholder="请输入密码" type="password" autocomplete="password">
               <template #prefix-icon>
-                <lock-on-icon/>
+                <lock-on-icon />
               </template>
             </t-input>
           </t-form-item>
           <t-form-item label="确认密码" name="confirmPassword" :status-icon="true">
             <t-input
-                v-model:value="formData.confirmPassword"
-                placeholder="请确认密码"
-                type="password"
-                autocomplete="confirmPassword"
+              v-model:value="formData.confirmPassword"
+              placeholder="请确认密码"
+              type="password"
+              autocomplete="confirmPassword"
             >
               <template #prefix-icon>
-                <lock-on-icon/>
+                <lock-on-icon />
               </template>
             </t-input>
           </t-form-item>
-          <t-divider/>
+          <t-divider />
           <t-form-item name="nick_name" label="显示名称" :status-icon="true">
             <t-input v-model:value="formData.nick_name"></t-input>
           </t-form-item>
           <t-form-item label="出生日期" name="gmt_birth" :status-icon="true">
-            <t-date-picker v-model:value="formData.gmt_birth" value-format="YYYY-MM-DD" style="width: 100%"/>
+            <t-date-picker v-model:value="formData.gmt_birth" value-format="YYYY-MM-DD" style="width: 100%" />
           </t-form-item>
           <t-form-item name="sex" label="性别" :status-icon="true">
-            <t-select v-model:value="formData.sex" :options="sexListOptions"/>
+            <t-select v-model:value="formData.sex" :options="sexListOptions" />
           </t-form-item>
-          <t-divider/>
+          <t-divider />
           <div style="display: flex; gap: 24px; justify-content: space-evenly">
             <t-button type="submit">注册</t-button>
             <t-button theme="default" @click="handleLogin">已有账号？登录</t-button>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Renderer, Program, Mesh, Color, Triangle } from 'ogl';
-import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
+import {Renderer, Program, Mesh, Color, Triangle} from 'ogl';
+import {onMounted, onUnmounted, ref, useTemplateRef, watch} from 'vue';
 
 const vertexShader = `
 attribute vec2 uv;
@@ -205,12 +205,12 @@ const props = withDefaults(defineProps<GalaxyProps>(), {
   rotationSpeed: 0.1,
   repulsionStrength: 2,
   autoCenterRepulsion: 0,
-  transparent: true
+  transparent: true,
 });
 
 const ctnDom = useTemplateRef('ctnDom');
-const targetMousePos = ref({ x: 0.5, y: 0.5 });
-const smoothMousePos = ref({ x: 0.5, y: 0.5 });
+const targetMousePos = ref({x: 0.5, y: 0.5});
+const smoothMousePos = ref({x: 0.5, y: 0.5});
 const targetMouseActive = ref(0.0);
 const smoothMouseActive = ref(0.0);
 
@@ -221,7 +221,7 @@ const setup = () => {
   const ctn = ctnDom.value;
   const renderer = new Renderer({
     alpha: props.transparent,
-    premultipliedAlpha: false
+    premultipliedAlpha: false,
   });
   const gl = renderer.gl;
 
@@ -242,7 +242,7 @@ const setup = () => {
       program.uniforms.uResolution.value = new Color(
         gl.canvas.width,
         gl.canvas.height,
-        gl.canvas.width / gl.canvas.height
+        gl.canvas.width / gl.canvas.height,
       );
     }
   }
@@ -254,32 +254,32 @@ const setup = () => {
     vertex: vertexShader,
     fragment: fragmentShader,
     uniforms: {
-      uTime: { value: 0 },
+      uTime: {value: 0},
       uResolution: {
-        value: new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height)
+        value: new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height),
       },
-      uFocal: { value: new Float32Array(props.focal) },
-      uRotation: { value: new Float32Array(props.rotation) },
-      uStarSpeed: { value: props.starSpeed },
-      uDensity: { value: props.density },
-      uHueShift: { value: props.hueShift },
-      uSpeed: { value: props.speed },
+      uFocal: {value: new Float32Array(props.focal)},
+      uRotation: {value: new Float32Array(props.rotation)},
+      uStarSpeed: {value: props.starSpeed},
+      uDensity: {value: props.density},
+      uHueShift: {value: props.hueShift},
+      uSpeed: {value: props.speed},
       uMouse: {
-        value: new Float32Array([smoothMousePos.value.x, smoothMousePos.value.y])
+        value: new Float32Array([smoothMousePos.value.x, smoothMousePos.value.y]),
       },
-      uGlowIntensity: { value: props.glowIntensity },
-      uSaturation: { value: props.saturation },
-      uMouseRepulsion: { value: props.mouseRepulsion },
-      uTwinkleIntensity: { value: props.twinkleIntensity },
-      uRotationSpeed: { value: props.rotationSpeed },
-      uRepulsionStrength: { value: props.repulsionStrength },
-      uMouseActiveFactor: { value: 0.0 },
-      uAutoCenterRepulsion: { value: props.autoCenterRepulsion },
-      uTransparent: { value: props.transparent }
-    }
+      uGlowIntensity: {value: props.glowIntensity},
+      uSaturation: {value: props.saturation},
+      uMouseRepulsion: {value: props.mouseRepulsion},
+      uTwinkleIntensity: {value: props.twinkleIntensity},
+      uRotationSpeed: {value: props.rotationSpeed},
+      uRepulsionStrength: {value: props.repulsionStrength},
+      uMouseActiveFactor: {value: 0.0},
+      uAutoCenterRepulsion: {value: props.autoCenterRepulsion},
+      uTransparent: {value: props.transparent},
+    },
   });
 
-  const mesh = new Mesh(gl, { geometry, program });
+  const mesh = new Mesh(gl, {geometry, program});
   let animateId: number;
 
   function update(t: number) {
@@ -299,7 +299,7 @@ const setup = () => {
     program.uniforms.uMouse.value[1] = smoothMousePos.value.y;
     program.uniforms.uMouseActiveFactor.value = smoothMouseActive.value;
 
-    renderer.render({ scene: mesh });
+    renderer.render({scene: mesh});
   }
   animateId = requestAnimationFrame(update);
   ctn.appendChild(gl.canvas);
@@ -308,7 +308,7 @@ const setup = () => {
     const rect = ctn.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = 1.0 - (e.clientY - rect.top) / rect.height;
-    targetMousePos.value = { x, y };
+    targetMousePos.value = {x, y};
     targetMouseActive.value = 1.0;
   }
 
@@ -348,7 +348,7 @@ watch(
     cleanup?.();
     setup();
   },
-  { deep: true }
+  {deep: true},
 );
 </script>
 

@@ -8,46 +8,46 @@
  */
 
 export type VideoEventType =
-    | "impression" // 曝光：视频成为当前播放位
-    | "play_start" // 首次起播（每次 load 后只算一次）
-    | "play_progress" // 播放进度里程碑（25/50/75%）
-    | "complete" // 播放完成（>95%）
-    | "pause"
-    | "resume"
-    | "heartbeat" // 播放心跳（每 5s）
-    | "error"
-    | "like"
-    | "unlike"
-    | "open_comments"
-    | "share";
+  | 'impression' // 曝光：视频成为当前播放位
+  | 'play_start' // 首次起播（每次 load 后只算一次）
+  | 'play_progress' // 播放进度里程碑（25/50/75%）
+  | 'complete' // 播放完成（>95%）
+  | 'pause'
+  | 'resume'
+  | 'heartbeat' // 播放心跳（每 5s）
+  | 'error'
+  | 'like'
+  | 'unlike'
+  | 'open_comments'
+  | 'share';
 
 export interface VideoStatEvent {
-    type: VideoEventType;
-    /** 视频 id */
-    videoId: string | number;
-    /** 事件发生时的播放位置（秒） */
-    position: number;
-    /** 视频总时长（秒） */
-    duration: number;
-    /** 附加信息（里程碑百分比 / 错误信息等） */
-    extra?: Record<string, unknown>;
-    /** 事件时间戳 */
-    timestamp: number;
+  type: VideoEventType;
+  /** 视频 id */
+  videoId: string | number;
+  /** 事件发生时的播放位置（秒） */
+  position: number;
+  /** 视频总时长（秒） */
+  duration: number;
+  /** 附加信息（里程碑百分比 / 错误信息等） */
+  extra?: Record<string, unknown>;
+  /** 事件时间戳 */
+  timestamp: number;
 }
 
 export interface StatsReporter {
-    report(event: VideoStatEvent): void;
+  report(event: VideoStatEvent): void;
 }
 
 /** 默认上报器：开发期打印控制台 */
 export class ConsoleStatsReporter implements StatsReporter {
-    report(event: VideoStatEvent) {
-        // eslint-disable-next-line no-console
-        console.debug(
-            `[video-kit] ${event.type} video=${event.videoId} pos=${event.position.toFixed(1)}/${event.duration.toFixed(1)}s`,
-            event.extra ?? "",
-        );
-    }
+  report(event: VideoStatEvent) {
+    // eslint-disable-next-line no-console
+    console.debug(
+      `[video-kit] ${event.type} video=${event.videoId} pos=${event.position.toFixed(1)}/${event.duration.toFixed(1)}s`,
+      event.extra ?? '',
+    );
+  }
 }
 
 /** 进度里程碑 */

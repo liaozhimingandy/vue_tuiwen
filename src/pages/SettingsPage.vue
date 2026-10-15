@@ -79,7 +79,7 @@ const validateConfirmPassword = async (value: string, context?: {formData: typeo
 };
 
 import type {CustomValidator} from 'tdesign-vue-next';
-import {notificationManager} from "@/common/notification-manager.ts";
+import {notificationManager} from '@/common/notification-manager.ts';
 
 /**
  * 用户名唯一性校验器（TDesign CustomValidator）
@@ -250,7 +250,6 @@ const onUploadSuccess: UploadProps['onSuccess'] = ({file}) => {
   MessagePlugin.success(`头像上传成功`);
 };
 
-
 /**
  * 头像上传失败回调
  * @param file 上传失败的文件对象
@@ -260,22 +259,19 @@ const onUploadFail: UploadProps['onFail'] = ({file}) => {
 };
 
 // 是否正在校验中（显示loading）
-const checkingName = ref(false)
+const checkingName = ref(false);
 
 const formatUploadResp = (resp: any) => {
-  const relativeUrl = resp.url // 后端返回的纯相对路径 /static/xxx
+  const relativeUrl = resp.url; // 后端返回的纯相对路径 /static/xxx
   return {
     url: apiUrls.static_links(relativeUrl), // 给t-upload预览用，开发环境带域名
-    rawUrl: relativeUrl // 保存原始相对路径，用于发布帖子存入数据库
-  }
-}
-
+    rawUrl: relativeUrl, // 保存原始相对路径，用于发布帖子存入数据库
+  };
+};
 
 /* =========================================================
  * 通用设置
  * ======================================================= */
-
-
 
 /**
  * 浏览器通知权限
@@ -284,44 +280,26 @@ const formatUploadResp = (resp: any) => {
  * granted
  * denied
  */
-const notificationPermission =
-  ref<NotificationPermission>(
-    notificationManager.getPermission(),
-  );
-
+const notificationPermission = ref<NotificationPermission>(notificationManager.getPermission());
 
 /**
  * 浏览器是否支持系统通知
  */
-const notificationSupported =
-  ref(
-    notificationManager.isSupported(),
-  );
-
+const notificationSupported = ref(notificationManager.isSupported());
 
 /**
  * 是否已经拒绝通知
  */
-const notificationDenied =
-  computed(() => {
-    return (
-      notificationPermission.value ===
-      'denied'
-    );
-  });
-
+const notificationDenied = computed(() => {
+  return notificationPermission.value === 'denied';
+});
 
 /**
  * 是否还没有决定
  */
-const notificationDefault =
-  computed(() => {
-    return (
-      notificationPermission.value ===
-      'default'
-    );
-  });
-
+const notificationDefault = computed(() => {
+  return notificationPermission.value === 'default';
+});
 
 /**
  * 请求系统通知权限
@@ -330,37 +308,21 @@ const notificationDefault =
  *
  * denied 状态下不会重复请求。
  */
-const enableNotification =
-  async () => {
+const enableNotification = async () => {
+  const permission = await notificationManager.requestPermission();
 
-    const permission =
-      await notificationManager
-        .requestPermission();
+  notificationPermission.value = permission;
 
-    notificationPermission.value =
-      permission;
+  if (permission === 'granted') {
+    await MessagePlugin.success('系统通知已开启');
 
-    if (
-      permission === 'granted'
-    ) {
+    return;
+  }
 
-      await MessagePlugin.success(
-        '系统通知已开启',
-      );
-
-      return;
-    }
-
-    if (
-      permission === 'denied'
-    ) {
-
-    await MessagePlugin.warning(
-        '通知权限已被浏览器禁止，请到浏览器的网站设置中重新允许通知',
-      );
-    }
-  };
-
+  if (permission === 'denied') {
+    await MessagePlugin.warning('通知权限已被浏览器禁止，请到浏览器的网站设置中重新允许通知');
+  }
+};
 
 /**
  * 重新检测浏览器通知权限。
@@ -373,47 +335,34 @@ const enableNotification =
  *
  * 此时需要重新读取 Notification.permission。
  */
-const refreshNotificationPermission =
-  () => {
+const refreshNotificationPermission = () => {
+  notificationPermission.value = notificationManager.getPermission();
 
-    notificationPermission.value =
-      notificationManager.getPermission();
-
-    notificationSupported.value =
-      notificationManager.isSupported();
-  };
+  notificationSupported.value = notificationManager.isSupported();
+};
 
 /* =========================================================
  * 生命周期
  * ======================================================= */
 
 onMounted(() => {
-
   /**
    * 初始化页面高度
    */
   updateContentHeight();
-
 
   /**
    * 初始化头像
    */
   (files.value ??= []).push({
     name: 'avator',
-    url: getResourceUrl(
-      account.value.avatar,
-    ),
+    url: getResourceUrl(account.value.avatar),
   });
-
 
   /**
    * 窗口尺寸变化
    */
-  window.addEventListener(
-    'resize',
-    updateContentHeight,
-  );
-
+  window.addEventListener('resize', updateContentHeight);
 
   /**
    * 用户从浏览器设置页面回来时，
@@ -421,24 +370,13 @@ onMounted(() => {
    *
    * 重新读取 Notification.permission。
    */
-  window.addEventListener(
-    'focus',
-    refreshNotificationPermission,
-  );
+  window.addEventListener('focus', refreshNotificationPermission);
 });
 
-
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateContentHeight);
 
-  window.removeEventListener(
-    'resize',
-    updateContentHeight,
-  );
-
-  window.removeEventListener(
-    'focus',
-    refreshNotificationPermission,
-  );
+  window.removeEventListener('focus', refreshNotificationPermission);
 });
 </script>
 
@@ -465,18 +403,18 @@ onBeforeUnmount(() => {
                   <t-space direction="vertical">
                     <t-form-item label="头像">
                       <t-upload
-                          v-model="files"
-                          :action="apiUrls.upload_image_url()"
-                          :size-limit="sizeLimit"
-                          theme="image"
-                          accept="image/*"
-                          :show-image-preview="true"
-                          :max="1"
-                          :format-response="formatUploadResp"
-                          :autoUpload="true"
-                          :headers="{'Authorization': `Bearer ${appStore.useAccountStore.token.access_token}`}"
-                          @fail="onUploadFail"
-                          @success="onUploadSuccess"
+                        v-model="files"
+                        :action="apiUrls.upload_image_url()"
+                        :size-limit="sizeLimit"
+                        theme="image"
+                        accept="image/*"
+                        :show-image-preview="true"
+                        :max="1"
+                        :format-response="formatUploadResp"
+                        :autoUpload="true"
+                        :headers="{Authorization: `Bearer ${appStore.useAccountStore.token.access_token}`}"
+                        @fail="onUploadFail"
+                        @success="onUploadSuccess"
                       />
                     </t-form-item>
                     <t-form-item label="用户名" name="username">
@@ -543,7 +481,7 @@ onBeforeUnmount(() => {
               <t-tab-panel :value="3" label="通用设置">
                 <t-typography-title level="h4">通用设置</t-typography-title>
                 <t-form>
-                   <!-- =================================================
+                  <!-- =================================================
                        系统通知
                   ================================================== -->
                   <t-form-item label="系统通知">
@@ -551,19 +489,15 @@ onBeforeUnmount(() => {
                       <!--
                         浏览器已经允许
                       -->
-                      <t-switch
-                        v-model:value="account.allow_vibration"
-                        :label="['开', '关']"
-                        size="large"
-                      />
+                      <t-switch v-model:value="account.allow_vibration" :label="['开', '关']" size="large" />
                       <!--
                         浏览器拒绝
                       -->
-                      <t-alert v-if="notificationDenied"
+                      <t-alert
+                        v-if="notificationDenied"
                         theme="warning"
                         message="浏览器已禁止通知，请在浏览器的网站设置中重新允许。"
                       />
-
 
                       <!--
                         用户修改浏览器权限后，
@@ -575,8 +509,8 @@ onBeforeUnmount(() => {
                         variant="outline"
                         size="small"
                         @click="refreshNotificationPermission"
-                      >我已开启，重新检测</t-button>
-
+                        >我已开启，重新检测</t-button
+                      >
 
                       <!--
                         浏览器还没有选择
@@ -594,19 +528,15 @@ onBeforeUnmount(() => {
                       <!--
                         浏览器不支持
                       -->
-                      <t-alert v-if="!notificationSupported" theme="warning" message="当前浏览器不支持系统通知。"/>
+                      <t-alert v-if="!notificationSupported" theme="warning" message="当前浏览器不支持系统通知。" />
                     </t-space>
                   </t-form-item>
-
 
                   <!-- =================================================
                        通知声音
                   ================================================== -->
                   <t-form-item label="通知声音" name="allow_beep">
-                    <t-switch v-model:value="account.allow_beep"
-                      :label="['开', '关']"
-                      size="large"
-                    />
+                    <t-switch v-model:value="account.allow_beep" :label="['开', '关']" size="large" />
                   </t-form-item>
                 </t-form>
               </t-tab-panel>

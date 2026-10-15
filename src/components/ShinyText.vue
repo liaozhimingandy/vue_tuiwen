@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Motion, useAnimationFrame, useMotionValue, useTransform } from 'motion-v';
-import { computed, ref, watch } from 'vue';
+import {Motion, useAnimationFrame, useMotionValue, useTransform} from 'motion-v';
+import {computed, ref, watch} from 'vue';
 
 interface ShinyTextProps {
   text: string;
@@ -26,7 +26,7 @@ const props = withDefaults(defineProps<ShinyTextProps>(), {
   yoyo: false,
   pauseOnHover: false,
   direction: 'left',
-  delay: 0
+  delay: 0,
 });
 
 const isPaused = ref(false);
@@ -38,7 +38,7 @@ const directionRef = ref(props.direction === 'left' ? 1 : -1);
 const animationDuration = computed(() => props.speed * 1000);
 const delayDuration = computed(() => props.delay * 1000);
 
-useAnimationFrame(time => {
+useAnimationFrame((time) => {
   if (props.disabled || isPaused.value) {
     lastTimeRef.value = null;
     return;
@@ -99,11 +99,11 @@ watch(
     progress.set(0);
   },
   {
-    immediate: true
-  }
+    immediate: true,
+  },
 );
 
-const backgroundPosition = useTransform(progress, p => `${150 - p * 2}% center`);
+const backgroundPosition = useTransform(progress, (p) => `${150 - p * 2}% center`);
 
 const handleMouseEnter = () => {
   if (props.pauseOnHover) isPaused.value = true;
@@ -118,7 +118,7 @@ const gradientStyle = computed(() => ({
   backgroundSize: '200% auto',
   WebkitBackgroundClip: 'text',
   backgroundClip: 'text',
-  WebkitTextFillColor: 'transparent'
+  WebkitTextFillColor: 'transparent',
 }));
 </script>
 
@@ -126,7 +126,7 @@ const gradientStyle = computed(() => ({
   <Motion
     tag="span"
     :class="['inline-block', className]"
-    :style="{ ...gradientStyle, backgroundPosition }"
+    :style="{...gradientStyle, backgroundPosition}"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
   >

@@ -23,8 +23,8 @@ import appStore from '@/stores';
 import {config} from '../common/config.ts';
 import axios from 'axios';
 import SvgIcon from '../components/SvgIcon.vue';
-import {isMobile} from "@/common/device.ts";
-import ShinyText from "@/components/ShinyText.vue";
+import {isMobile} from '@/common/device.ts';
+import ShinyText from '@/components/ShinyText.vue';
 
 // 用 useRoute 取当前路由；原先的 getCurrentInstance().proxy.$route 在
 // <script setup> 下类型为 null（TS 报 TS18047），且 query 值类型过宽
@@ -63,23 +63,23 @@ const handleLogin: FormProps['onSubmit'] = async ({validateResult, firstError}) 
   };
   let account_id;
   await instance
-      .post(apiUrls.login(), data, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      })
-      .then((r: any) => {
-        appStore.useAccountStore.update_token('access_token', r.data.access_token);
-        appStore.useAccountStore.update_token('refresh_token', r.data.refresh_token);
-        account_id = r.data.account_id;
-        MessagePlugin.success('登录成功!');
-        update_self_account(account_id);
-        // 跳转：优先回到登录前的目标页（?redirect=...），否则回首页
-        // query 值可能是 string | string[] | null，只有非空字符串才可用作跳转目标
-        const redirect = route.query.redirect;
-        router.push(typeof redirect === 'string' && redirect ? redirect : '/');
-      })
-      .catch((err: any) => MessagePlugin.error(err?.response?.data?.detail || '接口地址不存在(404)'));
+    .post(apiUrls.login(), data, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    })
+    .then((r: any) => {
+      appStore.useAccountStore.update_token('access_token', r.data.access_token);
+      appStore.useAccountStore.update_token('refresh_token', r.data.refresh_token);
+      account_id = r.data.account_id;
+      MessagePlugin.success('登录成功!');
+      update_self_account(account_id);
+      // 跳转：优先回到登录前的目标页（?redirect=...），否则回首页
+      // query 值可能是 string | string[] | null，只有非空字符串才可用作跳转目标
+      const redirect = route.query.redirect;
+      router.push(typeof redirect === 'string' && redirect ? redirect : '/');
+    })
+    .catch((err: any) => MessagePlugin.error(err?.response?.data?.detail || '接口地址不存在(404)'));
 };
 
 const handleRegister = () => {
@@ -151,16 +151,21 @@ const onSearch = async (val: string) => {
   <!-- TDesign 原生栅格 t-row -->
   <t-row align="middle" style="height: 100vh; background-color: #e9ebee">
     <!-- 左侧品牌栏：PC span=12；移动端 xs:span=0 自动隐藏 -->
-    <t-col :md="7" v-if="!isMobile" :xs="0" :sm="0"
-           style="border-right: 3px solid #888888; height: 100vh; padding: 0 64px">
+    <t-col
+      :md="7"
+      v-if="!isMobile"
+      :xs="0"
+      :sm="0"
+      style="border-right: 3px solid #888888; height: 100vh; padding: 0 64px"
+    >
       <div
-          class="login-center"
-          style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%"
+        class="login-center"
+        style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%"
       >
         <t-space direction="vertical" :size="0">
-          <img src="../assets/icons/logo.svg" alt="logo" style="width: 100px; height: 100px"/>
+          <img src="../assets/icons/logo.svg" alt="logo" style="width: 100px; height: 100px" />
           <t-typography-title level="h1">
-          <ShinyText
+            <ShinyText
               text="做你喜欢的事情 - Enjoy yourself!"
               :speed="2"
               :delay="0"
@@ -170,8 +175,8 @@ const onSearch = async (val: string) => {
               direction="left"
               :yoyo="false"
               :pause-on-hover="false"
-          />
-            </t-typography-title>
+            />
+          </t-typography-title>
         </t-space>
       </div>
     </t-col>
@@ -179,14 +184,14 @@ const onSearch = async (val: string) => {
     <!-- 登录卡片居中 -->
     <t-col :md="5" :xs="12" :sm="12" style="height: 100vh">
       <div
-          class="login-center"
-          style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%"
+        class="login-center"
+        style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%"
       >
         <t-card style="width: 400px" header-bordered>
           <!-- Logo区域 -->
           <template #title>
             <div style="display: flex; align-items: center; gap: 8px">
-              <img src="../assets/icons/logo.svg" alt="logo" width="32"/>
+              <img src="../assets/icons/logo.svg" alt="logo" width="32" />
               <t-typography-title level="h4" style="margin: 0; line-height: 16px">请登录</t-typography-title>
             </div>
           </template>
@@ -194,7 +199,7 @@ const onSearch = async (val: string) => {
             <t-tooltip content="如果默认后端地址不可用时,可以自行修改可用地址">
               <t-button variant="text" @click="setApiConfig">
                 <template #icon>
-                  <setting-icon/>
+                  <setting-icon />
                 </template>
               </t-button>
             </t-tooltip>
@@ -203,15 +208,19 @@ const onSearch = async (val: string) => {
             <t-form-item label="用户名" name="username">
               <t-input v-model:value="formData.username" placeholder="请输入用户名">
                 <template #prefix-icon>
-                  <user-icon/>
+                  <user-icon />
                 </template>
               </t-input>
             </t-form-item>
             <t-form-item label="密  码" name="password">
-              <t-input v-model:value="formData.password" placeholder="请输入密码" type="password"
-                       autocomplete="password">
+              <t-input
+                v-model:value="formData.password"
+                placeholder="请输入密码"
+                type="password"
+                autocomplete="password"
+              >
                 <template #prefix-icon>
-                  <lock-on-icon/>
+                  <lock-on-icon />
                 </template>
               </t-input>
             </t-form-item>
@@ -223,7 +232,7 @@ const onSearch = async (val: string) => {
               <t-button theme="default" @click="handleRegister">注册</t-button>
               <t-button theme="danger" href="/snaps/">
                 <template #icon>
-                  <SvgIcon name="snap" color="white"/>
+                  <SvgIcon name="snap" color="white" />
                 </template>
                 天亮即焚-无需登录
               </t-button>
@@ -232,29 +241,29 @@ const onSearch = async (val: string) => {
         </t-card>
       </div>
       <div class="absolute bottom-0 left-0 w-full text-center">
-        <t-typography-text theme="secondary">© {{ new Date().getFullYear()}} tuiwen. All rights reserved.</t-typography-text>
+        <t-typography-text theme="secondary"
+          >© {{ new Date().getFullYear() }} tuiwen. All rights reserved.</t-typography-text
+        >
       </div>
     </t-col>
   </t-row>
   <!-- API 设置弹窗 -->
   <t-dialog
-      v-model:visible="apiModalVisible"
-      header="设置后端 API 接口地址"
-      confirm-btn="保存"
-      cancel-btn="取消"
-      @confirm="handleOk"
+    v-model:visible="apiModalVisible"
+    header="设置后端 API 接口地址"
+    confirm-btn="保存"
+    cancel-btn="取消"
+    @confirm="handleOk"
   >
     <t-input v-model:value="customApiUrl" :placeholder="`例如:${config.API_BASE_URL}`">
       <template #suffix>
         <t-button theme="primary" @click="onSearch(customApiUrl)">测试连接</t-button>
       </template>
     </t-input>
-    <div style="margin-top: 8px; font-size: 12px; color: #999;">
+    <div style="margin-top: 8px; font-size: 12px; color: #999">
       留空并保存可恢复默认接口地址:{{ config.API_BASE_URL_ORI }}
     </div>
   </t-dialog>
 </template>
 
-<style scoped>
-</style>
-
+<style scoped></style>

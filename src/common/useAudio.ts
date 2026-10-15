@@ -1,42 +1,39 @@
-import { audioManager } from '@/common/audio-manager'
+import {audioManager} from '@/common/audio-manager';
 
 export function useAudio() {
-  const play = (
-    src: string,
-    volume = 1
-  ) => {
+  const play = (src: string, volume = 1) => {
     return audioManager.play(src, {
-      volume
-    })
-  }
+      volume,
+    });
+  };
 
   const pause = (src: string) => {
-    audioManager.pause(src)
-  }
+    audioManager.pause(src);
+  };
 
   const stop = (src: string) => {
-    audioManager.stop(src)
-  }
+    audioManager.stop(src);
+  };
 
   const stopAll = () => {
-    audioManager.stopAll()
-  }
+    audioManager.stopAll();
+  };
 
   const setVolume = (volume: number) => {
-    audioManager.setVolume(volume)
-  }
+    audioManager.setVolume(volume);
+  };
 
   const getVolume = () => {
-    return audioManager.getVolume()
-  }
+    return audioManager.getVolume();
+  };
 
   const setMuted = (muted: boolean) => {
-    audioManager.setMuted(muted)
-  }
+    audioManager.setMuted(muted);
+  };
 
   const isMuted = () => {
-    return audioManager.isMuted()
-  }
+    return audioManager.isMuted();
+  };
 
   return {
     play,
@@ -46,6 +43,6 @@ export function useAudio() {
     setVolume,
     getVolume,
     setMuted,
-    isMuted
-  }
+    isMuted,
+  };
 }
