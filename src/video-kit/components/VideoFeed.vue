@@ -12,7 +12,8 @@
  * 虚拟页面：本地只持有已拉取页；DOM 永远只有 3 个槽位，无限列表零压力
  */
 import {computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref} from 'vue';
-import 'video.js/dist/video-js.css';
+// ⚠️ 这里不再静态 import 'video.js/dist/video-js.css'：video.js 是 700KB 的异步 chunk，
+// 样式随内核一起由 core/videojs-loader 动态加载，避免进短视频页先背这一整包。
 import type {VideoInfo} from '@/video-kit/types';
 import {useVideoFeed} from '@/video-kit/composables/useVideoFeed';
 import {usePageVisibility} from '@/video-kit/composables/usePageVisibility';
@@ -45,6 +46,15 @@ const feed = useVideoFeed({
   playerOptions: {fit: props.fit ?? 'cover'},
   statsReporter: props.statsReporter,
 });
+
+/**
+ * 当前位是否显示加载态
+ *
+ * 除了播放器自己上报的 buffering，还要把「video.js 异步 chunk 还没下载完」算进去：
+ * 这段时间根本不存在播放器实例，不会有任何 waiting 事件吐出来，
+ * 只按 buffering 判断的话画面就是一片纯黑，用户以为卡死了。
+ */
+const activeBuffering = computed(() => feed.buffering.value || (!feed.playerReady.value && !feed.playError.value));
 
 /** 布局变体 */
 const isShorts = computed(() => (props.variant ?? 'fullscreen') === 'shorts');
@@ -514,7 +524,7 @@ function onTogglePlay() {
           :muted="feed.muted.value"
           :volume="feed.volume.value"
           :show-unmute-hint="view.rel === 0 && feed.autoplayMuted.value"
-          :buffering="feed.buffering.value"
+          :buffering="view.rel === 0 ? activeBuffering : feed.buffering.value"
           :show-rotate="true"
           :paused="feed.paused.value"
           :play-error="view.rel === 0 ? feed.playError.value : ''"

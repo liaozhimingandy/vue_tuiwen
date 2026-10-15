@@ -68,6 +68,16 @@ export class PlayerPool {
     return ((index % PlayerPool.SIZE) + PlayerPool.SIZE) % PlayerPool.SIZE;
   }
 
+  /**
+   * video.js 异步 chunk 下载完成后调用：补装各槽位被推迟的 load
+   *
+   * 时序上这一步一定晚于 loadAround（chunk 是异步下载的），
+   * 所以每个槽位拿到的都是自己「最后一次」的装载意图，不会漏装也不会重复装。
+   */
+  onModuleReady(): void {
+    this.players.forEach((p) => p?.onModuleReady());
+  }
+
   /** 取 feed 下标对应的播放器实例 */
   get(index: number): VideoPlayer | null {
     return this.players[this.slotOf(index)];

@@ -2,6 +2,7 @@ import {computed, ref, shallowRef, type Ref} from 'vue';
 import type {VideoInfo, VideoPlayerOptions} from '@/video-kit/types';
 import type {PlayerCoreEvent, PlayerCoreEventPayload} from '@/video-kit/core/types';
 import {PlayerPool} from '@/video-kit/core/PlayerPool';
+import {isVideoJsReady, loadVideoJs} from '@/video-kit/core/videojs-loader';
 import {
   HEARTBEAT_INTERVAL,
   PROGRESS_MILESTONES,
@@ -46,6 +47,10 @@ export function useVideoFeed(options: VideoFeedOptions) {
   const loadError = ref('');
   /** 当前位播放失败的原因（空表示正常）——用于展示"播放失败，点击重试" */
   const playError = ref('');
+  /** 播放器内核（video.js 异步 chunk）是否已就绪 */
+  const playerReady = ref(isVideoJsReady());
+  /** 内核加载失败的原因（空表示正常） */
+  const playerError = ref('');
   /** 当前播放倍速（长按倍速时切换，切换视频后要重新应用到新实例） */
   const playbackRate = ref(1);
   /** 自动播放被浏览器策略拦截、已降级为静音（展示"点按开启声音"提示） */
@@ -72,6 +77,43 @@ export function useVideoFeed(options: VideoFeedOptions) {
     fit: 'cover',
     ...options.playerOptions,
   });
+
+  // ---------- 播放器内核（video.js 异步 chunk） ----------
+  let corePromise: Promise<void> | null = null;
+
+  /**
+   * 启动播放器内核下载（幂等，失败可重试）
+   *
+   * 与分页请求并行发起：video.js 是 700KB 的异步 chunk，
+   * 串行等待等于白等一个往返，界面却已经可以先把封面/互动栏渲染出来。
+   */
+  function ensurePlayerCore(): Promise<void> {
+    if (playerReady.value) return Promise.resolve();
+    if (corePromise) return corePromise;
+
+    corePromise = loadVideoJs()
+      .then(() => {
+        // 内核就绪：补装「未就绪期间被推迟」的装载请求
+        pool.onModuleReady();
+        playerReady.value = true;
+        playerError.value = '';
+        playError.value = '';
+      })
+      .catch((err) => {
+        // ⚠️ 一定要清掉句柄，否则重试拿到的还是同一个已 rejected 的 Promise
+        corePromise = null;
+        playerError.value = err instanceof Error ? err.message : '播放器加载失败';
+        // 内核都下不来，播放必然失败：直接把错误暴露到当前位的重试入口
+        playError.value = '播放器加载失败，点击重试';
+        // eslint-disable-next-line no-console
+        console.error('[video-kit] 播放器内核加载失败', err);
+      });
+
+    return corePromise;
+  }
+
+  // 立刻开始下载内核（与首屏分页请求并行），不等挂载、不等数据
+  void ensurePlayerCore();
 
   // ---------- 统计 ----------
   const stat = (
@@ -207,6 +249,9 @@ export function useVideoFeed(options: VideoFeedOptions) {
     if (loadingMore.value || ended.value || loadError.value) return;
     loadingMore.value = true;
     loadError.value = '';
+    // 内核与分页请求并行：分页在跑的同时 chunk 也在下；
+    // 若上次内核下载失败（句柄已清空），这里顺带重试一次
+    void ensurePlayerCore();
     try {
       const batch = (await options.fetchPage(page)) ?? [];
       const isFirstPage = !initialized.value;
@@ -399,6 +444,12 @@ export function useVideoFeed(options: VideoFeedOptions) {
   function retryPlay(): void {
     playError.value = '';
     buffering.value = false;
+    // 内核还没就绪（chunk 没下完或上次下载失败）：先重试内核，
+    // 成功后走一次 loadAround 兜底——此时若槽位还没有装载意图，reload() 是空操作
+    if (!playerReady.value) {
+      void ensurePlayerCore().then(() => pool.loadAround(currentIndex.value, videos.value, true));
+      return;
+    }
     pool.get(currentIndex.value)?.reload();
   }
 
@@ -446,6 +497,8 @@ export function useVideoFeed(options: VideoFeedOptions) {
     ended,
     loadError,
     playError,
+    playerReady,
+    playerError,
     playbackRate,
     progress,
     autoplayMuted,

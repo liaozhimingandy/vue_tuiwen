@@ -1,7 +1,7 @@
-import videojs from 'video.js';
 import type Player from 'video.js/dist/types/player';
 import type {VideoInfo, VideoPlayerOptions} from '@/video-kit/types';
 import type {PlayerCoreEvent, PlayerCoreEventPayload, VideoPlayerInstance} from '@/video-kit/core/types';
+import {getVideoJs} from '@/video-kit/core/videojs-loader';
 
 /**
  * video.js 播放器包装
@@ -11,6 +11,11 @@ import type {PlayerCoreEvent, PlayerCoreEventPayload, VideoPlayerInstance} from 
  * 2. 把「装载新视频」收敛为一个幂等操作（load 可被反复调用而无需关心内部状态）
  * 3. 自动播放降级：直接播被浏览器策略拦截时，静音重试并回调通知（展示"点击开启声音"）
  * 4. 统一转发内核事件给上层（统计 / 进度条）
+ *
+ * ⚠️ video.js 是动态 import 的异步 chunk，因此「创建实例」这一步可能暂时做不到。
+ * 约定：内核未就绪时 load() 只暂存意图（pendingLoad），
+ * 等加载器就绪后由 PlayerPool 调 onModuleReady() 统一补装；
+ * 期间下发的音量/静音/倍速/preload 也存在 pendingState 里，实例创建后统一应用。
  */
 export class VideoPlayer implements VideoPlayerInstance {
   /** video.js 实例（懒创建） */
@@ -18,6 +23,17 @@ export class VideoPlayer implements VideoPlayerInstance {
 
   /** 当前装载的视频 */
   private loadedVideo: VideoInfo | null = null;
+
+  /** 内核未就绪期间被推迟的装载请求（就绪后补装，只保留最后一次意图） */
+  private pendingLoad: {video: VideoInfo; autoplay: boolean} | null = null;
+
+  /** 实例创建前下发的设置（内核未就绪时先存着，创建后统一应用，避免静默丢失） */
+  private pendingState: {
+    muted?: boolean;
+    volume?: number;
+    rate?: number;
+    preload?: 'auto' | 'metadata' | 'none';
+  } = {};
 
   /** load 时是否要求自动播放 */
   private wantAutoplay = false;
@@ -50,11 +66,18 @@ export class VideoPlayer implements VideoPlayerInstance {
     };
   }
 
-  /** 惰性创建 video.js 实例：第一次 load 时才创建，避免空实例常驻 */
-  private ensurePlayer(): Player {
+  /**
+   * 惰性创建 video.js 实例：第一次 load 时才创建，避免空实例常驻
+   *
+   * @returns 播放器实例；**video.js 异步 chunk 尚未下载完时返回 null**
+   */
+  private ensurePlayer(): Player | null {
     if (this.player) {
       return this.player;
     }
+    const videojs = getVideoJs();
+    // 内核还没到：交给 pendingLoad 机制，就绪后由 onModuleReady() 补装
+    if (!videojs) return null;
     // ⚠️ video.js 要求初始元素必须是 <video>/<audio>/<video-js>，
     // 传入 div 会被当作媒体元素 "tag"（Player.createEl 会给它加 vjs-tech 类、
     // setupSourceset 会在它上面 defineProperty('src')），
@@ -83,9 +106,36 @@ export class VideoPlayer implements VideoPlayerInstance {
         vhs: {overrideNative: !videojs.browser.IS_SAFARI},
       },
     });
+    // 实例创建前下发的音量/静音/倍速/preload（内核未就绪时会攒在这里）
+    this.applyPendingState();
     this.bindCoreEvents();
     this.applyFit(this.options.fit ?? 'cover');
     return this.player;
+  }
+
+  /** 把「实例创建前」攒下的设置一次性应用掉（只对有值的项生效） */
+  private applyPendingState(): void {
+    const p = this.player;
+    if (!p) return;
+    const s = this.pendingState;
+    if (s.preload) p.preload(s.preload);
+    if (s.muted !== undefined) p.muted(s.muted);
+    if (s.volume !== undefined) p.volume(s.volume);
+    if (s.rate !== undefined) p.playbackRate(s.rate);
+    this.pendingState = {};
+  }
+
+  /**
+   * video.js 异步 chunk 下载完成后的补装入口
+   *
+   * load() 在内核未就绪时只记录意图，这里把它兑现。
+   * 由 PlayerPool.onModuleReady() 统一调用。
+   */
+  onModuleReady(): void {
+    const pending = this.pendingLoad;
+    if (!pending) return;
+    this.pendingLoad = null;
+    this.load(pending.video, pending.autoplay);
   }
 
   private bindCoreEvents() {
@@ -121,12 +171,20 @@ export class VideoPlayer implements VideoPlayerInstance {
   }
 
   load(video: VideoInfo, autoplay = true): void {
-    const p = this.ensurePlayer();
-
     // 幂等：重复装载同一视频直接跳过（3 实例轮转时会频繁触发）
     if (this.loadedVideo?.id === video.id) {
       return;
     }
+
+    const p = this.ensurePlayer();
+    // 内核未就绪：只记下意图，等 onModuleReady() 补装。
+    // 注意此时不能把 video 写进 loadedVideo——那样 isLoaded() 会误报「已装载」，
+    // 内核下载失败时这个槽位就永远空着且再也不会被补装。
+    if (!p) {
+      this.pendingLoad = {video, autoplay};
+      return;
+    }
+    this.pendingLoad = null;
 
     this.loadedVideo = video;
     this.wantAutoplay = autoplay;
@@ -187,11 +245,20 @@ export class VideoPlayer implements VideoPlayerInstance {
   }
 
   setMuted(value: boolean): void {
-    this.player?.muted(value);
+    if (!this.player) {
+      this.pendingState.muted = value;
+      return;
+    }
+    this.player.muted(value);
   }
 
   setVolume(v: number): void {
-    this.player?.volume(Math.min(1, Math.max(0, v)));
+    const value = Math.min(1, Math.max(0, v));
+    if (!this.player) {
+      this.pendingState.volume = value;
+      return;
+    }
+    this.player.volume(value);
   }
 
   isMuted(): boolean {
@@ -236,7 +303,11 @@ export class VideoPlayer implements VideoPlayerInstance {
 
   /** 设置播放倍速（长按倍速等场景） */
   setPlaybackRate(rate: number): void {
-    this.player?.playbackRate(rate);
+    if (!this.player) {
+      this.pendingState.rate = rate;
+      return;
+    }
+    this.player.playbackRate(rate);
   }
 
   /** 当前倍速 */
@@ -259,11 +330,19 @@ export class VideoPlayer implements VideoPlayerInstance {
 
   /** 动态调整 preload（网络策略变化 / 角色从 next 变为 current 时调用） */
   setPreload(value: 'auto' | 'metadata' | 'none'): void {
-    this.player?.preload(value);
+    if (!this.player) {
+      this.pendingState.preload = value;
+      return;
+    }
+    this.player.preload(value);
   }
 
   reset(): void {
-    if (!this.player) return;
+    if (!this.player) {
+      // 还没实例：撤掉待装意图即可（loadedVideo 本来就还没写入）
+      this.pendingLoad = null;
+      return;
+    }
     this.player.pause();
     // player.reset() 清空源并复位 tech（src("") 会把源指向页面自身 URL，产生无谓请求）
     this.player.reset();
@@ -272,6 +351,8 @@ export class VideoPlayer implements VideoPlayerInstance {
   }
 
   destroy(): void {
+    this.pendingLoad = null;
+    this.pendingState = {};
     if (!this.player) return;
     this.player.dispose();
     this.player = null;
