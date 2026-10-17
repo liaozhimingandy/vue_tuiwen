@@ -4,6 +4,8 @@ node_modules/
 # 构建产物
 dist/
 dist-ssr/
+# 体积回归用的临时验证构建目录（如 dist_verify / dist_base / dist_su 等）
+dist_*/
 *.local
 
 # 编辑器配置（可选共享）

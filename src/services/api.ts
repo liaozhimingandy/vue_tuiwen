@@ -27,6 +27,8 @@ export const apiUrls = {
   login: () => '/oauth/authorize/password/',
   update_token: (account_id: string) => `/oauth/refresh-token/${account_id}/refresh_token/`,
   search_account: (keyword: string) => `/accounts/search/${keyword}/`,
+  /** 帖子搜索（按关键词检索正文/标题，后端未实现时前端会静默降级为「暂无结果」） */
+  search_post: (keyword: string) => `/posts/search/${keyword}/`,
 
   // 帖子相关
   get_posts: () => '/posts/',
@@ -51,6 +53,10 @@ export const apiUrls = {
   post_follow: () => '/follows/',
   delete_follow: (follower_id: string, followee_id: string) => `/follows/${follower_id}/${followee_id}/`,
   get_account_follow: (account_id: string) => `/follows/${account_id}/count/`,
+  /** 某用户的关注列表（TA 关注了谁） */
+  get_followees: (account_id: string) => `/follows/${account_id}/followees/`,
+  /** 某用户的粉丝列表（谁关注了 TA） */
+  get_followers: (account_id: string) => `/follows/${account_id}/followers/`,
 
   // 上传 & 分享
   /** 图片上传地址（走运行时 API 地址） */
