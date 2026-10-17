@@ -47,14 +47,15 @@
             <!-- 帖子列表 -->
             <t-list v-else ref="list" style="flex: 1" :async-loading="asyncLoading" split @load-more="loadMore">
               <t-list-item
-                v-for="(item, index) in snaps"
-                :key="index"
+                v-for="item in snaps"
+                :key="item.id"
                 :style="{backgroundColor: emotionBgColor[item.emotion]}"
               >
                 <t-list-item-meta :title="item.alias_name">
                   <template #description>
                     <TextCollapse>
-                      <div v-html="item.content.text"></div>
+                      <!-- 树洞正文经 v-html 渲染，必须先消毒，否则一条 <img onerror=...> 就能 XSS 全站浏览者 -->
+                      <div v-html="sanitizeHtml(item.content?.text ?? '')"></div>
                     </TextCollapse>
                     <!--                    <LineClamp :text="item.content.text" :max-lines="2"-->
                     <!--                              :expanded="snap_id_expanded == item.id">-->
@@ -134,9 +135,9 @@
         <t-form-item label="选择情绪" name="emotion">
           <t-space direction="horizontal" break-line>
             <t-check-tag
-              v-for="(item, index) in emotionsOptions"
+              v-for="item in emotionsOptions"
               :checked="formData.emotion == item.value"
-              :key="index"
+              :key="item.value"
               @click="formData.emotion = item.value"
             >
               {{ item.label }}
@@ -184,11 +185,20 @@ import instance from '@/services';
 import {apiUrls} from '@/services/api.ts';
 import SvgIcon from '@/components/SvgIcon.vue';
 import {emotionBgColor, emotionsOptions} from '../common/constants.ts';
-import {compareByTimeDesc, formatter, generateRandomAlias, getEntityTime, timestampFormat} from '../common/utils.ts';
+import {
+  compareByTimeDesc,
+  formatter,
+  generateRandomAlias,
+  getEntityTime,
+  logger,
+  timestampFormat,
+} from '../common/utils.ts';
+import {sanitizeHtml} from '../common/sanitize.ts';
 import UserAvatar from '../components/UserAvatar.vue';
 import {Ticker} from '@tombcato/smart-ticker/vue';
 import '@tombcato/smart-ticker/style.css';
 import FeedbackDialog from '../components/FeedbackDialog.vue';
+import {notificationManager} from '@/common/notification-manager.ts';
 
 const visible = ref(false);
 const isOpen = ref(isLateNightTime());
@@ -202,6 +212,8 @@ import notificationSound from '@/assets/sounds/notification.mp3';
 let timer: number | null = null;
 // 帖子轮询定时器
 let pollTimer: number | null = null;
+/** 最新帖拉取是否在飞行中：轮询与手动刷新并发时会互相覆盖写回，导致新帖丢失 */
+let fetchingLatest = false;
 // 轮询间隔：3000ms = 3秒，可自行调整
 const POLL_INTERVAL = 5000;
 
@@ -215,8 +227,22 @@ const countDownText = computed(() => {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 });
 
-const subscribeRemind = () => {
-  MessagePlugin.success('已订阅每晚开板提醒');
+/**
+ * 订阅开板提醒
+ *
+ * 原先只弹一句「已订阅」却没有做任何事——关板时段最显眼的引导按钮
+ * 却在欺骗用户。轮询本身已经会调 notifyWithSound，缺的只是浏览器通知权限，
+ * 因此这里真正去请求权限，并按结果给出对应反馈。
+ */
+const subscribeRemind = async () => {
+  const permission = await notificationManager.requestPermission();
+  if (permission === 'granted') {
+    await MessagePlugin.success('已开启提醒，开板时会收到系统通知');
+  } else if (permission === 'denied') {
+    await MessagePlugin.warning('通知权限已被浏览器禁止，请到网站设置中重新允许');
+  } else {
+    await MessagePlugin.info('未开启通知权限');
+  }
 };
 
 function tick() {
@@ -225,6 +251,10 @@ function tick() {
 }
 
 async function fetch_snap_latest() {
+  // 并发护栏：上一次还没返回就跳过本次，避免两次各自读 snaps.value
+  // 再分别合并写回、后写覆盖先写导致新帖丢失
+  if (fetchingLatest) return;
+  fetchingLatest = true;
   try {
     loading.value = true;
     let count = snaps.value.length;
@@ -241,21 +271,26 @@ async function fetch_snap_latest() {
 
     let count_latest = snaps.value.length;
     if (count_latest > count) {
-      // 系统通知
-      await notifyWithSound(
-        '新消息',
-        {
-          body: '为你刷新了帖子',
-          icon: '/logo.png',
-        },
-        notificationSound,
-      );
+      // 系统通知：失败不能影响主流程，单独兜底
+      try {
+        await notifyWithSound(
+          '新消息',
+          {
+            body: '为你刷新了帖子',
+            icon: '/logo.png',
+          },
+          notificationSound,
+        );
+      } catch (e) {
+        logger.warn('树洞新帖通知失败', e);
+      }
     }
   } catch (err) {
     // 请求失败静默跳过，不打断轮询
-    console.error('获取帖子失败', err);
+    logger.warn('获取帖子失败', err);
   } finally {
     loading.value = false;
+    fetchingLatest = false;
   }
 }
 
@@ -286,7 +321,7 @@ async function fetchSnaps() {
     snaps.value = Array.from(map.values()).sort(compareByTimeDesc);
   } catch (err) {
     // 请求失败静默跳过，不打断轮询
-    console.error('获取帖子失败', err);
+    logger.warn('获取帖子失败', err);
   } finally {
     loading.value = false;
   }
@@ -320,11 +355,14 @@ onUnmounted(() => {
 
 /**
  * 判断当前是否属于深夜来一发开放时段：23:00 ~ 次日 06:00
+ *
+ * ⚠️ 与页面文案「每日23:00-次日06:00开放」保持一致。
+ * 原实现写的是 hour >= 18，导致 18:00~23:00 页面显示"开放中"却和自身说明矛盾。
  */
 function isLateNightTime(): boolean {
   const hour = new Date().getHours();
   // 23点之后 或者 0-6点
-  return hour >= 18 || hour < 6;
+  return hour >= 23 || hour < 6;
 }
 
 /**
@@ -370,17 +408,28 @@ const onConfirm = async () => {
         //表单校验失败，TDesign已经自动弹出校验提示，无需额外消息
         return;
       }
+      logger.error('树洞发布失败', err);
       MessagePlugin.error('发布失败，请稍后重试');
     });
 };
 
-// 点赞函数，你后续再实现
+/**
+ * 点赞
+ *
+ * 必须自己兜住异常：模板里写作 `@click="() => likeSnap(item.id)"`，
+ * 箭头函数返回的 Promise 无人接收，一旦 reject 就是 unhandled rejection；
+ * 且轮询可能已经把目标条目换掉，先 find 判空再赋值。
+ */
 const likeSnap = async (id: number) => {
-  await instance.get(apiUrls.like_snap(id)).then((r: any) => {
-    MessagePlugin.success('点赞成功!');
+  try {
+    const r: any = await instance.get(apiUrls.like_snap(id));
     const snap = snaps.value.find((item) => item.id == id);
+    if (!snap) return;
     snap.like = r.data.like;
-  });
+  } catch (err) {
+    logger.warn('树洞点赞失败', err);
+    MessagePlugin.error('点赞失败，请稍后重试');
+  }
 };
 
 const loading = ref(false);
@@ -471,7 +520,7 @@ const feedbackDialogRef = ref();
  */
 const {isMobile} = useDeviceWatcher();
 const onHandleClick: StickyToolProps['onClick'] = (context) => {
-  console.log('click', context);
+  logger.info('sticky tool click', context);
   switch (context.item.label) {
     case '意见反馈':
       feedbackDialogRef.value?.open();

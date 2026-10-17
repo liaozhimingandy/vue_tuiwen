@@ -23,6 +23,8 @@ import {LockOnIcon, MailIcon} from 'tdesign-icons-vue-next';
 import {config} from '@/common/config.ts';
 
 const formRef = ref(null);
+/** 注册提交中：弱网下连点容易重复注册，按钮需禁用 + loading */
+const submitting = ref(false);
 // 注册表单数据
 const formData = ref({
   mail: '',
@@ -85,19 +87,26 @@ const handleRegister: FormProps['onSubmit'] = async ({validateResult, firstError
     await MessagePlugin.warning(firstError || '表单校验不通过，请检查填写内容');
     return;
   }
+  // 防重复提交：请求在途时忽略后续点击
+  if (submitting.value) return;
+  submitting.value = true;
+
   // 在此处理注册逻辑
-  let data = cloneDeep(formData.value);
+  const data = cloneDeep(formData.value);
   // 密码 md5 哈希后再提交，避免以明文在网络中传输
   data.password = md5(data.password);
 
-  // 调用注册接口
-  instance
-    .post(apiUrls.register(), data)
-    .then(() => {
-      MessagePlugin.success('注册成功,请登录!');
-      router.push({name: 'login'});
-    })
-    .catch((err: any) => MessagePlugin.error(err.response.data.detail));
+  // 调用注册接口。必须 try/catch/finally：失败时不复位 submitting，
+  // 按钮会永远转圈；且网络错误没有 response，直接 err.response.data.detail 会再抛 TypeError
+  try {
+    await instance.post(apiUrls.register(), data);
+    MessagePlugin.success('注册成功,请登录!');
+    router.push({name: 'login'});
+  } catch (err: any) {
+    MessagePlugin.error(err?.response?.data?.detail || '注册失败，请稍后重试');
+  } finally {
+    submitting.value = false;
+  }
 };
 
 const handleLogin = () => window.location.replace('/login/');
@@ -171,7 +180,7 @@ const mailOptions = computed<AutoCompleteProps['options']>(() => {
           </t-form-item>
           <t-divider />
           <div style="display: flex; gap: 24px; justify-content: space-evenly">
-            <t-button type="submit">注册</t-button>
+            <t-button type="submit" :loading="submitting" :disabled="submitting">注册</t-button>
             <t-button theme="default" @click="handleLogin">已有账号？登录</t-button>
           </div>
         </t-form>

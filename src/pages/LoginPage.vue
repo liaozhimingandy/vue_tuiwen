@@ -21,19 +21,32 @@ import router from '../router';
 import {apiUrls, update_self_account} from '@/services/api.ts';
 import appStore from '@/stores';
 import {config} from '../common/config.ts';
-import axios from 'axios';
+import {logger} from '@/common/utils.ts';
 import SvgIcon from '../components/SvgIcon.vue';
-import {isMobile} from '@/common/device.ts';
+import {useDeviceWatcher} from '@/common/device.ts';
 import ShinyText from '@/components/ShinyText.vue';
 
 // 用 useRoute 取当前路由；原先的 getCurrentInstance().proxy.$route 在
 // <script setup> 下类型为 null（TS 报 TS18047），且 query 值类型过宽
 const route = useRoute();
 const formRef = ref(null);
+
+/**
+ * 移动端断点（响应式单例）
+ *
+ * ⚠️ 原先写的是 `import {isMobile} from '@/common/device.ts'`。那个 isMobile 是
+ * 一次性初值常量，只有 useDeviceWatcher() 才会注册全局 resize 监听并同步状态；
+ * 直接 import 时监听从未注册、值恒为 false，手机上左侧品牌栏照样渲染、
+ * 登录卡被严重挤压。ResetPasswordPage.vue 用的就是下面的正确写法。
+ */
+const {isMobile} = useDeviceWatcher();
+
 const formData = ref({
   username: '',
   password: '',
 });
+/** 登录提交中：弱网下连点会发出多个登录请求，按钮需禁用 + loading */
+const submitting = ref(false);
 const rules = {
   username: [{required: true, message: '请输入用户名', trigger: 'blur'}],
   password: [{required: true, message: '请输入密码', trigger: 'blur'}],
@@ -55,31 +68,38 @@ const handleLogin: FormProps['onSubmit'] = async ({validateResult, firstError}) 
     await MessagePlugin.warning(firstError || '请输入登录信息');
     return;
   }
+  // 防重复提交：请求在途时忽略后续点击
+  if (submitting.value) return;
+  submitting.value = true;
 
-  // 密码前端 md5 加密后再传输（注意：仅防明文截获，非高安全方案，口径待确认）
-  let data = {
-    username: formData.value.username,
-    password: md5(formData.value.password),
-  };
-  let account_id;
-  await instance
-    .post(apiUrls.login(), data, {
+  try {
+    // 密码前端 md5 加密后再传输（注意：仅防明文截获，非高安全方案，口径待确认）
+    const data = {
+      username: formData.value.username,
+      password: md5(formData.value.password),
+    };
+    const r: any = await instance.post(apiUrls.login(), data, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-    })
-    .then((r: any) => {
-      appStore.useAccountStore.update_token('access_token', r.data.access_token);
-      appStore.useAccountStore.update_token('refresh_token', r.data.refresh_token);
-      account_id = r.data.account_id;
-      MessagePlugin.success('登录成功!');
-      update_self_account(account_id);
-      // 跳转：优先回到登录前的目标页（?redirect=...），否则回首页
-      // query 值可能是 string | string[] | null，只有非空字符串才可用作跳转目标
-      const redirect = route.query.redirect;
-      router.push(typeof redirect === 'string' && redirect ? redirect : '/');
-    })
-    .catch((err: any) => MessagePlugin.error(err?.response?.data?.detail || '接口地址不存在(404)'));
+    });
+    appStore.useAccountStore.update_token('access_token', r.data.access_token);
+    appStore.useAccountStore.update_token('refresh_token', r.data.refresh_token);
+    const account_id = r.data.account_id;
+    MessagePlugin.success('登录成功!');
+    // 登录后预拉取账户资料：失败不影响登录流程，单独兜住避免 unhandled rejection
+    void update_self_account(account_id).catch((e) => logger.error('登录后拉取账户信息失败', e));
+    // 跳转：优先回到登录前的目标页（?redirect=...），否则回首页
+    // query 值可能是 string | string[] | null，只有非空字符串才可用作跳转目标
+    const redirect = route.query.redirect;
+    router.push(typeof redirect === 'string' && redirect ? redirect : '/');
+  } catch (err: any) {
+    logger.error('登录失败', err);
+    // 网络错误 / 超时没有 response，统一可选链 + 兜底文案
+    MessagePlugin.error(err?.response?.data?.detail || '登录失败，请检查账号密码或接口地址');
+  } finally {
+    submitting.value = false;
+  }
 };
 
 const handleRegister = () => {
@@ -104,7 +124,8 @@ const setApiConfig = () => {
 const handleOk = () => {
   const val = customApiUrl.value.trim();
 
-  if (val && !val.startsWith('http')) {
+  // 只认 http(s) 协议：原 startsWith('http') 会被 "httpfoo" 之类的非法串绕过
+  if (val && !/^https?:\/\//i.test(val)) {
     MessagePlugin.error('请输入以 http:// 或 https:// 开头的有效地址');
     return;
   }
@@ -128,7 +149,7 @@ const onSearch = async (val: string) => {
     await MessagePlugin.warning('请输入 API 地址');
     return;
   }
-  if (!val.startsWith('http')) {
+  if (!/^https?:\/\//i.test(val)) {
     await MessagePlugin.error('请输入以 http:// 或 https:// 开头的有效地址');
     return;
   }
@@ -136,13 +157,14 @@ const onSearch = async (val: string) => {
   try {
     // 去掉结尾的斜杠（正则 /\/$/ 匹配末尾单独的 /），再拼接健康检查路径
     const testUrl = val.replace(/\/$/, '') + apiUrls.check_health();
-    console.info(testUrl);
-    // 超时 5s，避免无效地址长时间挂起
-    await axios.get(testUrl, {timeout: 5000});
+    logger.info('测试接口连通性', testUrl);
+    // 走统一实例（绝对地址会覆盖 baseURL，不影响测试目的），而不是裸 axios；
+    // hideError 让失败只走本地的提示，避免全局错误弹窗重复报一次
+    await instance.get(testUrl, {timeout: 5000, customOptions: {hideError: true}} as any);
     MessagePlugin.success('连接成功！接口地址可用');
   } catch (err) {
+    logger.warn('接口连通性测试失败', err);
     MessagePlugin.error('连接失败，请检查地址或网络');
-    console.error(err);
   }
 };
 </script>
@@ -228,7 +250,7 @@ const onSearch = async (val: string) => {
               <t-link @click="goResetPwd">忘记密码？点此重置</t-link>
             </t-divider>
             <t-space direction="horizontal" align="center" size="large">
-              <t-button theme="primary" type="submit">登录</t-button>
+              <t-button theme="primary" type="submit" :loading="submitting" :disabled="submitting">登录</t-button>
               <t-button theme="default" @click="handleRegister">注册</t-button>
               <t-button theme="danger" href="/snaps/">
                 <template #icon>

@@ -23,7 +23,7 @@
     >
       <!-- HTML -->
       <template v-if="content !== undefined && content !== null">
-        <div class="rich-text__html" v-html="content" />
+        <div class="rich-text__html" v-html="safeContent" />
       </template>
 
       <!-- Slot -->
@@ -45,6 +45,7 @@
 
 <script setup lang="ts">
 import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
+import {sanitizeHtml} from '@/common/sanitize.ts';
 
 type Mode = 'auto' | 'collapse' | 'full';
 
@@ -210,6 +211,20 @@ const showToggleButton = computed(() => {
 const contentStyle = computed(() => ({
   '--rich-text-lines': normalizedLines.value,
 }));
+
+/**
+ * 消毒后的正文
+ *
+ * ⚠️ `v-html` 是 XSS 入口：任何人发布一条含 `<img src=x onerror=...>` 的正文，
+ * 所有浏览者都会执行其中的脚本。而长文编辑器产出的是合法 HTML（p / img / table），
+ * 不能整体转义，因此在渲染出口统一做一次选择性清洗（见 utils.ts::sanitizeHtml）。
+ * 这是信息流（Post.vue）与分享页（SharePage.vue）共用的唯一 HTML 出口。
+ */
+const safeContent = computed(() => {
+  const raw = props.content;
+  if (raw === undefined || raw === null || raw === '') return null;
+  return sanitizeHtml(raw);
+});
 
 /**
  * =========================================================

@@ -60,6 +60,8 @@ const updateContentHeight = () => {
  * 配合成功提示还会每 5 分钟弹一次 toast。改为先攒着，由用户点击后再合并。
  */
 const pending_posts = ref<IPost[]>([]);
+/** 待读提示的保留上限：长时间挂后台时避免无限累积 */
+const MAX_PENDING_POSTS = 50;
 
 /** 把待读的新推文合并进列表，并回到顶部 */
 const applyPendingPosts = () => {
@@ -110,7 +112,18 @@ const get_past_latest = async () => {
     if (!items.length) return;
     const known = new Set(posts.value.map((p) => p.post_id));
     const fresh = items.filter((p) => !known.has(p.post_id));
-    if (fresh.length) pending_posts.value = fresh;
+    if (!fresh.length) return;
+    // 合并而非覆盖：原实现 `pending_posts.value = fresh` 会把上一批还没被查看的
+    // 提示直接冲掉，若下一批 latest 里不再包含它们，这些提示就永久消失了。
+    // 这里新批次在前、按 post_id 去重，并设上限防止无限增长。
+    const seen = new Set<string>();
+    pending_posts.value = [...fresh, ...pending_posts.value]
+      .filter((p) => {
+        if (seen.has(p.post_id)) return false;
+        seen.add(p.post_id);
+        return true;
+      })
+      .slice(0, MAX_PENDING_POSTS);
   } catch (e) {
     logger.error('拉取最新推文失败', e);
   }

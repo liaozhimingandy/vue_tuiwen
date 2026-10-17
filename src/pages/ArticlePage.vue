@@ -116,13 +116,20 @@ const onPublish = async () => {
     status: 1, // 1 表示正常发布状态
   };
 
-  // 调发布接口
-  await publish_post(post);
-
-  submitting.value = false;
-  await MessagePlugin.success('发布成功!');
-  editor.clear(); // 清空编辑器
-  appStore.useDraftStore.clearDraft(); // 清除草稿
+  // 调发布接口。
+  // ⚠️ 必须 try/catch/finally：失败时若不复位 submitting，发布按钮会永远转圈，
+  // 用户只能刷新页面重试，同时抛出 unhandled rejection。
+  try {
+    await publish_post(post);
+    await MessagePlugin.success('发布成功!');
+    editor.clear(); // 清空编辑器
+    appStore.useDraftStore.clearDraft(); // 清除草稿
+  } catch (err) {
+    logger.error('长文发布失败', err);
+    await MessagePlugin.error('发布失败，请稍后重试');
+  } finally {
+    submitting.value = false;
+  }
 };
 </script>
 

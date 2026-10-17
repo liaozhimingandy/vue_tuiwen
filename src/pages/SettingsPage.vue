@@ -44,16 +44,6 @@ const updateContentHeight = () => {
   contentHeight.value = window.innerHeight - headerHeight - 12;
 };
 
-onMounted(() => {
-  updateContentHeight();
-  // files 声明在下方（setup 内为提升引用，onMounted 回调执行时已初始化），
-  // 其值类型含 undefined，这里按需初始化为数组再 push
-  (files.value ??= []).push({
-    name: 'avator',
-    url: getResourceUrl(account.value.avatar),
-  });
-});
-
 // 查询用户信息（setup 阶段即发起，非 await 的预拉取，结果写入 store）
 update_self_account(account.value.account_id);
 const username = account.value.username;
@@ -178,12 +168,17 @@ const password_reset = (ctx: {validateResult: any; firstError?: string}) => {
       appStore.useAccountStore.logout();
       router.push({name: 'login'});
     })
-    .catch((err: any) => MessagePlugin.error(err.response.data.detail))
+    // 网络错误 / 超时没有 response，原来直接 err.response.data.detail 会再抛 TypeError，
+    // 用户看不到任何提示；统一走可选链 + 兜底文案
+    .catch((err: any) => MessagePlugin.error(err?.response?.data?.detail || '密码修改失败，请稍后重试'))
     .finally(() => (saving.value = false));
 };
 
 /**
  * 单独修改用户名（局部更新接口，避免整表提交）
+ *
+ * ⚠️ 失败必须向上抛：调用方 update_account 靠 try/catch 复位 saving 并提示。
+ * 若在这里把异常吞掉，保存按钮会永久停留在 loading 状态。
  * @param newUsername 新用户名
  */
 const update_username = async (newUsername: string) => {
@@ -192,9 +187,13 @@ const update_username = async (newUsername: string) => {
     new_value: newUsername,
   };
 
-  instance.patch(apiUrls.update_username(), payload).then((r) => {
+  try {
+    const r = await instance.patch(apiUrls.update_username(), payload);
     account.value = r.data;
-  });
+  } catch (err) {
+    logger.error('修改用户名失败', err);
+    throw err;
+  }
 };
 
 /**
@@ -208,30 +207,35 @@ const update_account = async (ctx: {validateResult: any; firstError?: string}) =
     return;
   }
 
+  // 整体 try/catch/finally：用户名 PATCH 失败时也要复位 saving，
+  // 否则两个 Tab 的保存按钮会永久禁用，且产生 unhandled rejection
   saving.value = true;
-  // 仅当用户名真的变了才单独提交（username 为可选字段，需判空）
-  const currentUsername = account.value.username;
-  if (currentUsername && username !== currentUsername) {
-    await update_username(currentUsername);
+  try {
+    // 仅当用户名真的变了才单独提交（username 为可选字段，需判空）
+    const currentUsername = account.value.username;
+    if (currentUsername && username !== currentUsername) {
+      await update_username(currentUsername);
+    }
+
+    let data = {
+      nick_name: account.value.nick_name,
+      gmt_birth: account.value.gmt_birth,
+      area_code: account.value.area_code,
+      // sex 在 IAccount 中本就是 number | null，无需 parseInt；
+      // 缺失时传 null（与原先 parseInt(undefined) 序列化后的结果一致）
+      sex: account.value.sex ?? null,
+      avatar: account.value.avatar,
+    };
+
+    const r = await instance.put(apiUrls.update_account(account.value.account_id), data);
+    MessagePlugin.success('更新成功');
+    account.value = r.data as IAccount;
+  } catch (err: any) {
+    logger.error('更新账户资料失败', err);
+    MessagePlugin.error(err?.response?.data?.detail || '更新失败，请稍后重试');
+  } finally {
+    saving.value = false;
   }
-
-  let data = {
-    nick_name: account.value.nick_name,
-    gmt_birth: account.value.gmt_birth,
-    area_code: account.value.area_code,
-    // sex 在 IAccount 中本就是 number | null，无需 parseInt；
-    // 缺失时传 null（与原先 parseInt(undefined) 序列化后的结果一致）
-    sex: account.value.sex ?? null,
-    avatar: account.value.avatar,
-  };
-
-  instance
-    .put(apiUrls.update_account(account.value.account_id), data)
-    .then((r) => {
-      MessagePlugin.success('更新成功');
-      account.value = r.data as IAccount;
-    })
-    .finally(() => (saving.value = false));
 };
 
 // 上传的图片列表

@@ -556,3 +556,91 @@ bug、补关注 / 粉丝双 Tab、统计语义修正、行内关注乐观更新�
 - `search_post` / `get_followees` / `get_followers` 前端已就位，大概率后端尚未实现；现为静默空态 / 失败重试降级，接上即出数据。
 - 关系列表分页依赖后端支持 `offset` 参数；未支持时由前端去重兜底停止（不会无限加载）。
 - 搜索建议目前来自本地历史 + 第三方热榜，未接后端「联想词」接口；若后续提供，可在 `suggestItems` 里并入远程结果。
+
+---
+
+## 十一、全应用巡检修复轮（安全 / 正确性 / 体验）
+
+### 11.1 背景与方法
+
+对 `src/` 全量（18 页面 + 19 组件 + stores + common + services）做了一次只读巡检，按
+「P0 线上功能错误 → P1 明显体验缺陷 → P2 可清理隐患」分级筛出 20 条，本轮修掉其中
+**纯前端、无后端依赖、可即时验证**的一批；涉及后端接口语义的两项（人机验证守卫、
+ArticleEditor 上传字段口径）留待与后端对齐后再动。
+
+### 11.2 P0 安全：三处 `v-html` 存储型 XSS
+
+推文正文、分享页正文、树洞正文最终都经 `v-html` 渲染，任何人发布一条含
+`<img src=x onerror=...>` 的正文，所有浏览者都会执行其中脚本。而长文编辑器产出的是
+**合法 HTML**（`<p>` / `<img>` / `<table>`），不能整体转义，否则正文会被渲染成标签文字。
+
+**方案**：新增 `src/common/sanitize.ts`（零依赖），做「基于 DOM 的选择性清洗」：
+
+| 步骤 | 规则 |
+| --- | --- |
+| 元素 | 整体删除高危元素及子树：`script/style/iframe/object/embed/form/link/meta/base/title/noscript/svg/math/template/frame/applet` |
+| 事件 | 删除所有 `on*` 属性（onerror / onclick / onload ...） |
+| URL | `href/src/action/formaction/xlink:href/poster/background/srcset` 中协议为 `javascript:` / `vbscript:` 或非图片 `data:` 的删属性 |
+| style | 含 `expression(` / `javascript:` / `url(` 的删属性 |
+
+安全性依据：清洗时把 HTML 写进**脱离文档的 `<template>`**，脚本不执行、图片不请求，
+因此「清洗」动作本身无副作用，属性清完再取 `innerHTML` 交给 `v-html`。
+
+接入点只有两处，覆盖全部渲染路径：
+- `components/RichTextCollapse.vue` → 新增 `safeContent` computed（信息流 `Post.vue` 与分享页 `SharePage.vue` 共用的唯一 HTML 出口）；
+- `pages/SnapPage.vue` → 树洞正文 `v-html="sanitizeHtml(...)"`。
+
+> ⚠️ **体积纪律**：`sanitizeHtml` 最初写在 `common/utils.ts` 里，导致入口闭包 376.3 → **377.4 KB**（+1.1 KB）。
+> 因它只被懒加载路由引用，遂拆成独立的 `src/common/sanitize.ts`，闭包回落到 **376.4 KB（持平）**。
+> 结论：**只给富文本渲染用的工具不要放 utils.ts**，否则首屏为用不到的功能付流量。
+
+### 11.3 P0 正确性：登录页移动端断点完全失效
+
+`LoginPage.vue` 原先 `import {isMobile} from '@/common/device.ts'`。那个 `isMobile` 是一次性初值常量，
+只有 `useDeviceWatcher()` 才会注册全局 resize 监听并同步状态；直接 import 时**监听从未注册、值恒为 false**，
+手机上左侧品牌栏照样渲染，登录卡被严重挤压。已改为 `const {isMobile} = useDeviceWatcher()`
+（与 `ResetPasswordPage.vue` 一致）。这也是「JS 断点一律走 `useDeviceWatcher()`」约定的反面案例。
+
+### 11.4 P1：其他修复
+
+| 文件 | 问题 | 修复 |
+| --- | --- | --- |
+| `SnapPage.vue` | `v-for :key="index"`，轮询重排后组件内部状态（展开态 / 计数动画）按位置错位黏在别的条目上 | 改 `:key="item.id"`；`emotionsOptions` 改 `:key="item.value"` |
+| `SnapPage.vue` | 轮询与手动刷新无并发护栏，两次各自读 `snaps` 再分别写回 → 后写覆盖先写，**新帖丢失** | 加 `fetchingLatest` 飞行锁 |
+| `SnapPage.vue` | `likeSnap` 未 try/catch，模板箭头函数返回的 Promise 无人接收 → unhandled rejection；且轮询可能已换掉目标条目，`snap.like =` 抛 TypeError | try/catch + 先 `find` 判空 |
+| `SnapPage.vue` | 「订阅开板提醒」只弹一句成功提示，**不做任何订阅**，是欺骗用户的假功能 | 改为真正 `notificationManager.requestPermission()`，按 granted / denied / default 分别反馈 |
+| `SnapPage.vue` | 开放时段口径不一：代码 `hour >= 18`，文案写 23:00 | 统一为 `hour >= 23 \|\| hour < 6`，与文案一致 |
+| `SnapPage.vue` | 3 处 `console.*` 残留，生产可见 | 换 `logger.*` |
+| `SettingsPage.vue` | **两个 `onMounted` 重复执行**，头像被 push 进 `files` 两次，而 `t-upload` 配了 `:max="1"` | 删除前一个 `onMounted`，只保留带 resize/focus 监听的那个 |
+| `SettingsPage.vue` | `err.response.data.detail` 在网络错误时再抛 TypeError，用户看不到任何失败提示（注册页同样） | 统一 `err?.response?.data?.detail \|\| '兜底文案'` |
+| `SettingsPage.vue` | 用户名 PATCH 失败时异常直接冲出 `update_account`，`.finally` 挂在 put 链上执行不到 → **`saving` 永真，两个 Tab 保存按钮全禁用** | `update_username` 补 try/catch 后**重新抛出**；`update_account` 整体 try/catch/finally 复位 `saving` |
+| `ArticlePage.vue` | `await publish_post(post)` 无 try/catch/finally，任一失败 → **`submitting` 卡死，只能刷新页面** | try/catch/finally，finally 复位 `submitting` |
+| `LoginPage.vue` | 登录按钮无 loading / 无防抖，连点发多个请求 | 加 `submitting` + `:loading` / `:disabled`；转 try/catch/finally |
+| `RegisterPage.vue` | 同上（弱网下尤其容易重复注册） | 加 `submitting` + `:loading` / `:disabled` + try/catch/finally |
+| `LoginPage.vue` | 连接测试用**裸 axios**（违反约定，绕过 401 刷新与统一错误处理） | 改走 `instance`（绝对 URL 覆盖 baseURL，不影响测试目的）+ `hideError` 避免双重弹窗 |
+| `LoginPage.vue` | `val.startsWith('http')` 可被 `"httpfoo"` 之类非法串绕过 | 改 `/^https?:\/\//i` 正则 |
+| `HomePage.vue` | `pending_posts.value = fresh` **覆盖式赋值**，上一批未查看的提示被冲掉，若下批 latest 不再含它们则**永久丢失** | 改为「新批次在前 + 按 post_id 去重 + 上限 50 条」合并 |
+
+### 11.5 验证结果（全绿）
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 类型检查 | `npm run type-check` | ✅ **0 错误** |
+| 格式一致性 | `npm run format:check` | ✅ `All matched files use Prettier code style!` |
+| 生产构建 | `npx vite build --outDir dist_check --emptyOutDir` | ✅ `built in 9.50s`，无报错 |
+| 入口闭包 | `node scripts/bundle-closure.mjs dist_check` | ✅ **376.4 KB / gzip 132.4 KB**（基线 376.3 KB，持平） |
+
+### 11.6 本轮未处理（需与后端对齐或另行排期）
+
+1. **人机验证守卫被整段注释**（`router/index.ts`）：login / register / reset_password 三页 `meta` 仍标
+   `need_two_step_verification` 但从不生效；`TwoStepVerificationPage` 写入凭证也不校验真假。
+   建议：恢复守卫并校验凭证，或暂时移除三处 meta 与该页，避免「防护已启用」的错觉。
+2. **ArticleEditor 图片上传**：用裸 `axios.post`（违反约定）、失败只有 `console.error` 无用户反馈；
+   `res.data.url` 与注释声称的 `image_url` 口径必有一错，错了会插入 `${CDN}/undefined` 破图。
+3. **`TextCollapse` 的 `lines` prop 失效**：CSS 硬编码 `-webkit-line-clamp: 2`，3~5 行文本被静默截断且无展开入口
+   （`SnapPage` 是唯一使用方）。
+4. **SharePage**：网络失败与「帖子不存在」混淆（断网显示"已删除"）、无重试、无并发序号保护。
+5. **死代码**：`NineImageGrid.vue`（326 行零使用）、`useAudio.ts`（整文件零 import）、
+   `emoji.ts` 的 `getEmoji` 等一组导出零调用、`endpoint-detector.ts` 四个导出零外部调用、
+   `Post.vue` 分享按钮的纯求值 `@click` handler。
+6. **登录/注册/改密页的 `console.*`** 与 DCFModelPage 的 `toFixed` 白屏风险、安全边际卡片硬编码 `*0.7`/`*0.8` 与表单字段脱节。
