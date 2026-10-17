@@ -507,3 +507,52 @@ git clean -fd .prettierrc.json .prettierignore CODE_REVIEW.md scripts/bundle-clo
 4. **发长文页的编辑器是异步加载的**：`ArticlePage.vue` 用 `defineAsyncComponent` 挂载 `components/ArticleEditor.vue`（约 800 KB）。
    不要为了"少一层"把它改回静态 `import`，那会让 787 KB 重新回到首屏路径；同理，把 `@wangeditor/*` 加进
    `build.rollupOptions.output.codeSplitting.groups` 也会适得其反（见 4.3）。
+
+---
+
+## 十、搜索页与个人中心页增强（深化轮）
+
+### 10.1 背景
+
+前几轮已对信息流、请求层、短视频等做优化。`SearchResultPage` 与 `UserPage` 在上一轮（提交 `a806936`）做了重写：
+搜索页补搜索历史 / 热门搜索 / 双 Tab / 关键词高亮 / 骨架屏 / 竞态防护；个人中心修正「同路由不同用户不刷新」的响应式
+bug、补关注 / 粉丝双 Tab、统计语义修正、行内关注乐观更新。本轮在此基础上继续深入，目标是把这两个高频页面的
+可用性与健壮性再做实。
+
+### 10.2 本轮新增 —— 搜索页（`SearchResultPage.vue`）
+
+| 能力 | 说明 |
+| --- | --- |
+| **搜索建议下拉** | 输入时实时弹出：首条固定为「搜索 \<输入\>」，其后为历史 + 热门中与输入匹配的条目（去重、最多 8 条）。支持键盘 ↑/↓ 选择、回车确认、Esc 关闭、点击选择。纯前端派生，不新增后端依赖。 |
+| **结果计数** | 结果区顶部展示「找到 N 个 / 已加载 N 个」（后端返回 `total` 优先，否则退化为已加载条数），让用户知道结果规模。 |
+| **待搜索态门控 `hasSearched`** | 未真正发起搜索前保持「历史 + 热门」空状态面板，避免一打字就切到空结果区；清空输入框时回到该面板。 |
+| 沿用 | 关键词高亮（逐段渲染、不用 `v-html`，防 XSS）、骨架屏、竞态防护（`reqToken`）、行内关注乐观更新 + 回滚。 |
+
+### 10.3 本轮新增 —— 个人中心（`UserPage.vue`）
+
+| 能力 | 说明 |
+| --- | --- |
+| **关系列表分页** | 关注 / 粉丝列表支持 `offset` 分页「加载更多」（每页 30）。返回数据按 `account_id` 去重，同时**兜底「后端不支持 offset、每页都返回第一页」的情形**（新数据全部重复即判定到底），防止死循环。 |
+| **Tab 标签带数量** | 关注 / 粉丝 Tab 标签显示后端统计数（为 0 / 未加载时不显示括号），信息密度更高。 |
+| **失败可重试空态** | 关系列表加载失败展示「加载失败 + 重试按钮」，与「真的没有」区分开（靠 `followeesLoaded` / `followersLoaded` 标记）；后端未实现时静默降级不弹错误。 |
+| 沿用 | 帖子列表游标分页、行内关注乐观更新、本人/他人按钮切换（编辑资料 / 私信）、同路由不同用户 `computed + watch` 重新拉取、返回无历史兜底首页。 |
+
+### 10.4 上一轮遗留的两处类型修复（已合入 `a806936`）
+
+1. **axios 不认 `customOptions`**：曾尝试在 `vite-env.d.ts` 做 `declare module 'axios'` 模块增强，但重新声明带泛型同名接口会冲掉原生类型，已还原；改为调用处局部类型断言（`as AxiosRequestConfig`）。
+2. **`MessageIcon` 在 `tdesign-icons-vue-next` 中不存在** → 改用 `ChatIcon`。
+
+### 10.5 验证结果（全绿）
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 类型检查 | `npm run type-check` | ✅ **0 错误** |
+| 格式一致性 | `npm run format:check` | ✅ `All matched files use Prettier code style!` |
+| 生产构建 | `npx vite build --outDir dist_check --emptyOutDir` | ✅ `built in 7.38s`，无报错 |
+| 入口闭包 | `node scripts/bundle-closure.mjs dist_check` | ✅ **376.3 KB / gzip 132.4 KB**（与基线持平，无回归） |
+
+### 10.6 仍待后端补齐 / 已知限制
+
+- `search_post` / `get_followees` / `get_followers` 前端已就位，大概率后端尚未实现；现为静默空态 / 失败重试降级，接上即出数据。
+- 关系列表分页依赖后端支持 `offset` 参数；未支持时由前端去重兜底停止（不会无限加载）。
+- 搜索建议目前来自本地历史 + 第三方热榜，未接后端「联想词」接口；若后续提供，可在 `suggestItems` 里并入远程结果。

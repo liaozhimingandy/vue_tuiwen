@@ -3,17 +3,19 @@
  * 搜索结果页（SearchResultPage）
  *
  * 路由路径：/search?q=关键词（路由命名 name: 'search'）
- * 页面用途：按关键词检索「用户」与「帖子」，并内置搜索历史与热门搜索。
+ * 页面用途：按关键词检索「用户」与「帖子」，并内置搜索历史、热门搜索与搜索建议。
  * 数据来源：
- *   - 用户：apiUrls.search_account(q)（offset / limit 分页）
+ *   - 用户：apiUrls.search_account(q)（offset / limit 分页，可选 total 总数）
  *   - 帖子：apiUrls.search_post(q)（后端未实现时静默降级为「暂无结果」）
  *   - 热门搜索：复用首页的第三方公开热榜接口（8s 超时降级，失败不影响主流程）
  * 主要交互：
  *   1. 页内搜索框（预填地址栏 ?q，回车 / 点击触发），并同步更新地址栏；
- *   2. 空状态展示「搜索历史」（localStorage，可单条删除 / 清空）与「热门搜索」；
- *   3. 结果分「用户 / 帖子」双 Tab，用户结果整行可点进主页、行内可关注；
- *   4. 关键词在昵称 / 简介 / 正文中高亮；
- *   5. 列表触底「加载更多」，并带竞态防护（只接受最新一次请求的响应）。
+ *   2. 输入时实时弹出「搜索建议」下拉（历史 + 热门匹配，支持键盘上下选择 / 回车 / ESC）；
+ *   3. 空状态展示「搜索历史」（localStorage，可单条删除 / 清空）与「热门搜索」；
+ *   4. 结果分「用户 / 帖子」双 Tab，用户结果整行可点进主页、行内可关注；
+ *   5. 关键词在昵称 / 简介 / 正文中高亮；
+ *   6. 列表触底「加载更多」，并带竞态防护（只接受最新一次请求的响应）；
+ *   7. 结果区顶部展示已加载 / 命中总数。
  */
 import {computed, onMounted, reactive, ref, watch} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
@@ -37,6 +39,8 @@ const {isMobile} = useDeviceWatcher();
 const keyword = ref(((route.query.q as string) ?? '').trim());
 /** 当前结果 Tab */
 const activeTab = ref<'user' | 'post'>('user');
+/** 是否已真正发起过一次搜索：未搜索前保持「历史 + 热门」空状态面板，避免一打字就切到空结果 */
+const hasSearched = ref(keyword.value.trim() !== '');
 
 /* ==================== 搜索历史（localStorage） ==================== */
 const HISTORY_KEY = 'search_history';
@@ -97,6 +101,81 @@ const fetchHotList = async () => {
   }
 };
 
+/* ==================== 搜索建议下拉 ==================== */
+interface SuggestItem {
+  type: 'search' | 'item';
+  text: string;
+  fromHot: boolean;
+}
+const showSuggest = ref(false);
+const activeIndex = ref(0);
+
+/**
+ * 建议列表：首条固定为「搜索 <当前输入>」，其后为历史 / 热门中与输入匹配的条目
+ * （去重、最多 8 条）。纯前端派生，不依赖后端，输入即可见，提升搜索可达性。
+ */
+const suggestItems = computed<SuggestItem[]>(() => {
+  const q = keyword.value.trim();
+  if (!q) return [];
+  const lower = q.toLowerCase();
+  const historyHits = history.value
+    .filter((h) => h.toLowerCase().includes(lower))
+    .map((t) => ({type: 'item' as const, text: t, fromHot: false}));
+  const hotHits = hotList.value
+    .filter((h) => h.toLowerCase().includes(lower))
+    .map((t) => ({type: 'item' as const, text: t, fromHot: true}));
+  const seen = new Set<string>();
+  const items = [...historyHits, ...hotHits]
+    .filter((it) => {
+      if (seen.has(it.text)) return false;
+      seen.add(it.text);
+      return true;
+    })
+    .slice(0, 8);
+  return [{type: 'search', text: q, fromHot: false}, ...items];
+});
+
+const openSuggest = () => {
+  if (!keyword.value.trim()) return;
+  activeIndex.value = 0;
+  showSuggest.value = true;
+};
+
+const closeSuggest = () => {
+  showSuggest.value = false;
+};
+
+/** 输入框失焦：延时关闭，留出点击建议项的时间（mousedown 已 prevent 默认，不会先失焦） */
+const onInputBlur = () => {
+  window.setTimeout(() => {
+    showSuggest.value = false;
+  }, 150);
+};
+
+const moveSuggest = (dir: 1 | -1) => {
+  const len = suggestItems.value.length;
+  if (!len) return;
+  showSuggest.value = true;
+  activeIndex.value = (activeIndex.value + dir + len) % len;
+};
+
+/** 选中某条建议（或回车命中高亮项） */
+const triggerSuggest = (idx: number) => {
+  const it = suggestItems.value[idx];
+  if (!it) return;
+  showSuggest.value = false;
+  submitSearch(it.text);
+};
+
+/** 回车：下拉可见且有高亮项则选中它，否则按当前输入发起搜索 */
+const onEnter = () => {
+  if (showSuggest.value && suggestItems.value.length && activeIndex.value >= 0) {
+    triggerSuggest(activeIndex.value);
+  } else {
+    submitSearch();
+  }
+};
+
 /* ==================== 数据 ==================== */
 interface SearchUser {
   account_id: string;
@@ -118,6 +197,9 @@ interface SearchPost {
 
 const userItems = ref<SearchUser[]>([]);
 const postItems = ref<SearchPost[]>([]);
+/** 命中总数：后端返回 total 时展示「找到 N 个」，否则退化为「已加载 N 个」 */
+const userTotal = ref<number | null>(null);
+const postTotal = ref<number | null>(null);
 const limit = 10;
 const userOffset = ref(0);
 const postOffset = ref(0);
@@ -141,12 +223,15 @@ const doSearch = async (isLoadMore = false) => {
 
   if (!isLoadMore) {
     // 新关键词：记历史、重置两 Tab 的数据与分页
+    hasSearched.value = true;
     pushHistory(q);
     initLoading.value = true;
     userOffset.value = 0;
     postOffset.value = 0;
     userItems.value = [];
     postItems.value = [];
+    userTotal.value = null;
+    postTotal.value = null;
     userHasMore.value = true;
     postHasMore.value = true;
   } else {
@@ -161,6 +246,7 @@ const doSearch = async (isLoadMore = false) => {
       if (token !== reqToken.value) return; // 已被更新的请求取代，丢弃过期响应
       const list = (res.data?.items ?? []) as SearchUser[];
       userItems.value = isLoadMore ? [...userItems.value, ...list] : list;
+      userTotal.value = typeof res.data?.total === 'number' ? res.data.total : null;
       list.forEach((u) => {
         if (u.account_id && followingMap[u.account_id] === undefined) {
           followingMap[u.account_id] = false;
@@ -176,6 +262,7 @@ const doSearch = async (isLoadMore = false) => {
       if (token !== reqToken.value) return;
       const list = (res.data?.items ?? []) as SearchPost[];
       postItems.value = isLoadMore ? [...postItems.value, ...list] : list;
+      postTotal.value = typeof res.data?.total === 'number' ? res.data.total : null;
       if (list.length < limit) postHasMore.value = false;
     }
   } catch (err) {
@@ -183,12 +270,14 @@ const doSearch = async (isLoadMore = false) => {
     if (activeTab.value === 'user') {
       if (!isLoadMore) {
         userItems.value = [];
+        userTotal.value = null;
         userHasMore.value = false;
         await MessagePlugin.warning('未搜索到相关用户');
       }
     } else {
       // 帖子搜索未实现 / 失败 → 静默降级为空结果
       postItems.value = [];
+      postTotal.value = null;
       postHasMore.value = false;
     }
   } finally {
@@ -224,15 +313,19 @@ const onTabChange = (val: string | number) => {
   }
 };
 
-/** 触发一次搜索（来自页内输入框或历史 / 热搜点击） */
+/** 触发一次搜索（来自页内输入框或历史 / 热搜 / 建议点击） */
 const submitSearch = (q?: string) => {
+  showSuggest.value = false;
   if (q !== undefined) keyword.value = q;
   const kw = keyword.value.trim();
   if (!kw) {
+    hasSearched.value = false;
     userItems.value = [];
     postItems.value = [];
+    userTotal.value = null;
+    postTotal.value = null;
     userHasMore.value = true;
-    postHasMore.value = true;
+    postHasMore.value = false;
     router.replace({name: 'search'});
     return;
   }
@@ -251,8 +344,11 @@ watch(
     if (q) {
       void doSearch(false);
     } else {
+      hasSearched.value = false;
       userItems.value = [];
       postItems.value = [];
+      userTotal.value = null;
+      postTotal.value = null;
       userHasMore.value = true;
       postHasMore.value = false;
     }
@@ -313,11 +409,20 @@ const highlight = (text: string, kw: string) => {
   return parts;
 };
 
-const showEmpty = computed(() => !initLoading.value && !loadingMore.value && keyword.value.trim() === '');
+const showEmpty = computed(() => !hasSearched.value && !initLoading.value && !loadingMore.value);
 const noResult = computed(() => {
   const q = keyword.value.trim();
-  if (!q || initLoading.value) return false;
+  if (!q || !hasSearched.value || initLoading.value) return false;
   return activeTab.value === 'user' ? userItems.value.length === 0 : postItems.value.length === 0;
+});
+
+/** 结果计数文案：优先命中总数，否则展示已加载条数 */
+const resultMeta = computed(() => {
+  if (!hasSearched.value || initLoading.value) return '';
+  if (activeTab.value === 'user') {
+    return userTotal.value != null ? `找到 ${userTotal.value} 位用户` : `已加载 ${userItems.value.length} 位用户`;
+  }
+  return postTotal.value != null ? `找到 ${postTotal.value} 篇帖子` : `已加载 ${postItems.value.length} 篇帖子`;
 });
 
 const userAsyncLoading = computed(() => {
@@ -348,17 +453,46 @@ onMounted(async () => {
     <t-content>
       <t-row justify="center">
         <t-col :span="isMobile ? 24 : 10">
-          <!-- 页内搜索框 -->
+          <!-- 页内搜索框 + 搜索建议下拉 -->
           <div class="search-bar">
-            <t-input v-model="keyword" placeholder="搜索用户或帖子" clearable @enter="submitSearch()">
-              <template #suffixIcon>
-                <search-icon class="search-icon" @click="submitSearch()" />
-              </template>
-            </t-input>
+            <div class="search-input-wrap">
+              <t-input
+                v-model="keyword"
+                placeholder="搜索用户或帖子"
+                clearable
+                @focus="openSuggest"
+                @blur="onInputBlur"
+                @enter="onEnter"
+                @keydown.down.prevent="moveSuggest(1)"
+                @keydown.up.prevent="moveSuggest(-1)"
+                @keydown.esc="closeSuggest"
+              >
+                <template #suffixIcon>
+                  <search-icon class="search-icon" @click="submitSearch()" />
+                </template>
+              </t-input>
+
+              <!-- 搜索建议下拉：首条为「搜索 <输入>」，其后为历史/热门匹配 -->
+              <div v-if="showSuggest && keyword.trim()" class="suggest-pop">
+                <div
+                  v-for="(it, i) in suggestItems"
+                  :key="i"
+                  class="suggest-item"
+                  :class="{active: i === activeIndex}"
+                  @mouseenter="activeIndex = i"
+                  @mousedown.prevent="triggerSuggest(i)"
+                >
+                  <span class="suggest-tag" :class="{hot: it.fromHot}">
+                    {{ it.type === 'search' ? '搜索' : it.fromHot ? '热门' : '历史' }}
+                  </span>
+                  <span class="suggest-text">{{ it.text }}</span>
+                </div>
+              </div>
+            </div>
             <t-button theme="primary" @click="submitSearch()">搜索</t-button>
           </div>
 
-          <!-- 空状态：搜索历史 + 热门搜索 -->
+          <!-- 空状态：搜索历史 + 热门搜索（仅未发起搜索时展示） -->
           <div v-if="showEmpty" class="empty-panel">
             <div v-if="history.length" class="block">
               <div class="block-head">
@@ -395,6 +529,8 @@ onMounted(async () => {
               <t-tab-panel value="user" label="用户" />
               <t-tab-panel value="post" label="帖子" />
             </t-tabs>
+
+            <div v-if="resultMeta" class="result-meta">{{ resultMeta }}</div>
 
             <!-- 首屏加载骨架 -->
             <div v-if="initLoading" class="skeleton-wrap">
@@ -482,8 +618,55 @@ onMounted(async () => {
   gap: 8px;
   margin: 12px 0;
 }
+.search-input-wrap {
+  position: relative;
+  flex: 1;
+}
 .search-icon {
   cursor: pointer;
+}
+.suggest-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--td-bg-color-container, #fff);
+  border: 1px solid var(--td-component-border, #e7e7e7);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+.suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.suggest-item.active,
+.suggest-item:hover {
+  background: var(--td-bg-color-container-hover, #f3f3f3);
+}
+.suggest-tag {
+  flex: none;
+  font-size: 12px;
+  color: var(--td-text-color-placeholder, #999);
+  border: 1px solid var(--td-component-border, #e7e7e7);
+  border-radius: 4px;
+  padding: 0 6px;
+  line-height: 18px;
+}
+.suggest-tag.hot {
+  color: #f5483b;
+  border-color: #f5483b;
+}
+.suggest-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .empty-panel {
   margin-top: 16px;
@@ -536,6 +719,11 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.result-meta {
+  margin: 12px 0 4px;
+  font-size: 13px;
+  color: var(--td-text-color-secondary, #666);
 }
 .skeleton-wrap {
   display: flex;

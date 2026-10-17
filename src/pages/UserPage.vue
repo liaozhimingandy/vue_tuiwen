@@ -4,14 +4,15 @@
  *
  * 路由路径：/user/:username（:username 实际传的是 account_id）
  * 页面用途：展示指定用户资料、关注/粉丝/获赞统计，并提供关注/取关、分享、帖子列表，
- *          以及「关注列表」「粉丝列表」两个关系 Tab。
+ *          以及「关注列表」「粉丝列表」两个关系 Tab（均支持分页加载更多）。
  * 数据来源：apiUrls.get_account / get_account_follow / get_accounts_posts /
  *          get_followees / get_followers；当前登录态来自 Pinia。
  * 主要交互：
  *   1. 进入时并发拉取用户信息与关注状态；
- *   2. Tab「帖子 / 关注 / 粉丝」首次展开时按需分页加载；
+ *   2. Tab「帖子 / 关注 / 粉丝」首次展开时按需分页加载，关系列表触底继续加载更多；
  *   3. 关注/取关（本人主页展示「编辑资料」而非关注按钮）；
- *   4. 同一路由不同 username 之间跳转时自动重新拉取（修复原实现不刷新的 bug）。
+ *   4. 同一路由不同 username 之间跳转时自动重新拉取（修复原实现不刷新的 bug）；
+ *   5. 关系列表加载失败时给出可重试的空态，避免与「真的没有」混淆。
  */
 import {computed, onMounted, reactive, ref, watch} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
@@ -73,8 +74,19 @@ const posts = ref<IPost[]>([]);
 const followees = ref<IAccount[]>([]);
 const followers = ref<IAccount[]>([]);
 
-const loading = ref(false);
-const hasMore = ref(true);
+/** 帖子列表加载态（与关系列表独立，避免 Tab 间互相阻塞） */
+const postsLoading = ref(false);
+/** 关系列表加载态 */
+const relLoading = ref(false);
+const postsHasMore = ref(true);
+/** 关系列表分页游标 + 是否还有更多（后端若不支持 offset，靠去重兜底停止） */
+const followeeOffset = ref(0);
+const followerOffset = ref(0);
+const followeeHasMore = ref(true);
+const followerHasMore = ref(true);
+/** 关系列表是否已成功加载过：false 表示「加载失败」，与「真的为空」区分开 */
+const followeesLoaded = ref(false);
+const followersLoaded = ref(false);
 /** 当前激活的 Tab：1 资料 / 2 帖子 / 3 关注 / 4 粉丝 */
 const activeTab = ref('1');
 
@@ -102,8 +114,15 @@ const init = async () => {
   posts.value = [];
   followees.value = [];
   followers.value = [];
-  hasMore.value = true;
-  loading.value = false;
+  postsHasMore.value = true;
+  postsLoading.value = false;
+  relLoading.value = false;
+  followeeOffset.value = 0;
+  followerOffset.value = 0;
+  followeeHasMore.value = true;
+  followerHasMore.value = true;
+  followeesLoaded.value = false;
+  followersLoaded.value = false;
   activeTab.value = '1';
 
   const u = username.value;
@@ -134,13 +153,13 @@ watch(username, () => {
 
 /** 帖子列表「加载更多」：以当前列表最后一条的 post_id 作为游标向后分页 */
 const onLoadMorePosts = async () => {
-  if (loading.value || !hasMore.value) return;
-  loading.value = true;
+  if (postsLoading.value || !postsHasMore.value) return;
+  postsLoading.value = true;
   const last = posts.value.at(-1);
   try {
     const r: any = await get_accounts_posts(10, last?.post_id ?? null, username.value);
     if (r.data.total === 0) {
-      hasMore.value = false;
+      postsHasMore.value = false;
       await MessagePlugin.info('没有更多内容了');
       return;
     }
@@ -149,49 +168,88 @@ const onLoadMorePosts = async () => {
     const map = new Map<string, IPost>();
     for (const item of combined) map.set(item.post_id, item);
     posts.value = Array.from(map.values()).sort(compareByTimeDesc);
-    if (r.data.items.length < 10) hasMore.value = false;
+    if (r.data.items.length < 10) postsHasMore.value = false;
   } catch (e) {
     logger.error('加载帖子失败', e);
   } finally {
-    loading.value = false;
+    postsLoading.value = false;
   }
 };
 
-/** 关注 / 粉丝列表加载（后端未实现时静默降级） */
-const onLoadMoreFollow = async (type: 'followers' | 'followees') => {
-  if (loading.value) return;
-  loading.value = true;
-  const list = type === 'followers' ? followers : followees;
+/**
+ * 关注 / 粉丝列表加载（后端未实现时静默降级）。
+ * @param type    followers=粉丝列表 / followees=关注列表
+ * @param isLoadMore true 表示追加下一页（带 offset），false 表示该列表首次加载
+ */
+const onLoadMoreFollow = async (type: 'followers' | 'followees', isLoadMore = false) => {
+  if (relLoading.value) return;
+  const isFans = type === 'followers';
+  const list = isFans ? followers : followees;
+  const offset = isLoadMore ? (isFans ? followerOffset.value : followeeOffset.value) : 0;
+  relLoading.value = true;
   try {
-    const url = type === 'followers' ? apiUrls.get_followers(username.value) : apiUrls.get_followees(username.value);
+    const url = isFans ? apiUrls.get_followers(username.value) : apiUrls.get_followees(username.value);
     const r: any = await instance.get(url, {
-      params: {limit: 30},
+      params: {limit: 30, offset},
       customOptions: {hideError: true},
     } as AxiosRequestConfig);
-    const items = (r.data?.items ?? []) as IAccount[];
-    items.forEach((a) => {
+    // 兼容后端返回 data.items / 纯数组 / data.results 三种形态
+    const raw = r.data?.items ?? (Array.isArray(r.data) ? r.data : (r.data?.results ?? []));
+    const items = raw as IAccount[];
+
+    if (!isLoadMore) {
+      list.value = [];
+      if (isFans) {
+        followerOffset.value = 0;
+        followerHasMore.value = true;
+      } else {
+        followeeOffset.value = 0;
+        followeeHasMore.value = true;
+      }
+    }
+
+    // 按 account_id 去重（同时兜底「后端不支持 offset、每次都返回第一页」的情况）
+    const existing = new Set(list.value.map((a) => a.account_id));
+    const fresh = items.filter((a) => a.account_id && !existing.has(a.account_id));
+    fresh.forEach((a) => {
       if (a.account_id && listFollowMap[a.account_id] === undefined) {
         listFollowMap[a.account_id] = !!a.is_following;
       }
     });
-    list.value = items;
+    list.value = [...list.value, ...fresh];
+
+    const nextOffset = (isFans ? followerOffset.value : followeeOffset.value) + items.length;
+    if (isFans) followerOffset.value = nextOffset;
+    else followeeOffset.value = nextOffset;
+
+    // 返回不足一页，或新数据已全部重复 → 判定没有更多
+    const noMore = items.length < 30 || fresh.length === 0;
+    if (isFans) followerHasMore.value = !noMore;
+    else followeeHasMore.value = !noMore;
+
+    if (isFans) followersLoaded.value = true;
+    else followeesLoaded.value = true;
   } catch (e) {
-    // 关系列表接口大概率是后续才补的，失败不要弹错误，直接空着即可
+    // 关系列表接口大概率是后续才补的，失败不要弹错误，但要标记「失败」以便展示重试态
     logger.warn('关注列表加载失败（可能后端未实现）', e);
+    if (!isLoadMore) {
+      if (isFans) followersLoaded.value = false;
+      else followeesLoaded.value = false;
+    }
   } finally {
-    loading.value = false;
+    relLoading.value = false;
   }
 };
 
-/** Tab 切换回调：首次进入某面板且数据为空时自动加载 */
+/** Tab 切换回调：首次进入某面板（或之前加载失败时）自动加载 */
 const onTabChange = async (val: string | number) => {
   activeTab.value = String(val);
-  if (val === '2' && posts.value.length === 0) {
-    await onLoadMorePosts();
-  } else if (val === '3' && followees.value.length === 0) {
-    await onLoadMoreFollow('followees');
-  } else if (val === '4' && followers.value.length === 0) {
-    await onLoadMoreFollow('followers');
+  if (val === '2') {
+    if (posts.value.length === 0) await onLoadMorePosts();
+  } else if (val === '3') {
+    if (!followeesLoaded.value) await onLoadMoreFollow('followees');
+  } else if (val === '4') {
+    if (!followersLoaded.value) await onLoadMoreFollow('followers');
   }
 };
 
@@ -255,9 +313,16 @@ const goUser = (a: IAccount) => {
 const editProfile = () => router.push({name: 'settings'});
 const messageUser = () => MessagePlugin.info('私信功能开发中');
 
-const asyncLoading = computed<ListProps['asyncLoading']>(() => {
-  if (loading.value) return 'loading';
-  if (hasMore.value) return 'load-more';
+const postsAsyncLoading = computed<ListProps['asyncLoading']>(() => {
+  if (postsLoading.value) return 'loading';
+  if (postsHasMore.value) return 'load-more';
+  return '没有更多数据了';
+});
+
+/** 关系列表的底部加载态：正在加载 / 可加载更多 / 到底 */
+const relAsyncLoading = computed<ListProps['asyncLoading']>(() => {
+  if (relLoading.value) return 'loading';
+  if (activeTab.value === '3' ? followeeHasMore.value : followerHasMore.value) return 'load-more';
   return '没有更多数据了';
 });
 
@@ -265,6 +330,10 @@ const asyncLoading = computed<ListProps['asyncLoading']>(() => {
 const userStatus = computed(() =>
   user.value?.is_active === false ? '已封禁' : user.value?.is_active === true ? '正常' : '正常',
 );
+
+/** 关系 Tab 标签：带上后端返回的统计数，未加载/为 0 时不显示括号 */
+const followeeLabel = computed(() => (follow.value.followee_count ? `关注 (${follow.value.followee_count})` : '关注'));
+const followerLabel = computed(() => (follow.value.follower_count ? `粉丝 (${follow.value.follower_count})` : '粉丝'));
 
 onMounted(() => {
   void init();
@@ -359,8 +428,8 @@ onMounted(() => {
             <t-tabs v-model="activeTab" @change="onTabChange" style="margin-top: 16px">
               <t-tab-panel value="1" label="资料" />
               <t-tab-panel value="2" label="帖子" />
-              <t-tab-panel value="3" label="关注" />
-              <t-tab-panel value="4" label="粉丝" />
+              <t-tab-panel value="3" :label="followeeLabel" />
+              <t-tab-panel value="4" :label="followerLabel" />
             </t-tabs>
 
             <!-- 资料 -->
@@ -378,18 +447,23 @@ onMounted(() => {
 
             <!-- 帖子 -->
             <div v-else-if="activeTab === '2'">
-              <t-list v-if="posts.length" split @load-more="onLoadMorePosts" :async-loading="asyncLoading">
+              <t-list v-if="posts.length" split @load-more="onLoadMorePosts" :async-loading="postsAsyncLoading">
                 <t-list-item v-for="item in posts" :key="item.post_id">
                   <Post :post="item" style="width: 100%" />
                 </t-list-item>
               </t-list>
-              <t-empty v-else-if="!loading" description="暂无帖子" />
+              <t-empty v-else-if="!postsLoading" description="暂无帖子" />
               <t-skeleton v-else :row-col="[3]" />
             </div>
 
             <!-- 关注 -->
             <div v-else-if="activeTab === '3'">
-              <t-list v-if="followees.length" split>
+              <t-list
+                v-if="followees.length"
+                split
+                @load-more="onLoadMoreFollow('followees', true)"
+                :async-loading="relAsyncLoading"
+              >
                 <t-list-item v-for="a in followees" :key="a.account_id" class="rel-row" @click="goUser(a)">
                   <t-list-item-meta :title="a.nick_name" :description="a.bio">
                     <template #image>
@@ -407,12 +481,22 @@ onMounted(() => {
                   </template>
                 </t-list-item>
               </t-list>
-              <t-empty v-else description="暂无关注" />
+              <t-empty v-else-if="followeesLoaded" :description="`${user?.nick_name ?? 'TA'} 还没有关注任何人`" />
+              <t-empty v-else description="关注列表加载失败">
+                <template #extra>
+                  <t-button size="small" theme="primary" @click="onLoadMoreFollow('followees')">重试</t-button>
+                </template>
+              </t-empty>
             </div>
 
             <!-- 粉丝 -->
             <div v-else>
-              <t-list v-if="followers.length" split>
+              <t-list
+                v-if="followers.length"
+                split
+                @load-more="onLoadMoreFollow('followers', true)"
+                :async-loading="relAsyncLoading"
+              >
                 <t-list-item v-for="a in followers" :key="a.account_id" class="rel-row" @click="goUser(a)">
                   <t-list-item-meta :title="a.nick_name" :description="a.bio">
                     <template #image>
@@ -430,7 +514,12 @@ onMounted(() => {
                   </template>
                 </t-list-item>
               </t-list>
-              <t-empty v-else description="暂无粉丝" />
+              <t-empty v-else-if="followersLoaded" description="还没有人关注 TA" />
+              <t-empty v-else description="粉丝列表加载失败">
+                <template #extra>
+                  <t-button size="small" theme="primary" @click="onLoadMoreFollow('followers')">重试</t-button>
+                </template>
+              </t-empty>
             </div>
           </template>
 
