@@ -287,7 +287,12 @@ jobs:
               exit 1
             fi
             if ! out=$(docker push "${ref}" 2>&1); then
-              echo "::error title=Docker Hub 推送失败::${ref} :: $(echo "${out}" | tr '\n' ' ' | cut -c1-280)"
+              # 只截前 280 字会截到 "Preparing" 的分层日志，真正的 denied/unauthorized 在后面，
+              # 所以先按关键字挑出关键行，挑不到再退回最后两行
+              hint="$(printf '%s\n' "${out}" | grep -iE 'denied|unauthorized|forbidden|not found|invalid|error' | tail -2 | tr '\n' ' ')"
+              [ -z "${hint}" ] && hint="$(printf '%s\n' "${out}" | tail -2 | tr '\n' ' ')"
+              echo "::error title=Docker Hub 推送失败::${ref} :: $(printf '%s' "${hint}" | cut -c1-300)"
+              printf '%s\n' "${out}" | tail -20 >> "$GITHUB_STEP_SUMMARY"
               exit 1
             fi
             echo "已推送 ${ref}"
@@ -322,7 +327,10 @@ jobs:
               exit 1
             fi
             if ! out=$(docker push "${ref}" 2>&1); then
-              echo "::error title=阿里云 ACR 推送失败::${ref} :: $(echo "${out}" | tr '\n' ' ' | cut -c1-280)"
+              hint="$(printf '%s\n' "${out}" | grep -iE 'denied|unauthorized|forbidden|not found|invalid|error' | tail -2 | tr '\n' ' ')"
+              [ -z "${hint}" ] && hint="$(printf '%s\n' "${out}" | tail -2 | tr '\n' ' ')"
+              echo "::error title=阿里云 ACR 推送失败::${ref} :: $(printf '%s' "${hint}" | cut -c1-300)"
+              printf '%s\n' "${out}" | tail -20 >> "$GITHUB_STEP_SUMMARY"
               exit 1
             fi
             echo "已推送 ${ref}"
