@@ -1,3 +1,8 @@
+# vue_tuiwen
+
+[![CI](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/ci.yml)
+[![Build Images](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/build-images.yml/badge.svg?branch=develop)](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/build-images.yml)
+
 # 部署方案
 使用cloudeflare的免费服务
 
@@ -47,3 +52,20 @@ GitHub 下载 main 分支的 zip，构建产物与提交无关，因此不再被
 npm ci && npm run type-check && npm run format:check && npm run build
 docker build -t vue_tuiwen:dev . && docker run --rm -p 8080:80 vue_tuiwen:dev
 ```
+
+## 故障排查
+
+**作业 3 秒结束、一个步骤都没有，提示 `The job was not started because recent account payments have failed or your spending limit needs to be increased`**
+
+不是工作流写错了，是账号层面的 Actions 额度问题（私有仓库按分钟计费，额度耗尽或付款失败时 GitHub 会在派发阶段直接把作业拦下，
+所以作业页面上看不到任何日志、`runner` 也是空的）。两种解法：把仓库设为**公开**（标准 runner 免费、分钟数不限），
+或到 Settings → Billing & plans 处理额度。判断方法：`Actions` 里该作业耗时只有几秒、Annotations 里有上面这段英文原文。
+
+**`npm ci` 报 `package.json and package-lock.json are not in sync`**
+
+改了 `package.json` 但没更新锁文件。本地执行 `npm install` 后把 `package-lock.json` 一起提交。
+
+**镜像冒烟里 SPA 深链返回 404**
+
+`docker/latest/server/default.conf` 的 `try_files $uri $uri/ /index.html` 被改动了。刷新 `/u/xxx/` 这类前端路由必须回退到
+`index.html`，否则用户刷新页面就是白屏。

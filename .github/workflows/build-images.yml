@@ -32,6 +32,9 @@ on:
       - 'public/**'
       - 'index.html'
       - 'vite.config.ts'
+      # tsconfig / 自动生成的 d.ts 会改变 type-check 结果（build 里先跑 type-check）
+      - 'tsconfig*.json'
+      - '*.d.ts'
       - 'package.json'
       - 'package-lock.json'
       - 'Dockerfile'

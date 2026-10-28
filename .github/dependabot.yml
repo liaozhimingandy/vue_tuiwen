@@ -1,0 +1,88 @@
+# =============================================================================
+# Dependabot：依赖与 action 版本自动跟新
+#
+# 只开 PR，不自动合并 —— CI（类型检查 + 格式 + 构建 + 镜像冒烟）会先跑一遍，
+# 绿了再人工点合并，避免某个 minor 版本把构建搞坏却直接进主干。
+#
+# 降噪策略：
+#   1) 按周聚合，同一类依赖只开一个 PR（groups）；
+#   2) 大版本升级对 vue / vite / typescript 这类牵一发动全身的核心包一律忽略，
+#      需要时手动升级并跑完整验证，而不是让 Dependabot 造一堆红的 PR；
+#   3) open-pull-requests-limit 压到 5，超出的排队而不是一次刷屏。
+# =============================================================================
+version: 2
+updates:
+  # ----------------------------- npm 依赖 -----------------------------
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+    groups:
+      # 运行时依赖的补丁/minor 合并成一个 PR
+      runtime:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      # 构建工具链的补丁/minor 合并成另一个（与运行时分开，便于分别回滚）
+      tooling:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # 核心框架的大版本必须人工升级：会同时影响 build 脚本、插件兼容与类型定义
+      - dependency-name: vue
+        update-types: ["version-update:semver-major"]
+      - dependency-name: vite
+        update-types: ["version-update:semver-major"]
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: vue-tsc
+        update-types: ["version-update:semver-major"]
+      - dependency-name: vue-router
+        update-types: ["version-update:semver-major"]
+      - dependency-name: pinia
+        update-types: ["version-update:semver-major"]
+
+  # ------------------------ GitHub Actions 版本 ------------------------
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci(deps)"
+    labels:
+      - dependencies
+      - github-actions
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # --------------------- 基础镜像（node / nginx） ---------------------
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(docker)"
+    labels:
+      - dependencies
+      - docker

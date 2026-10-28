@@ -26,6 +26,8 @@ on:
       - 'public/**'
       - 'index.html'
       - 'vite.config.ts'
+      # tsconfig 会直接影响 vue-tsc 与产物（build 脚本里先跑 type-check）
+      - 'tsconfig*.json'
       - 'package.json'
       - 'package-lock.json'
       - '.env.production'
@@ -104,6 +106,8 @@ jobs:
           fi
 
       # 用 wrangler CLI 直接部署，不依赖第三方 action 的版本
+      # 固定大版本 4：wrangler 3 已被 npm 标为 legacy（dist-tag: legacy=3.114.x），
+      # 新版 Cloudflare API 只保证 4.x 兼容；pages deploy 的这几个参数在 4.x 未变。
       - name: 部署到 Cloudflare Pages
         if: steps.creds.outputs.ready == 'true'
         env:
@@ -111,7 +115,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx --yes wrangler@3 pages deploy dist \
+          npx --yes wrangler@4 pages deploy dist \
             --project-name="${CF_PAGES_PROJECT}" \
             --branch="${GITHUB_REF_NAME}" \
             --commit-hash="${GITHUB_SHA}" \
