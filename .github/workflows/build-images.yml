@@ -82,7 +82,7 @@ jobs:
       aliyun_image: ${{ steps.probe.outputs.aliyun_image }}
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -205,7 +205,7 @@ jobs:
     if: needs.meta.outputs.version != 'skip'
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
