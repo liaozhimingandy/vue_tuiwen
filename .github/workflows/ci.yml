@@ -1,0 +1,206 @@
+name: CI
+
+# =============================================================================
+# PR / 分支检查：只验证，不推送任何镜像或产物（发布见 build-images.yml）
+#
+# 三层关卡，越靠前越快：
+#   1) checks     类型检查 + 代码格式 + 构建产物校验（无 Docker，最快的反馈）
+#   2) image      构建镜像并真正启动一次：首页、静态资源、SPA 深链刷新
+#   3) report     汇总结果，任一失败则整体失败
+#
+# 为什么先做 checks：这个仓库没有单元测试框架，类型 + 构建就是最低成本的回归网；
+# 类型错误在 vue-tsc 阶段就能拦住"后端改名后前端没跟上"这类问题。
+# =============================================================================
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main, develop]
+    # 纯文档变更不必跑全套
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+# 最小权限：本工作流不写仓库，也不需要任何 secrets
+permissions:
+  contents: read
+
+# 同一 PR / 同一分支只保留最新一次运行
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) 类型检查 + 格式检查 + 构建
+  # ---------------------------------------------------------------------------
+  checks:
+    name: 类型 / 格式 / 构建
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # 严格按 lockfile 安装，避免 CI 与本地依赖版本漂移
+      - name: 安装依赖（严格按锁文件）
+        run: npm ci --no-audit --no-fund
+
+      # 类型检查：后端字段改名、接口出入参变动最先在这里暴露
+      - name: TypeScript 类型检查
+        run: npm run type-check
+
+      # 格式检查（只检查不修改），避免 PR 里混入大段无意义的重排 diff
+      - name: 代码格式检查（prettier）
+        run: npm run format:check
+
+      # 构建前端产物（build 脚本里已包含一次 type-check，这里主要是验证可打包）
+      - name: 构建 H5
+        env:
+          VITE_APP_BUILD: ${{ github.sha }}
+        run: npm run build
+
+      # 产物校验：防止「构建成功但没产出」（例如 outDir 被改错、base 路径写错）
+      - name: 校验构建产物
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          # 入口必须引到 assets 下的 js，否则是空壳页面
+          asset=$(grep -oE 'assets/[A-Za-z0-9._-]+\.js' dist/index.html | head -1)
+          test -n "$asset" || { echo "::error::dist/index.html 没有引用任何 js 资源"; exit 1; }
+          test -f "dist/${asset}" || { echo "::error::index.html 引用的 ${asset} 不存在"; exit 1; }
+          echo "入口资源: ${asset}"
+          echo "产物文件数: $(find dist -type f | wc -l)"
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # 2) 镜像构建与启动冒烟：验证 nginx + 静态产物真能跑起来
+  # ---------------------------------------------------------------------------
+  image:
+    name: 镜像构建与启动冒烟
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: 配置 Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 只构建不推送（PR 流程绝不登录/推送），并加载到本地供后续冒烟
+      - name: 构建镜像（不推送）
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: vue_tuiwen:ci
+          build-args: |
+            APP_BUILD=ci-${{ github.sha }}
+          cache-from: type=gha,scope=vue-tuiwen
+          cache-to: type=gha,scope=vue-tuiwen,mode=max
+          # load:true 需要关闭 attestation，否则 docker exporter 报 manifest list 错误
+          provenance: false
+          sbom: false
+
+      - name: 启动冒烟：首页 / 静态资源 / SPA 深链
+        run: |
+          set -euo pipefail
+          docker run -d --name tw-smoke -p 18080:80 vue_tuiwen:ci
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/ -o /tmp/index.html; then ok=1; break; fi
+            sleep 1
+          done
+          if [ "${ok}" != "1" ]; then
+            echo "::error::容器启动后首页不可访问"
+            docker logs tw-smoke
+            exit 1
+          fi
+
+          # 首页必须是 H5 入口
+          grep -qi '<div id="app"' /tmp/index.html || { echo "::error::首页不是 H5 入口"; exit 1; }
+
+          # 静态资源必须可访问，否则页面白屏
+          asset=$(grep -oE 'assets/[A-Za-z0-9._-]+\.js' /tmp/index.html | head -1)
+          echo "探测静态资源: ${asset}"
+          curl -fsS "http://127.0.0.1:18080/${asset}" -o /dev/null
+
+          # SPA 深链刷新：/u/xxx/ 这类前端路由应回退到 index.html（200），而不是 404
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/u/abc123/)
+          echo "深链 /u/abc123/ -> ${code}"
+          test "${code}" = "200" || { echo "::error::SPA 深链未回退到 index.html（nginx try_files 配置失效？）"; exit 1; }
+
+          echo "镜像冒烟通过：首页 / 静态资源 / 深链回退均正常"
+
+      - name: 收集容器日志
+        if: always()
+        run: docker logs tw-smoke 2>&1 | tail -30 || true
+
+      - name: 记录镜像体积
+        if: always()
+        run: |
+          human=$(docker images vue_tuiwen:ci --format '{{.Size}}')
+          echo "镜像体积: ${human}"
+          {
+            echo ""
+            echo "| 镜像 | 体积 |"
+            echo "| --- | --- |"
+            echo "| vue_tuiwen（nginx + dist） | ${human} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # 3) 汇总：任一检查失败则整体失败
+  # ---------------------------------------------------------------------------
+  report:
+    name: CI 汇总
+    runs-on: ubuntu-latest
+    needs: [checks, image]
+    if: always()
+    steps:
+      - name: 写入摘要并判定结果
+        run: |
+          set -euo pipefail
+          {
+            echo "## 推文前端 CI"
+            echo ""
+            echo "| 项目 | 结果 |"
+            echo "| --- | --- |"
+            echo "| 触发事件 | \`${{ github.event_name }}\` |"
+            echo "| 分支 / 引用 | \`${{ github.ref_name }}\` |"
+            echo "| 提交 SHA | \`${{ github.sha }}\` |"
+            echo "| 类型 / 格式 / 构建 | ${{ needs.checks.result }} |"
+            echo "| 镜像构建与冒烟 | ${{ needs.image.result }} |"
+            echo "| 镜像推送 | 未执行（PR 流程不发布） |"
+            echo ""
+            echo "> 通过条件：所有检查均为 success。"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "::error::存在失败的检查项"
+            exit 1
+          fi
+          echo "全部检查通过"

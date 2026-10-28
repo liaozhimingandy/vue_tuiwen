@@ -1,0 +1,270 @@
+name: Build Images
+
+# =============================================================================
+# 镜像构建与推送：Docker Hub + 阿里云 ACR（配了哪个就推哪个，都没配则只构建）
+#
+# 与 CI 的分工：CI 只验证不推送；本工作流才登录仓库并推送。
+#
+# 镜像来源：仓库根目录的 Dockerfile（nginx + dist），构建上下文就是当前提交，
+#         构建产物 == 这次 commit。docker/latest/Dockerfile.* 那套多镜像链
+#         会去 GitHub 下载 main 分支的 zip，与本工作流无关，这里不再使用。
+#
+# 版本映射：
+#   push main        → dev / dev-<sha>
+#   push develop     → develop / develop-<sha>
+#   push tag vA.B.C  → A.B.C / A.B / latest
+#   workflow_dispatch→ 可手动指定版本、是否推送
+#
+# 凭据（沿用后端仓库同一套命名，没配置就自动跳过推送）：
+#   Docker Hub : secrets.DOCKERHUB_USERNAME + secrets.DOCKERHUB_TOKEN
+#                兼容老命名 secrets.DOCKER_USERNAME + secrets.DOCKER_PASSWORD
+#   阿里云 ACR : secrets.ALIYUN_REGISTRY（如 registry.cn-shenzhen.aliyuncs.com）
+#                vars.ALIYUN_NAMESPACE（ACR 命名空间，必填）
+#                secrets.ALIYUN_USERNAME + secrets.ALIYUN_PASSWORD
+# =============================================================================
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+    # 只有影响产物的改动才值得重建镜像
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker/latest/server/**'
+      - '.github/workflows/build-images.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '覆盖版本号（留空=dev）'
+        required: false
+        type: string
+      push:
+        description: '是否推送到镜像仓库'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-images-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # 镜像仓库里的仓库名（Docker Hub 与 ACR 共用）
+  IMAGE_NAME: vue_tuiwen
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) 计算版本 + 探测推送凭据（真实登录一次，避免无效凭据一路带到 push 才报 401）
+  # ---------------------------------------------------------------------------
+  meta:
+    name: 计算版本与推送目标
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.calc.outputs.version }}
+      tags: ${{ steps.calc.outputs.tags }}
+      build_type: ${{ steps.calc.outputs.build_type }}
+      push_hub: ${{ steps.probe.outputs.push_hub }}
+      push_aliyun: ${{ steps.probe.outputs.push_aliyun }}
+      hub_image: ${{ steps.probe.outputs.hub_image }}
+      aliyun_image: ${{ steps.probe.outputs.aliyun_image }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: 计算版本与标签
+        id: calc
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PUSH: ${{ inputs.push }}
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA::7}"
+          BUILD_TYPE=""
+          VERSION=""
+          EXTRA_TAGS=""
+          WANT_PUSH="false"
+
+          if [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "tag" ]; then
+            # v26.9.17 -> 26.9.17；同时滚动 26.9 与 latest
+            [[ "${REF_NAME}" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] \
+              || { echo "::error::Tag ${REF_NAME} 不符合 vA.B / vA.B.C 规范"; exit 1; }
+            VERSION="${REF_NAME#v}"
+            EXTRA_TAGS="$(echo "${VERSION}" | cut -d. -f1,2) latest"
+            WANT_PUSH="true"
+            BUILD_TYPE="正式发布"
+          elif [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "branch" ]; then
+            case "${REF_NAME}" in
+              main)    VERSION="dev";     EXTRA_TAGS="dev-${SHORT_SHA}";     WANT_PUSH="true"; BUILD_TYPE="开发构建(main)" ;;
+              develop) VERSION="develop"; EXTRA_TAGS="develop-${SHORT_SHA}"; WANT_PUSH="true"; BUILD_TYPE="开发构建(develop)" ;;
+              *)       echo "::notice::分支 ${REF_NAME} 不在构建范围，跳过"; VERSION="skip" ;;
+            esac
+          else
+            VERSION="${INPUT_VERSION:-dev}"
+            WANT_PUSH="${INPUT_PUSH:-true}"
+            BUILD_TYPE="手动构建"
+            [ "${VERSION}" = "dev" ] && EXTRA_TAGS="dev-${SHORT_SHA}"
+          fi
+
+          {
+            echo "version=${VERSION}"
+            echo "tags=${EXTRA_TAGS}"
+            echo "build_type=${BUILD_TYPE}"
+            echo "want_push=${WANT_PUSH}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 探测推送凭据（真实登录一次）
+        id: probe
+        env:
+          WANT_PUSH: ${{ steps.calc.outputs.want_push }}
+          HUB_USER: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME }}
+          HUB_PASS: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
+          ALIYUN_REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+          ALIYUN_NAMESPACE: ${{ vars.ALIYUN_NAMESPACE || secrets.ALIYUN_NAMESPACE }}
+          ALI_USER: ${{ secrets.ALIYUN_USERNAME || secrets.DOCKER_USERNAME }}
+          ALI_PASS: ${{ secrets.ALIYUN_PASSWORD || secrets.DOCKER_PASSWORD }}
+        run: |
+          set -uo pipefail
+          PUSH_HUB="false"
+          PUSH_ALI="false"
+
+          # 命名空间优先用「能登录的那个账号」，不要拿 GitHub 用户名猜：
+          # 猜出来的路径必然不存在，报错只会是 repository does not exist or may require authorization
+          HUB_NS="${HUB_USER:-${GITHUB_REPOSITORY_OWNER}}"
+          HUB_IMAGE="${HUB_NS}/${IMAGE_NAME}"
+
+          if [ "${WANT_PUSH}" = "true" ] && [ -n "${HUB_USER:-}" ] && [ -n "${HUB_PASS:-}" ]; then
+            if echo "${HUB_PASS}" | docker login -u "${HUB_USER}" --password-stdin >/dev/null 2>&1; then
+              PUSH_HUB="true"
+              echo "Docker Hub 登录成功：${HUB_IMAGE}"
+            else
+              echo "::warning title=Docker Hub 登录失败::凭据无效或网络异常，跳过推送"
+            fi
+          else
+            echo "Docker Hub 凭据未配置或本次不需要推送，跳过"
+          fi
+
+          if [ "${WANT_PUSH}" = "true" ] && [ -n "${ALIYUN_REGISTRY:-}" ] \
+             && [ -n "${ALIYUN_NAMESPACE:-}" ] && [ -n "${ALI_USER:-}" ] && [ -n "${ALI_PASS:-}" ]; then
+            if echo "${ALI_PASS}" | docker login -u "${ALI_USER}" --password-stdin "${ALIYUN_REGISTRY}" >/dev/null 2>&1; then
+              PUSH_ALI="true"
+              echo "阿里云 ACR 登录成功：${ALIYUN_REGISTRY}/${ALIYUN_NAMESPACE}/${IMAGE_NAME}"
+            else
+              echo "::warning title=阿里云登录失败::凭据无效或网络异常，跳过推送"
+            fi
+          else
+            echo "阿里云凭据未配置（或缺少 vars.ALIYUN_NAMESPACE），跳过"
+          fi
+
+          {
+            echo "push_hub=${PUSH_HUB}"
+            echo "push_aliyun=${PUSH_ALI}"
+            echo "hub_image=${HUB_IMAGE}"
+            echo "aliyun_image=${ALIYUN_REGISTRY:-}/${ALIYUN_NAMESPACE:-}/${IMAGE_NAME}"
+          } >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # 2) 构建（一次），再按需打标签推送
+  # ---------------------------------------------------------------------------
+  build:
+    name: 构建并推送镜像
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [meta]
+    if: needs.meta.outputs.version != 'skip'
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: 配置 Buildx（container 驱动才能用 gha 缓存）
+        run: |
+          set -euo pipefail
+          docker buildx create --driver docker-container --name ci --use
+          docker buildx inspect --bootstrap
+
+      - name: 构建镜像
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            --build-arg APP_BUILD="${VERSION}-${GITHUB_SHA::7}" \
+            --cache-from type=gha,scope=vue-tuiwen \
+            --cache-to type=gha,scope=vue-tuiwen,mode=max \
+            --load \
+            -t "${IMAGE_NAME}:${VERSION}" \
+            .
+
+      - name: 推送到 Docker Hub
+        if: needs.meta.outputs.push_hub == 'true'
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          EXTRA_TAGS: ${{ needs.meta.outputs.tags }}
+          IMAGE: ${{ needs.meta.outputs.hub_image }}
+        run: |
+          set -euo pipefail
+          docker tag "${IMAGE_NAME}:${VERSION}" "${IMAGE}:${VERSION}"
+          for t in ${EXTRA_TAGS}; do
+            docker tag "${IMAGE_NAME}:${VERSION}" "${IMAGE}:${t}"
+          done
+          docker push "${IMAGE}:${VERSION}"
+          for t in ${EXTRA_TAGS}; do docker push "${IMAGE}:${t}"; done
+          echo "已推送 ${IMAGE}:${VERSION} ${EXTRA_TAGS}"
+
+      - name: 推送到阿里云 ACR
+        if: needs.meta.outputs.push_aliyun == 'true'
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          EXTRA_TAGS: ${{ needs.meta.outputs.tags }}
+          IMAGE: ${{ needs.meta.outputs.aliyun_image }}
+        run: |
+          set -euo pipefail
+          docker tag "${IMAGE_NAME}:${VERSION}" "${IMAGE}:${VERSION}"
+          for t in ${EXTRA_TAGS}; do
+            docker tag "${IMAGE_NAME}:${VERSION}" "${IMAGE}:${t}"
+          done
+          docker push "${IMAGE}:${VERSION}"
+          for t in ${EXTRA_TAGS}; do docker push "${IMAGE}:${t}"; done
+          echo "已推送 ${IMAGE}:${VERSION} ${EXTRA_TAGS}"
+
+      - name: 写入摘要
+        if: always()
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          EXTRA_TAGS: ${{ needs.meta.outputs.tags }}
+          BUILD_TYPE: ${{ needs.meta.outputs.build_type }}
+          PUSH_HUB: ${{ needs.meta.outputs.push_hub }}
+          PUSH_ALI: ${{ needs.meta.outputs.push_aliyun }}
+          HUB_IMAGE: ${{ needs.meta.outputs.hub_image }}
+          ALI_IMAGE: ${{ needs.meta.outputs.aliyun_image }}
+        run: |
+          set -euo pipefail
+          size=$(docker images "${IMAGE_NAME}:${VERSION}" --format '{{.Size}}' | head -1 || true)
+          {
+            echo "## 前端镜像构建"
+            echo ""
+            echo "| 项目 | 值 |"
+            echo "| --- | --- |"
+            echo "| 构建类型 | ${BUILD_TYPE} |"
+            echo "| 版本标签 | \`${VERSION}\` ${EXTRA_TAGS} |"
+            echo "| 提交 | \`${GITHUB_SHA::7}\` |"
+            echo "| 镜像体积 | ${size:-未知} |"
+            echo "| 推送 Docker Hub | ${PUSH_HUB}（${HUB_IMAGE}） |"
+            echo "| 推送阿里云 ACR | ${PUSH_ALI} |"
+          } >> "$GITHUB_STEP_SUMMARY"

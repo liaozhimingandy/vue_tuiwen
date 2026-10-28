@@ -1,0 +1,16 @@
+# 构建上下文只需要源码与依赖清单。
+# node_modules 一定不要进上下文：本地是平台相关的二进制，覆盖后会让 vite/rolldown 直接报错。
+node_modules
+dist
+dist-su
+dist-s*
+**/__pycache__
+.git
+.github
+.idea
+.vscode
+*.log
+npm-debug.log*
+.env.development
+.env.local
+.env.*.local
