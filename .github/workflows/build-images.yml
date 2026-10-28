@@ -159,18 +159,32 @@ jobs:
           PUSH_HUB="false"
           PUSH_ALI="false"
 
+          # secret 值里带上换行/空格是常见的手误（从网页复制时最容易带上）。
+          # 后果很隐蔽：job output 是按行写入的，多一个换行就会让下游拿到空字符串，
+          # 最终只报 `Error parsing reference: ":dev"`，看不出是 secret 脏了。
+          trim() { printf '%s' "${1:-}" | tr -d '[:space:]'; }
+
+          HUB_USER="$(trim "${HUB_USER:-}")"
           # 命名空间优先用「能登录的那个账号」，不要拿 GitHub 用户名猜：
-          # 猜出来的路径必然不存在，报错只会是 repository does not exist or may require authorization
-          HUB_NS="${HUB_USER:-${GITHUB_REPOSITORY_OWNER}}"
-          HUB_IMAGE="${HUB_NS}/${IMAGE_NAME}"
+          # 猜出来的路径必然存在不了，报错只会是 repository does not exist or may require authorization
+          HUB_NS="$(trim "${HUB_USER:-${GITHUB_REPOSITORY_OWNER:-}}")"
+          HUB_IMAGE="$(trim "${HUB_NS}/${IMAGE_NAME}")"
 
           # 用户名填成邮箱/带空格时，docker tag 只会回一句 invalid reference format，
           # 看不出是哪个 secret 错了，这里提前给出可读原因
           case "${HUB_IMAGE}" in
-            *@*|*\ *)
-              echo "::error title=Docker Hub 用户名非法::拼出的镜像名是 ${HUB_IMAGE}，含 @ 或空格。检查 secrets.DOCKERHUB_USERNAME / DOCKER_USERNAME 是否填成了邮箱"
+            *@*)
+              echo "::error title=Docker Hub 用户名非法::拼出的镜像名是 ${HUB_IMAGE}，含 @。检查 secrets.DOCKERHUB_USERNAME / DOCKER_USERNAME 是否填成了邮箱"
               exit 1 ;;
           esac
+
+          # 解析结果本身要能看见：出问题时先看这行 notice 就知道 meta 侧拼对没有
+          echo "::notice title=镜像名解析::HUB_IMAGE=${HUB_IMAGE} (长度 ${#HUB_IMAGE})"
+
+          # 密码只去掉回车换行（保留中间可能出现的空格），
+          # 否则 --password-stdin 会把多出来的换行当成密码的一部分，报 unauthorized
+          HUB_PASS="$(printf '%s' "${HUB_PASS:-}" | tr -d '\r\n')"
+          ALI_PASS="$(printf '%s' "${ALI_PASS:-}" | tr -d '\r\n')"
 
           if [ "${WANT_PUSH}" = "true" ] && [ -n "${HUB_USER:-}" ] && [ -n "${HUB_PASS:-}" ]; then
             # 登录失败的原文必须留下：只写 "凭据无效" 会让人分不清是 token 没写权限、
@@ -254,6 +268,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          if [ -z "${IMAGE:-}" ]; then
+            echo "::error title=镜像名为空::meta 作业没有输出 hub_image，检查 secrets.DOCKERHUB_USERNAME / DOCKER_USERNAME 是否带了换行或空格"
+            exit 1
+          fi
+
           # 打标签 + 推送，失败时把 docker 的原文写进注解。
           # 只让 job 变红是没用的：日志要管理员权限才看得到，
           # 而注解在 run 页面顶部和 API 里都能直接读到（denied / unauthorized 一眼可辨）。
@@ -281,6 +300,11 @@ jobs:
           IMAGE: ${{ needs.meta.outputs.aliyun_image }}
         run: |
           set -euo pipefail
+
+          if [ -z "${IMAGE:-}" ]; then
+            echo "::error title=阿里云镜像名为空::缺少 secrets.ALIYUN_REGISTRY 或 vars.ALIYUN_NAMESPACE"
+            exit 1
+          fi
 
           tag_and_push() {
             local ref="$1" out
