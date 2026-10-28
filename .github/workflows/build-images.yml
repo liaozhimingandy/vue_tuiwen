@@ -9,11 +9,14 @@ name: Build Images
 #         构建产物 == 这次 commit。docker/latest/Dockerfile.* 那套多镜像链
 #         会去 GitHub 下载 main 分支的 zip，与本工作流无关，这里不再使用。
 #
-# 版本映射：
-#   push main        → dev / dev-<sha>
-#   push develop     → develop / develop-<sha>
-#   push tag vA.B.C  → A.B.C / A.B / latest
-#   workflow_dispatch→ 可手动指定版本、是否推送
+# 标签策略（避免镜像仓库被塞满）：
+#   push main          → main
+#   push develop       → develop
+#   push tag vA.B.C    → A.B.C + A.B + latest（后两个浮动，数量恒定）
+#   workflow_dispatch  → 填了版本号用版本号（语义化版本再滚动 A.B / latest），没填用当前分支名
+#
+# 分支构建**不再**推 <分支>-<sha>：每次提交一个新标签，永不覆盖、也没人会去拉，
+# 只会把 Docker Hub / ACR 越堆越满。一个分支恒定一个标签，推多少次都是覆盖同一个。
 #
 # 凭据（沿用后端仓库同一套命名，没配置就自动跳过推送）：
 #   Docker Hub : secrets.DOCKERHUB_USERNAME + secrets.DOCKERHUB_TOKEN
@@ -50,7 +53,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '覆盖版本号（留空=dev）'
+        description: '覆盖版本号（留空=当前分支名）'
         required: false
         type: string
       push:
@@ -109,37 +112,56 @@ jobs:
           INPUT_PUSH: ${{ inputs.push }}
         run: |
           set -euo pipefail
-          SHORT_SHA="${GITHUB_SHA::7}"
           BUILD_TYPE=""
           VERSION=""
           EXTRA_TAGS=""
           WANT_PUSH="false"
 
+          # 标签策略（重要）：分支 / 手动构建**只推一个标签**，就是分支名本身。
+          # 以前会给每次提交额外推一个 `<分支>-<sha>`，一天几十个提交就是几十个标签，
+          # 而这些标签永远不会被覆盖也永远不会有人拉，纯粹把仓库撑爆。
+          # 浮动标签（A.B / latest）可以留：它们指向移动，数量恒定。
           if [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "tag" ]; then
-            # v26.9.17 -> 26.9.17；同时滚动 26.9 与 latest
+            # v26.9.17 -> 26.9.17；同时滚动 26.9 与 latest（都是浮动标签，不会累积）
             [[ "${REF_NAME}" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] \
               || { echo "::error::Tag ${REF_NAME} 不符合 vA.B / vA.B.C 规范"; exit 1; }
             VERSION="${REF_NAME#v}"
-            EXTRA_TAGS="$(echo "${VERSION}" | cut -d. -f1,2) latest"
+            # vA.B.C → 滚动 A.B 与 latest；vA.B 只滚动 latest，
+            # 否则 A.B 会与 VERSION 相同，同一个标签被 tag/push 两遍
+            if [[ "${VERSION}" == *.*.* ]]; then
+              EXTRA_TAGS="$(echo "${VERSION}" | cut -d. -f1,2) latest"
+            else
+              EXTRA_TAGS="latest"
+            fi
             WANT_PUSH="true"
             BUILD_TYPE="正式发布"
           elif [ "${EVENT_NAME}" = "push" ] && [ "${REF_TYPE}" = "branch" ]; then
             case "${REF_NAME}" in
-              main)    VERSION="dev";     EXTRA_TAGS="dev-${SHORT_SHA}";     WANT_PUSH="true"; BUILD_TYPE="开发构建(main)" ;;
-              develop) VERSION="develop"; EXTRA_TAGS="develop-${SHORT_SHA}"; WANT_PUSH="true"; BUILD_TYPE="开发构建(develop)" ;;
-              *)       echo "::notice::分支 ${REF_NAME} 不在构建范围，跳过"; VERSION="skip" ;;
+              main|develop)
+                # 分支名直接当标签：main -> main、develop -> develop，
+                # 一个分支恒定一个标签，推多少次都是覆盖同一个
+                VERSION="${REF_NAME}"
+                EXTRA_TAGS=""
+                WANT_PUSH="true"
+                BUILD_TYPE="开发构建(${REF_NAME})" ;;
+              *)  echo "::notice::分支 ${REF_NAME} 不在构建范围，跳过"; VERSION="skip" ;;
             esac
           else
-            VERSION="${INPUT_VERSION:-dev}"
+            # 手动触发：没填版本号就沿用当前分支名，同样只推一个标签
+            if [ -n "${INPUT_VERSION:-}" ]; then
+              VERSION="${INPUT_VERSION}"
+            elif [ "${REF_TYPE}" = "branch" ]; then
+              VERSION="${REF_NAME}"
+            else
+              VERSION="dev"
+            fi
             WANT_PUSH="${INPUT_PUSH:-true}"
             BUILD_TYPE="手动构建"
-            # 手动填的版本号按 tag 的同款规则滚动浮动标签
+            # 只有显式填了语义化版本号才滚动浮动标签（数量恒定，不累积）
             if [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               EXTRA_TAGS="$(echo "${VERSION}" | cut -d. -f1,2) latest"
             elif [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
-              EXTRA_TAGS="$(echo "${VERSION}" | cut -d. -f1)"
-            elif [ "${VERSION}" = "dev" ]; then
-              EXTRA_TAGS="dev-${SHORT_SHA}"
+              EXTRA_TAGS="latest"
             fi
           fi
 

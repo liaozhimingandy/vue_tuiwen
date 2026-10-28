@@ -33,11 +33,24 @@ https://tombcato.github.io/smart-ticker/?lang=en
 | 工作流 | 触发 | 做什么 |
 | --- | --- | --- |
 | `ci.yml` | PR / push main、develop | 类型检查 + prettier 格式检查 + 构建产物校验，再构建一次镜像并真的启动容器，验证首页、静态资源与 SPA 深链刷新。**只验证，不推送** |
-| `build-images.yml` | push main、develop、tag `v*` | 用仓库根目录的 `Dockerfile`（node 构建 → nginx 托管）打镜像，推送到 Docker Hub / 阿里云 ACR |
+| `build-images.yml` | push main、develop、tag `v*` | 用仓库根目录的 `Dockerfile`（node 构建 → nginx 托管）打镜像，推送到 Docker Hub / 阿里云 ACR。分支构建**只推一个分支名标签** |
 | `deploy-cloudflare-pages.yml` | push main | 构建 H5 并发布到 Cloudflare Pages（Direct Upload） |
 
 镜像与静态托管都从**当前提交的源码**构建；`docker/latest/Dockerfile.*` 那套多镜像链会去
 GitHub 下载 main 分支的 zip，构建产物与提交无关，因此不再被工作流使用。
+
+镜像标签：一个分支恒定一个标签，不随提交数量累积（`<分支>-<sha>` 那种标签永不覆盖、也没人会拉，
+只会把仓库堆满）：
+
+| 触发 | 推哪些标签 |
+| --- | --- |
+| push `develop` | `develop` |
+| push `main` | `main` |
+| push tag `v1.2.3` | `1.2.3` + `1.2` + `latest` |
+| 手动触发、未填版本号 | 当前分支名 |
+| 手动触发、填了 `1.2.3` | `1.2.3` + `1.2` + `latest` |
+
+其中 `1.2` / `latest` 是**浮动标签**，只是指向移动，数量恒定；其余都是一个标签对应一个来源。
 
 可选密钥（没配就自动跳过对应步骤，不会让流水线变红）：
 
@@ -73,9 +86,16 @@ docker build -t vue_tuiwen:dev . && docker run --rm -p 8080:80 vue_tuiwen:dev
 
 **`Build Images` 报 `unauthorized: access token has insufficient scopes`**
 
-Docker Hub 的 access token 只有读权限。`docker login` 只验证身份，所以这一步会成功，
-到 `docker push` 才报这个错。去 Docker Hub → Account settings → Personal access tokens
-重建一个 **Read & Write** 的 token，更新 `DOCKERHUB_TOKEN`（或 `DOCKER_PASSWORD`）。
+这句有两个成因，别急着去重建 token：
+
+1. **推送前没登录**（更常见）。每个作业都在一台全新的 runner 上跑，`meta` 作业里的 `docker login`
+   不会跨作业保留，漏了就变成匿名推送，registry 同样回这一句。先看失败步骤前面有没有登录步骤。
+2. **token 只有读权限**。`docker login` 只验证身份，所以这一步会成功，到 `docker push` 才炸。
+   去 Docker Hub → Account settings → Personal access tokens 重建一个 **Read & Write** 的 token，
+   更新 `DOCKERHUB_TOKEN`（或 `DOCKER_PASSWORD`）。
+
+判断当前是哪种：`meta` 作业会向 `auth.docker.io` 换一次带 push scope 的 token 并解出 `access[].actions`，
+读得到 `push` 就说明凭据本身没问题，问题在登录环节。
 
 **`Build Images` 报 `Error parsing reference: ":dev"` / `镜像名为空`**
 
