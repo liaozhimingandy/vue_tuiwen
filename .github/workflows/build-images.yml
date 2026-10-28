@@ -161,6 +161,10 @@ jobs:
           set -uo pipefail
           PUSH_HUB="false"
           PUSH_ALI="false"
+          # 收集所有配置问题，最后一次报完。否则修好 Docker Hub 又撞阿里云，
+          # 每次推送只能发现一个错误，一轮一轮试。
+          PROBLEMS=""
+          add_problem() { PROBLEMS="${PROBLEMS}${1}"$'\n'; }
 
           # secret 从网页复制时很容易带上尾随空格/换行。这里的 trim 不是洁癖：
           # ALIYUN_REGISTRY 末尾多一个空格，docker login 直接报
@@ -194,28 +198,30 @@ jobs:
           HUB_PASS="$(printf '%s' "${HUB_PASS:-}" | tr -d '\r\n')"
           ALI_PASS="$(printf '%s' "${ALI_PASS:-}" | tr -d '\r\n')"
 
+          # 注意「没配置」和「配了但不能用」要区别对待：
+          # 前者是可选的（不推送也能构建），后者必须报错，否则用户以为在发布其实没有。
           if [ "${WANT_PUSH}" = "true" ] && [ -n "${HUB_USER}" ] && [ -n "${HUB_PASS}" ]; then
             # 登录失败的原文必须留下：只写 "凭据无效" 会让人分不清是 token 没写权限、
             # 开了 2FA 还是账号密码错，而这三种的处理方式完全不同
             if HUB_ERR="$(echo "${HUB_PASS}" | docker login -u "${HUB_USER}" --password-stdin 2>&1 >/dev/null)"; then
-              PUSH_HUB="true"
-              echo "Docker Hub 登录成功：${HUB_IMAGE}"
-
               # read-only 的 token 也能登录成功（login 只验证身份），却在 push 时报
               # unauthorized: access token has insufficient scopes。
               # 问一次 auth.docker.io 要 push scope 的 token，看返回的 actions 里有没有 push，
-              # 把这个问题提前到 6 秒发现，而不是等一次构建跑完。
+              # 把这个问题提前到几秒内发现，而不是等一次构建跑完。
               SCOPE_JSON="$(curl -fsS -u "${HUB_USER}:${HUB_PASS}" \
                 "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${HUB_IMAGE}:push,pull" 2>/dev/null || true)"
               case "${SCOPE_JSON}" in
-                "") echo "::warning title=无法校验 token 写权限::拿不到 auth.docker.io 的响应（网络或限流），直接尝试推送" ;;
-                *'"push"'*) echo "token 具备 push 权限" ;;
+                "")
+                  echo "::warning title=无法校验 token 写权限::拿不到 auth.docker.io 的响应（网络或限流），直接尝试推送"
+                  PUSH_HUB="true" ;;
+                *'"push"'*)
+                  echo "Docker Hub 登录成功且具备 push 权限：${HUB_IMAGE}"
+                  PUSH_HUB="true" ;;
                 *)
-                  echo "::error title=Docker Hub token 无写权限::能登录但换不到 push scope，推送必然失败。去 Docker Hub → Account settings → Personal access tokens 重建一个 Read & Write 的 token，更新 secrets.DOCKERHUB_TOKEN（或 DOCKER_PASSWORD）"
-                  exit 1 ;;
+                  add_problem "Docker Hub token 无写权限：能登录但换不到 push scope，请到 Docker Hub → Account settings → Personal access tokens 重建 Read & Write 的 token，更新 DOCKERHUB_TOKEN（或 DOCKER_PASSWORD）" ;;
               esac
             else
-              echo "::warning title=Docker Hub 登录失败::$(echo "${HUB_ERR}" | tail -1)"
+              add_problem "Docker Hub 登录失败：$(echo "${HUB_ERR}" | tail -1)"
             fi
           else
             echo "Docker Hub 凭据未配置或本次不需要推送，跳过"
@@ -227,7 +233,7 @@ jobs:
               PUSH_ALI="true"
               echo "阿里云 ACR 登录成功：${ALIYUN_REGISTRY}/${ALIYUN_NAMESPACE}/${IMAGE_NAME}"
             else
-              echo "::warning title=阿里云登录失败::$(echo "${ALI_ERR}" | tail -1)"
+              add_problem "阿里云 ACR 登录失败：$(echo "${ALI_ERR}" | tail -1)"
             fi
           else
             echo "阿里云凭据未配置（或缺少 vars.ALIYUN_NAMESPACE），跳过"
@@ -238,6 +244,13 @@ jobs:
             echo "push_hub=${PUSH_HUB}"
             echo "push_aliyun=${PUSH_ALI}"
           } >> "$GITHUB_OUTPUT"
+
+          if [ -n "${PROBLEMS}" ]; then
+            while IFS= read -r line; do
+              [ -n "${line}" ] && echo "::error title=推送配置有问题::${line}"
+            done <<< "${PROBLEMS}"
+            exit 1
+          fi
 
   # ---------------------------------------------------------------------------
   # 2) 构建（一次），再按需打标签推送
