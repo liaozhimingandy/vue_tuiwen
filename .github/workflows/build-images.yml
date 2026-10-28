@@ -76,10 +76,13 @@ jobs:
       version: ${{ steps.calc.outputs.version }}
       tags: ${{ steps.calc.outputs.tags }}
       build_type: ${{ steps.calc.outputs.build_type }}
+      # 只输出布尔量。镜像名一律不跨作业传：它的值里含 DOCKER_USERNAME，
+      # 而 GitHub 会直接丢弃「值里可能含 secret」的 job output
+      # （日志里表现为 warning: Skip output 'hub_image' since it may contain secret），
+      # 下游拿到的就是空字符串，最后只报一句 ":dev is not a valid reference"。
+      # 镜像名改由各作业自己从 secrets 现算。
       push_hub: ${{ steps.probe.outputs.push_hub }}
       push_aliyun: ${{ steps.probe.outputs.push_aliyun }}
-      hub_image: ${{ steps.probe.outputs.hub_image }}
-      aliyun_image: ${{ steps.probe.outputs.aliyun_image }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -159,26 +162,31 @@ jobs:
           PUSH_HUB="false"
           PUSH_ALI="false"
 
-          # secret 值里带上换行/空格是常见的手误（从网页复制时最容易带上）。
-          # 后果很隐蔽：job output 是按行写入的，多一个换行就会让下游拿到空字符串，
-          # 最终只报 `Error parsing reference: ":dev"`，看不出是 secret 脏了。
+          # secret 从网页复制时很容易带上尾随空格/换行。这里的 trim 不是洁癖：
+          # ALIYUN_REGISTRY 末尾多一个空格，docker login 直接报
+          # `unable to parse server address: invalid character " " in host name`，
+          # 而报错里显示的是 `https://*** `，根本看不出问题在空格上。
           trim() { printf '%s' "${1:-}" | tr -d '[:space:]'; }
 
           HUB_USER="$(trim "${HUB_USER:-}")"
+          ALIYUN_REGISTRY="$(trim "${ALIYUN_REGISTRY:-}")"
+          ALIYUN_NAMESPACE="$(trim "${ALIYUN_NAMESPACE:-}")"
+          ALI_USER="$(trim "${ALI_USER:-}")"
+
           # 命名空间优先用「能登录的那个账号」，不要拿 GitHub 用户名猜：
           # 猜出来的路径必然存在不了，报错只会是 repository does not exist or may require authorization
           HUB_NS="$(trim "${HUB_USER:-${GITHUB_REPOSITORY_OWNER:-}}")"
           HUB_IMAGE="$(trim "${HUB_NS}/${IMAGE_NAME}")"
 
-          # 用户名填成邮箱/带空格时，docker tag 只会回一句 invalid reference format，
-          # 看不出是哪个 secret 错了，这里提前给出可读原因
+          # 用户名填成邮箱时，docker tag 只会回一句 invalid reference format，看不出是哪个 secret 错了
           case "${HUB_IMAGE}" in
             *@*)
               echo "::error title=Docker Hub 用户名非法::拼出的镜像名是 ${HUB_IMAGE}，含 @。检查 secrets.DOCKERHUB_USERNAME / DOCKER_USERNAME 是否填成了邮箱"
               exit 1 ;;
           esac
 
-          # 解析结果本身要能看见：出问题时先看这行 notice 就知道 meta 侧拼对没有
+          # 解析结果本身要能看见（用户名会被打码成 ***，长度仍是真实的）：
+          # 出问题时先看这行就知道是没解析出来，还是下游没接到
           echo "::notice title=镜像名解析::HUB_IMAGE=${HUB_IMAGE} (长度 ${#HUB_IMAGE})"
 
           # 密码只去掉回车换行（保留中间可能出现的空格），
@@ -186,7 +194,7 @@ jobs:
           HUB_PASS="$(printf '%s' "${HUB_PASS:-}" | tr -d '\r\n')"
           ALI_PASS="$(printf '%s' "${ALI_PASS:-}" | tr -d '\r\n')"
 
-          if [ "${WANT_PUSH}" = "true" ] && [ -n "${HUB_USER:-}" ] && [ -n "${HUB_PASS:-}" ]; then
+          if [ "${WANT_PUSH}" = "true" ] && [ -n "${HUB_USER}" ] && [ -n "${HUB_PASS}" ]; then
             # 登录失败的原文必须留下：只写 "凭据无效" 会让人分不清是 token 没写权限、
             # 开了 2FA 还是账号密码错，而这三种的处理方式完全不同
             if HUB_ERR="$(echo "${HUB_PASS}" | docker login -u "${HUB_USER}" --password-stdin 2>&1 >/dev/null)"; then
@@ -199,8 +207,8 @@ jobs:
             echo "Docker Hub 凭据未配置或本次不需要推送，跳过"
           fi
 
-          if [ "${WANT_PUSH}" = "true" ] && [ -n "${ALIYUN_REGISTRY:-}" ] \
-             && [ -n "${ALIYUN_NAMESPACE:-}" ] && [ -n "${ALI_USER:-}" ] && [ -n "${ALI_PASS:-}" ]; then
+          if [ "${WANT_PUSH}" = "true" ] && [ -n "${ALIYUN_REGISTRY}" ] \
+             && [ -n "${ALIYUN_NAMESPACE}" ] && [ -n "${ALI_USER}" ] && [ -n "${ALI_PASS}" ]; then
             if ALI_ERR="$(echo "${ALI_PASS}" | docker login -u "${ALI_USER}" --password-stdin "${ALIYUN_REGISTRY}" 2>&1 >/dev/null)"; then
               PUSH_ALI="true"
               echo "阿里云 ACR 登录成功：${ALIYUN_REGISTRY}/${ALIYUN_NAMESPACE}/${IMAGE_NAME}"
@@ -211,18 +219,10 @@ jobs:
             echo "阿里云凭据未配置（或缺少 vars.ALIYUN_NAMESPACE），跳过"
           fi
 
-          # 没配齐时不要拼出 "//vue_tuiwen" 这种看着像坏掉的值，留空由摘要显示为「未配置」
-          if [ -n "${ALIYUN_REGISTRY:-}" ] && [ -n "${ALIYUN_NAMESPACE:-}" ]; then
-            ALI_IMAGE="${ALIYUN_REGISTRY}/${ALIYUN_NAMESPACE}/${IMAGE_NAME}"
-          else
-            ALI_IMAGE=""
-          fi
-
+          # 只写布尔量，镜像名留在本作业内使用（见 job outputs 处的说明）
           {
             echo "push_hub=${PUSH_HUB}"
             echo "push_aliyun=${PUSH_ALI}"
-            echo "hub_image=${HUB_IMAGE}"
-            echo "aliyun_image=${ALI_IMAGE}"
           } >> "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------------------------------
@@ -264,17 +264,21 @@ jobs:
         env:
           VERSION: ${{ needs.meta.outputs.version }}
           EXTRA_TAGS: ${{ needs.meta.outputs.tags }}
-          IMAGE: ${{ needs.meta.outputs.hub_image }}
+          HUB_USER: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME }}
         run: |
           set -euo pipefail
 
-          if [ -z "${IMAGE:-}" ]; then
-            echo "::error title=镜像名为空::meta 作业没有输出 hub_image，检查 secrets.DOCKERHUB_USERNAME / DOCKER_USERNAME 是否带了换行或空格"
+          # 镜像名在本作业内现算，不从 meta 的 job output 取：
+          # 它的值含 DOCKER_USERNAME，GitHub 会丢弃这类 output（Skip output ... may contain secret）
+          IMAGE="$(printf '%s/%s' "${HUB_USER:-}" "${IMAGE_NAME}" | tr -d '[:space:]')"
+
+          if [ "${IMAGE}" = "/${IMAGE_NAME}" ]; then
+            echo "::error title=镜像名为空::读不到 secrets.DOCKERHUB_USERNAME / DOCKER_USERNAME，或值里只有空白字符"
             exit 1
           fi
 
           # 打标签 + 推送，失败时把 docker 的原文写进注解。
-          # 只让 job 变红是没用的：日志要管理员权限才看得到，
+          # 只让 job 变红是没用的：日志要仓库管理员权限才看得到，
           # 而注解在 run 页面顶部和 API 里都能直接读到（denied / unauthorized 一眼可辨）。
           tag_and_push() {
             local ref="$1" out
@@ -297,11 +301,16 @@ jobs:
         env:
           VERSION: ${{ needs.meta.outputs.version }}
           EXTRA_TAGS: ${{ needs.meta.outputs.tags }}
-          IMAGE: ${{ needs.meta.outputs.aliyun_image }}
+          ALIYUN_REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+          ALIYUN_NAMESPACE: ${{ vars.ALIYUN_NAMESPACE || secrets.ALIYUN_NAMESPACE }}
         run: |
           set -euo pipefail
 
-          if [ -z "${IMAGE:-}" ]; then
+          # 同上：registry/namespace 都现算，并且必须 trim —— 线上曾出现
+          # ALIYUN_REGISTRY 末尾带空格，docker login 报 `invalid character " " in host name`
+          IMAGE="$(printf '%s/%s/%s' "${ALIYUN_REGISTRY:-}" "${ALIYUN_NAMESPACE:-}" "${IMAGE_NAME}" | tr -d '[:space:]')"
+
+          if [ "${IMAGE}" = "//${IMAGE_NAME}" ]; then
             echo "::error title=阿里云镜像名为空::缺少 secrets.ALIYUN_REGISTRY 或 vars.ALIYUN_NAMESPACE"
             exit 1
           fi
@@ -330,10 +339,17 @@ jobs:
           BUILD_TYPE: ${{ needs.meta.outputs.build_type }}
           PUSH_HUB: ${{ needs.meta.outputs.push_hub }}
           PUSH_ALI: ${{ needs.meta.outputs.push_aliyun }}
-          HUB_IMAGE: ${{ needs.meta.outputs.hub_image }}
-          ALI_IMAGE: ${{ needs.meta.outputs.aliyun_image }}
+          HUB_USER: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME }}
+          ALIYUN_REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+          ALIYUN_NAMESPACE: ${{ vars.ALIYUN_NAMESPACE || secrets.ALIYUN_NAMESPACE }}
         run: |
           set -euo pipefail
+          # 与推送步骤同样现算（job output 不能带 secret）
+          HUB_IMAGE="$(printf '%s/%s' "${HUB_USER:-}" "${IMAGE_NAME}" | tr -d '[:space:]')"
+          ALI_IMAGE="$(printf '%s/%s/%s' "${ALIYUN_REGISTRY:-}" "${ALIYUN_NAMESPACE:-}" "${IMAGE_NAME}" | tr -d '[:space:]')"
+          if [ "${HUB_IMAGE}" = "/${IMAGE_NAME}" ]; then HUB_IMAGE="未配置"; fi
+          if [ "${ALI_IMAGE}" = "//${IMAGE_NAME}" ]; then ALI_IMAGE="未配置"; fi
+
           size=$(docker images "${IMAGE_NAME}:${VERSION}" --format '{{.Size}}' | head -1 || true)
           {
             echo "## 前端镜像构建"
@@ -345,5 +361,5 @@ jobs:
             echo "| 提交 | \`${GITHUB_SHA::7}\` |"
             echo "| 镜像体积 | ${size:-未知} |"
             echo "| 推送 Docker Hub | ${PUSH_HUB}（${HUB_IMAGE}） |"
-            echo "| 推送阿里云 ACR | ${PUSH_ALI} |"
+            echo "| 推送阿里云 ACR | ${PUSH_ALI}（${ALI_IMAGE}） |"
           } >> "$GITHUB_STEP_SUMMARY"
