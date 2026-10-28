@@ -387,7 +387,11 @@ onBeforeUnmount(() => {
 <style scoped>
 /* 移动端底部有 Tab 栏，回到顶部按钮要抬到栏上方，否则永远压在栏下面点不到 */
 @media (max-width: 767px) {
+  /* 桌面是 absolute + 撑满一屏的 t-layout；移动端 t-layout 高度是 auto，
+     absolute 会跑到内容末尾去，必须改 fixed 才能真的"浮在屏幕上" */
   :deep(.t-back-top) {
+    position: fixed !important;
+    right: 16px !important;
     bottom: calc(var(--m-tabbar-h) + var(--m-safe-bottom) + 16px) !important;
   }
 }
