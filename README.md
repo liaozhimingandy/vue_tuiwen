@@ -71,6 +71,24 @@ docker build -t vue_tuiwen:dev . && docker run --rm -p 8080:80 vue_tuiwen:dev
 `docker/latest/server/default.conf` 的 `try_files $uri $uri/ /index.html` 被改动了。刷新 `/u/xxx/` 这类前端路由必须回退到
 `index.html`，否则用户刷新页面就是白屏。
 
+**`Build Images` 报 `unauthorized: access token has insufficient scopes`**
+
+Docker Hub 的 access token 只有读权限。`docker login` 只验证身份，所以这一步会成功，
+到 `docker push` 才报这个错。去 Docker Hub → Account settings → Personal access tokens
+重建一个 **Read & Write** 的 token，更新 `DOCKERHUB_TOKEN`（或 `DOCKER_PASSWORD`）。
+
+**`Build Images` 报 `Error parsing reference: ":dev"` / `镜像名为空`**
+
+镜像名拼出来是 `<DOCKER_USERNAME>/vue_tuiwen`，这串值里含 secret，而 GitHub **会丢弃
+「值里可能含 secret」的 job output**（日志里 grep `Skip output` 能看到）。
+所以镜像名不能跨作业传，只能在各作业内用 secrets 现算 —— 工作流已按这个方式实现，
+如果又出现这个错，说明有人把镜像名重新放回了 `outputs`。
+
+**`docker login` 报 `invalid character " " in host name`**
+
+`ALIYUN_REGISTRY` 之类的 secret 末尾带了空格（从网页复制最常带）。工作流已对
+registry / namespace / 用户名统一 trim，若仍报错请检查是否还有未 trim 的新 secret。
+
 ## 许可证
 
 [MIT](LICENSE)

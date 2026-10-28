@@ -200,6 +200,20 @@ jobs:
             if HUB_ERR="$(echo "${HUB_PASS}" | docker login -u "${HUB_USER}" --password-stdin 2>&1 >/dev/null)"; then
               PUSH_HUB="true"
               echo "Docker Hub 登录成功：${HUB_IMAGE}"
+
+              # read-only 的 token 也能登录成功（login 只验证身份），却在 push 时报
+              # unauthorized: access token has insufficient scopes。
+              # 问一次 auth.docker.io 要 push scope 的 token，看返回的 actions 里有没有 push，
+              # 把这个问题提前到 6 秒发现，而不是等一次构建跑完。
+              SCOPE_JSON="$(curl -fsS -u "${HUB_USER}:${HUB_PASS}" \
+                "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${HUB_IMAGE}:push,pull" 2>/dev/null || true)"
+              case "${SCOPE_JSON}" in
+                "") echo "::warning title=无法校验 token 写权限::拿不到 auth.docker.io 的响应（网络或限流），直接尝试推送" ;;
+                *'"push"'*) echo "token 具备 push 权限" ;;
+                *)
+                  echo "::error title=Docker Hub token 无写权限::能登录但换不到 push scope，推送必然失败。去 Docker Hub → Account settings → Personal access tokens 重建一个 Read & Write 的 token，更新 secrets.DOCKERHUB_TOKEN（或 DOCKER_PASSWORD）"
+                  exit 1 ;;
+              esac
             else
               echo "::warning title=Docker Hub 登录失败::$(echo "${HUB_ERR}" | tail -1)"
             fi
