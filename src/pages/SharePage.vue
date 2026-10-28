@@ -68,9 +68,9 @@ watch(post_id, () => loadPostDetail());
         <t-row justify="center">
           <t-col :md="{offset: 0, span: 6}" :xs="11" :sm="11" class="article-header">
             <t-space size="small">
-              <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name" />
+              <UserAvatar :avatar="account?.avatar" :nickname="account?.nickname" />
               <t-space direction="vertical" :size="1">
-                <t-typography-text strong>{{ account?.nick_name || post.account_id }}</t-typography-text>
+                <t-typography-text strong>{{ account?.nickname || post.account_id }}</t-typography-text>
                 <t-typography-text theme="secondary">{{ timestampFormat(getEntityTime(post)) }}</t-typography-text>
               </t-space>
             </t-space>
@@ -114,7 +114,7 @@ watch(post_id, () => loadPostDetail());
         <t-col :md="{offset: 0, span: 6}" :xs="12" :sm="12">
           <t-space class="article-footer">
             <t-typography-text theme="secondary">
-              © {{ new Date().getFullYear() }}-{{ account?.nick_name }}
+              © {{ new Date().getFullYear() }}-{{ account?.nickname }}
             </t-typography-text>
             <t-button
               theme="default"

@@ -169,9 +169,9 @@ onMounted(async () => {
           <t-space direction="horizontal">
             <UserAvatar
               :avatar="appStore.useAccountStore.account?.avatar"
-              :nickname="appStore.useAccountStore.account?.nick_name"
+              :nickname="appStore.useAccountStore.account?.nickname"
             />
-            <span v-if="!isMobile" style="margin-left: 8px">{{ appStore.useAccountStore.account?.nick_name }}</span>
+            <span v-if="!isMobile" style="margin-left: 8px">{{ appStore.useAccountStore.account?.nickname }}</span>
           </t-space>
         </t-dropdown>
       </template>

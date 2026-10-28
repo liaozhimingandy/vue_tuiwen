@@ -268,13 +268,11 @@ const onFollow = async () => {
   follow.value.followee_count += delta;
   try {
     if (target) {
-      await instance.post(apiUrls.post_follow(), {
-        follower_id: appStore.useAccountStore.account.account_id,
-        followee_id: username.value,
-      });
+      // 关注者取自令牌，请求体只传 followee_id
+      await instance.post(apiUrls.post_follow(), {followee_id: username.value});
       await MessagePlugin.success('关注成功');
     } else {
-      await instance.delete(apiUrls.delete_follow(appStore.useAccountStore.account.account_id, username.value));
+      await instance.delete(apiUrls.delete_follow(username.value));
       await MessagePlugin.success('取消关注成功');
     }
   } catch (e) {
@@ -293,12 +291,9 @@ const toggleListFollow = async (a: IAccount) => {
   listFollowMap[a.account_id] = target;
   try {
     if (target) {
-      await instance.post(apiUrls.post_follow(), {
-        follower_id: appStore.useAccountStore.account.account_id,
-        followee_id: a.account_id,
-      });
+      await instance.post(apiUrls.post_follow(), {followee_id: a.account_id});
     } else {
-      await instance.delete(apiUrls.delete_follow(appStore.useAccountStore.account.account_id, a.account_id));
+      await instance.delete(apiUrls.delete_follow(a.account_id));
     }
   } catch (e) {
     listFollowMap[a.account_id] = !target;
@@ -375,10 +370,10 @@ onMounted(() => {
           <template v-else-if="user">
             <t-row style="margin-top: 16px">
               <t-space>
-                <UserAvatar :avatar="user?.avatar" :nickname="user?.nick_name" :size="isMobile ? '80px' : '120px'" />
+                <UserAvatar :avatar="user?.avatar" :nickname="user?.nickname" :size="isMobile ? '80px' : '120px'" />
                 <t-space direction="vertical">
                   <h2>
-                    {{ user?.nick_name }}<span class="uname">({{ username }})</span>
+                    {{ user?.nickname }}<span class="uname">({{ username }})</span>
                   </h2>
                   <t-space>
                     <t-button v-if="!is_self" theme="primary" :disabled="!followLoaded" @click="onFollow">
@@ -439,7 +434,7 @@ onMounted(() => {
                   <t-descriptions-item label="用户名">{{ user?.username }}</t-descriptions-item>
                   <t-descriptions-item label="电子邮箱">{{ user?.mail }}</t-descriptions-item>
                   <t-descriptions-item label="账户状态" :span="2">{{ userStatus }}</t-descriptions-item>
-                  <t-descriptions-item label="出生日期">{{ user?.gmt_birth }}</t-descriptions-item>
+                  <t-descriptions-item label="出生日期">{{ user?.birthday }}</t-descriptions-item>
                   <t-descriptions-item label="性别">{{ sex_code_map[user?.sex ?? 0] }}</t-descriptions-item>
                 </t-descriptions>
               </t-card>
@@ -465,9 +460,9 @@ onMounted(() => {
                 :async-loading="relAsyncLoading"
               >
                 <t-list-item v-for="a in followees" :key="a.account_id" class="rel-row" @click="goUser(a)">
-                  <t-list-item-meta :title="a.nick_name" :description="a.bio">
+                  <t-list-item-meta :title="a.nickname" :description="a.bio">
                     <template #image>
-                      <UserAvatar :avatar="a.avatar" :nickname="a.nick_name" />
+                      <UserAvatar :avatar="a.avatar" :nickname="a.nickname" />
                     </template>
                   </t-list-item-meta>
                   <template #action>
@@ -481,7 +476,7 @@ onMounted(() => {
                   </template>
                 </t-list-item>
               </t-list>
-              <t-empty v-else-if="followeesLoaded" :description="`${user?.nick_name ?? 'TA'} 还没有关注任何人`" />
+              <t-empty v-else-if="followeesLoaded" :description="`${user?.nickname ?? 'TA'} 还没有关注任何人`" />
               <t-empty v-else description="关注列表加载失败">
                 <template #extra>
                   <t-button size="small" theme="primary" @click="onLoadMoreFollow('followees')">重试</t-button>
@@ -498,9 +493,9 @@ onMounted(() => {
                 :async-loading="relAsyncLoading"
               >
                 <t-list-item v-for="a in followers" :key="a.account_id" class="rel-row" @click="goUser(a)">
-                  <t-list-item-meta :title="a.nick_name" :description="a.bio">
+                  <t-list-item-meta :title="a.nickname" :description="a.bio">
                     <template #image>
-                      <UserAvatar :avatar="a.avatar" :nickname="a.nick_name" />
+                      <UserAvatar :avatar="a.avatar" :nickname="a.nickname" />
                     </template>
                   </t-list-item-meta>
                   <template #action>

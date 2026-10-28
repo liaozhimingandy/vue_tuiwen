@@ -49,7 +49,7 @@
               <t-list-item
                 v-for="item in snaps"
                 :key="item.id"
-                :style="{backgroundColor: emotionBgColor[item.emotion]}"
+                :style="{backgroundColor: emotionBgColor[item.emotion ?? 0]}"
               >
                 <t-list-item-meta :title="item.alias_name">
                   <template #description>
@@ -85,8 +85,8 @@
                         <heart-icon />
                       </template>
                       <Ticker
-                        v-if="item.like > 0"
-                        :value="item.like"
+                        v-if="item.like_count > 0"
+                        :value="item.like_count"
                         :duration="800"
                         easing="linear"
                         direction="ANY"
@@ -181,6 +181,7 @@ import {ref, computed, onMounted, onUnmounted, watch} from 'vue';
 import {MessagePlugin} from 'tdesign-vue-next';
 import {ErrorCircleIcon, HeartIcon, ChatDoubleIcon, TimeIcon} from 'tdesign-icons-vue-next';
 import type {ListProps} from 'tdesign-vue-next';
+import type {ISnap} from '@/interface';
 import instance from '@/services';
 import {apiUrls} from '@/services/api.ts';
 import SvgIcon from '@/components/SvgIcon.vue';
@@ -203,7 +204,7 @@ import {notificationManager} from '@/common/notification-manager.ts';
 const visible = ref(false);
 const isOpen = ref(isLateNightTime());
 let sec = ref(getRemainingSecondsTo6AM());
-const snaps = ref<Array<any>>([]);
+const snaps = ref<ISnap[]>([]);
 // 播放声音
 const {notifyWithSound} = useNotification();
 import notificationSound from '@/assets/sounds/notification.mp3';
@@ -300,17 +301,17 @@ async function fetch_snap_latest() {
 async function fetchSnaps() {
   try {
     loading.value = true;
-    let last_cursor = snaps.value.length;
-    if (last_cursor == 0) {
+    if (snaps.value.length === 0) {
       await fetch_snap_latest();
       return;
     }
-    if (snaps.value.length > 0) {
-      last_cursor = snaps.value.at(-1).id;
-    }
-    const res = await instance.get(apiUrls.get_snaps(), {params: {limit: 10, cursor: last_cursor}});
-    hasMore.value = res.data.total > 9;
-    const combined = [...snaps.value, ...res.data.items];
+    // 后端的分页参数是 offset（从 0 开始的偏移量），不是游标 ——
+    // 原先传 cursor=<最后一条 id> 会被忽略，永远拿回第一页，界面表现为"加载更多没反应"
+    const offset = snaps.value.length;
+    const res = await instance.get(apiUrls.get_snaps(), {params: {limit: 10, offset}});
+    const items: ISnap[] = res.data.items ?? [];
+    hasMore.value = offset + items.length < (res.data.total ?? 0);
+    const combined = [...snaps.value, ...items];
 
     // Map 去重（保留最后出现的那条）
     const map = new Map();
@@ -422,10 +423,11 @@ const onConfirm = async () => {
  */
 const likeSnap = async (id: number) => {
   try {
-    const r: any = await instance.get(apiUrls.like_snap(id));
+    // 点赞是写操作，后端已从 GET 改成 POST；响应字段也从 like 改成 like_count
+    const r: any = await instance.post(apiUrls.like_snap(id));
     const snap = snaps.value.find((item) => item.id == id);
     if (!snap) return;
-    snap.like = r.data.like;
+    snap.like_count = r.data.like_count;
   } catch (err) {
     logger.warn('树洞点赞失败', err);
     MessagePlugin.error('点赞失败，请稍后重试');

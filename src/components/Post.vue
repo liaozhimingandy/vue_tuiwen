@@ -25,7 +25,7 @@ import {
 } from '@/common/utils.ts';
 import instance from '../services/';
 import appStore from '../stores';
-import {apiUrls} from '@/services/api.ts';
+import {apiUrls, COMMENT_TARGET_POST} from '@/services/api.ts';
 import UserAvatar from '@/components/UserAvatar.vue';
 import {Ticker} from '@tombcato/smart-ticker/vue';
 import '@tombcato/smart-ticker/style.css';
@@ -126,7 +126,7 @@ const weiboShareUrl = computed(() => {
   const params = new URLSearchParams({
     url,
     // 微博 share 接口只用 title 一个参数承载文案
-    title: `来自${account.value.nick_name ?? ''}的分享 - ${text}`,
+    title: `来自${account.value.nickname ?? ''}的分享 - ${text}`,
   });
   return `https://service.weibo.com/share/share.php?${params.toString()}`;
 });
@@ -159,10 +159,10 @@ const handleLike = async (post_id: string) => {
 
   try {
     if (!wasLiked) {
+      // 入参只带目标与类型：点赞人由服务端从令牌取，带 account_id 已无意义（会被忽略）
       await instance.post(apiUrls.post_likes(), {
-        obj_id: post_id,
-        obj_type: 1,
-        account_id: account_id,
+        target_id: post_id,
+        target_type: COMMENT_TARGET_POST,
       });
       await MessagePlugin.success('点赞成功');
     } else {
@@ -184,11 +184,11 @@ const handleSubmit = async () => {
 
   submitting.value = true;
   try {
+    // 评论人由服务端从令牌取；is_root 由后端按 parent_id 推导，客户端不再声明
     const r: any = await instance.post(apiUrls.post_comments(), {
       content: content,
-      obj_id: props.post.post_id,
-      obj_type: 1,
-      account_id: account_id,
+      target_id: props.post.post_id,
+      target_type: COMMENT_TARGET_POST,
     });
     await MessagePlugin.success('评论成功!');
     comment_data.value = '';
@@ -322,8 +322,8 @@ onMounted(async () => {
             <t-popup trigger="hover" show-arrow placement="bottom-left">
               <template #content>
                 <t-space direction="vertical" style="width: 300px">
-                  <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name" />
-                  <t-typography-text style="margin: 0">{{ account?.nick_name || post.account_id }}</t-typography-text>
+                  <UserAvatar :avatar="account?.avatar" :nickname="account?.nickname" />
+                  <t-typography-text style="margin: 0">{{ account?.nickname || post.account_id }}</t-typography-text>
                   <t-typography-text style="margin: 0"
                     >正在关注: {{ follow.followee_count }} | 粉丝数:
                     {{ follow.follower_count }}
@@ -345,12 +345,12 @@ onMounted(async () => {
                 </t-space>
               </template>
               <router-link :to="{name: 'user', params: {username: post.account_id}}">
-                <UserAvatar :avatar="account?.avatar" :nickname="account?.nick_name" />
+                <UserAvatar :avatar="account?.avatar" :nickname="account?.nickname" />
               </router-link>
             </t-popup>
             <div>
               <t-typography-text style="margin: 0"
-                ><b>{{ account?.nick_name || post.account_id }}</b>
+                ><b>{{ account?.nickname || post.account_id }}</b>
               </t-typography-text>
               <br />
               <span style="color: #888">发布于{{ timestampFormat(getEntityTime(post)) }}</span>
@@ -513,7 +513,7 @@ onMounted(async () => {
         <t-list v-if="select_item === 'comment'" :header="`${comments.length} 条评论`" :split="true">
           <t-list-item v-for="item in comments" :key="item.comment_id">
             <t-comment
-              :author="user_map[item.account_id]?.nick_name"
+              :author="user_map[item.account_id]?.nickname"
               :avatar="getResourceUrl(user_map[item.account_id]?.avatar)"
               :content="item.content"
               :datetime="timestampFormat(getEntityTime(item))"

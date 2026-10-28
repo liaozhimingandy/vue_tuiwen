@@ -114,6 +114,7 @@ const onPublish = async () => {
     post_type: 2, // 2 表示长文类型（口径待确认）
     from_device: 9, // 设备来源标识（口径待确认）
     status: 1, // 1 表示正常发布状态
+    created_at: new Date().toISOString(), // 本地乐观对象补时间，接口返回后会用服务端值覆盖
   };
 
   // 调发布接口。

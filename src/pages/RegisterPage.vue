@@ -30,8 +30,8 @@ const formData = ref({
   mail: '',
   password: '',
   confirmPassword: '',
-  nick_name: '',
-  gmt_birth: '',
+  nickname: '',
+  birthday: '',
   area_code: 'CHN',
   sex: 1,
 });
@@ -72,9 +72,9 @@ const rules = {
     {min: 1, max: 32, message: '长度必须介于6和16之间', trigger: ['blur', 'change']},
     {validator: validateConfirmPassword, trigger: 'blur'},
   ],
-  nick_name: [{required: false, message: '请输入显示名称', trigger: 'blur'}],
+  nickname: [{required: false, message: '请输入显示名称', trigger: 'blur'}],
   sex: [{required: true, message: '请选择你的性别', trigger: 'blur'}],
-  gmt_birth: [{required: true, message: '请选择出生日期', trigger: 'blur'}],
+  birthday: [{required: true, message: '请选择出生日期', trigger: 'blur'}],
 };
 
 /**
@@ -95,6 +95,8 @@ const handleRegister: FormProps['onSubmit'] = async ({validateResult, firstError
   const data = cloneDeep(formData.value);
   // 密码 md5 哈希后再提交，避免以明文在网络中传输
   data.password = md5(data.password);
+  // confirmPassword 只是前端校验用的临时字段，后端 AccountCreate 没有它（多余字段会被忽略，但没必要发）
+  delete (data as Partial<typeof data>).confirmPassword;
 
   // 调用注册接口。必须 try/catch/finally：失败时不复位 submitting，
   // 按钮会永远转圈；且网络错误没有 response，直接 err.response.data.detail 会再抛 TypeError
@@ -169,11 +171,11 @@ const mailOptions = computed<AutoCompleteProps['options']>(() => {
             </t-input>
           </t-form-item>
           <t-divider />
-          <t-form-item name="nick_name" label="显示名称" :status-icon="true">
-            <t-input v-model:value="formData.nick_name"></t-input>
+          <t-form-item name="nickname" label="显示名称" :status-icon="true">
+            <t-input v-model:value="formData.nickname"></t-input>
           </t-form-item>
-          <t-form-item label="出生日期" name="gmt_birth" :status-icon="true">
-            <t-date-picker v-model:value="formData.gmt_birth" value-format="YYYY-MM-DD" style="width: 100%" />
+          <t-form-item label="出生日期" name="birthday" :status-icon="true">
+            <t-date-picker v-model:value="formData.birthday" value-format="YYYY-MM-DD" style="width: 100%" />
           </t-form-item>
           <t-form-item name="sex" label="性别" :status-icon="true">
             <t-select v-model:value="formData.sex" :options="sexListOptions" />

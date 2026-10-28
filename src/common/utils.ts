@@ -81,24 +81,26 @@ export const timestampFormat = (datetime: string) => {
 /**
  * 从实体对象上取时间字段
  *
- * ⚠️ 后端不同接口对"创建时间"的字段命名并不统一：
- * 帖子里有 `create_at`，用户/评论里是 `gmt_created`。
- * 统一通过本函数取值，避免某一路径取到 undefined 后
- * 触发 `new Date(undefined)` → NaN → 排序失效、页面显示 "NaN年NaN月…"。
+ * 后端已把创建时间统一为 `created_at`（帖子/评论/快照/通知都是列名 created_at），
+ * 历史上出现过的 `create_at`（少个 d）与 `gmt_created`（老用户表命名）都已废弃。
+ * 这里仍保留一条兜底链：接口缓存、离线数据里可能还残留旧字段，
+ * 取不到时返回空字符串而不是让 `new Date(undefined)` 变成 NaN。
  *
  * @param item 任意带时间字段的对象
  * @returns 时间字符串；均缺失时返回空字符串
  */
-export function getEntityTime(item?: {create_at?: string | null; gmt_created?: string | null} | null): string {
+export function getEntityTime(
+  item?: {created_at?: string | null; create_at?: string | null; gmt_created?: string | null} | null,
+): string {
   if (!item) return '';
-  return item.create_at || item.gmt_created || '';
+  return item.created_at || item.create_at || item.gmt_created || '';
 }
 
 /**
  * 按创建时间倒序比较（最新在前）
  * 供 Array.prototype.sort 使用
  */
-export function compareByTimeDesc<T extends {create_at?: string | null; gmt_created?: string | null}>(
+export function compareByTimeDesc<T extends {created_at?: string | null; create_at?: string | null}>(
   a: T,
   b: T,
 ): number {

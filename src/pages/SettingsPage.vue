@@ -137,11 +137,11 @@ const rules_account = {
       trigger: 'blur',
     },
   ],
-  nick_name: [
+  nickname: [
     {required: true, message: '用于对外显示的网名', trigger: 'blur'},
     {min: 2, max: 32, message: '长度必须介于2和32之间', trigger: ['blur', 'change']},
   ],
-  gmt_birth: [{required: true, message: '你的出生日期', trigger: 'blur'}],
+  birthday: [{required: true, message: '你的出生日期', trigger: 'blur'}],
   sex: [{required: true, message: '性别', trigger: 'blur'}],
 };
 
@@ -157,7 +157,7 @@ const password_reset = (ctx: {validateResult: any; firstError?: string}) => {
 
   saving.value = true;
   let data = {
-    account_id: account.value.account_id,
+    // 当前账户由令牌确定，后端不再从请求体取 account_id（避免伪造越权）
     password_current: md5(formData.password_current),
     password_new: md5(formData.password_new),
   };
@@ -218,8 +218,8 @@ const update_account = async (ctx: {validateResult: any; firstError?: string}) =
     }
 
     let data = {
-      nick_name: account.value.nick_name,
-      gmt_birth: account.value.gmt_birth,
+      nickname: account.value.nickname,
+      birthday: account.value.birthday,
       area_code: account.value.area_code,
       // sex 在 IAccount 中本就是 number | null，无需 parseInt；
       // 缺失时传 null（与原先 parseInt(undefined) 序列化后的结果一致）
@@ -424,14 +424,14 @@ onBeforeUnmount(() => {
                     <t-form-item label="用户名" name="username">
                       <t-input v-model="account.username" placeholder="平台唯一标识,不能和其他人相同"> </t-input>
                     </t-form-item>
-                    <t-form-item label="昵称" name="nick_name">
+                    <t-form-item label="昵称" name="nickname">
                       <t-input
-                        v-model:value="account.nick_name"
+                        v-model:value="account.nickname"
                         placeholder="用于对外显示的网名,可以和其他人同名"
                       ></t-input>
                     </t-form-item>
-                    <t-form-item label="出生日期" name="gmt_birth">
-                      <t-date-picker v-model:value="account.gmt_birth" value-format="YYYY-MM-DD"> </t-date-picker>
+                    <t-form-item label="出生日期" name="birthday">
+                      <t-date-picker v-model:value="account.birthday" value-format="YYYY-MM-DD"> </t-date-picker>
                     </t-form-item>
                     <t-form-item name="sex" label="性别">
                       <t-select v-model:value="account.sex" :options="sexListOptions" />

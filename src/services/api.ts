@@ -14,6 +14,9 @@ import type {IAccount} from '@/interface';
 import {config} from '../common/config.ts';
 import {getApiBaseUrl} from '../common/endpoint-detector.ts';
 
+/** 评论/点赞的 target_type 取值：1 = 帖子（后端 Comment.TargetTypeEnum.POST） */
+export const COMMENT_TARGET_POST = 1;
+
 export const apiUrls = {
   // 用户账号相关
   get_account: (account_id: string) => `/accounts/${account_id}/`,
@@ -36,11 +39,13 @@ export const apiUrls = {
   get_account_posts: (account_id: string) => `/posts/accounts/${account_id}/`,
   post_posts: () => '/posts/',
   delete_posts: (post_id: string) => `/posts/${post_id}/`,
-  get_posts_latest: () => '/posts/lastest/',
+  /** 最近 10 条（后端路由是 latest，早先这里误写成 lastest，导致轮询一直 404） */
+  get_posts_latest: () => '/posts/latest/',
   get_s_post: (post_id: string) => `/posts/s/${post_id}/`,
 
   // 评论相关
-  get_comments: (post_id: string) => `/comments/1/${post_id}/`,
+  /** 评论列表路径为 /comments/{target_type}/{target_id}/，1 = 帖子 */
+  get_comments: (post_id: string) => `/comments/${COMMENT_TARGET_POST}/${post_id}/`,
   post_comments: () => `/comments/`,
   delete_comments: (comment_id: string) => `/comments/${comment_id}/`,
 
@@ -51,11 +56,12 @@ export const apiUrls = {
 
   // 关注相关
   post_follow: () => '/follows/',
-  delete_follow: (follower_id: string, followee_id: string) => `/follows/${follower_id}/${followee_id}/`,
+  /** 取消关注只需 followee_id —— 关注者取自令牌，避免删掉别人的关注关系 */
+  delete_follow: (followee_id: string) => `/follows/${followee_id}/`,
   get_account_follow: (account_id: string) => `/follows/${account_id}/count/`,
-  /** 某用户的关注列表（TA 关注了谁） */
+  /** 某用户的关注列表（TA 关注了谁）。后端暂未实现，调用方需容忍 404 */
   get_followees: (account_id: string) => `/follows/${account_id}/followees/`,
-  /** 某用户的粉丝列表（谁关注了 TA） */
+  /** 某用户的粉丝列表（谁关注了 TA）。后端暂未实现，调用方需容忍 404 */
   get_followers: (account_id: string) => `/follows/${account_id}/followers/`,
 
   // 上传 & 分享

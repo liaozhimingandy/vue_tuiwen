@@ -276,18 +276,15 @@ export const useCacheStore = defineStore('cache', () => {
     };
 
     if (!account.follow.is_following) {
-      // 当前未关注 → 发起关注
-      const data = {
-        follower_id: follower_id,
-        followee_id: followee_id,
-      };
-      await instance.post(apiUrls.post_follow(), {...data});
+      // 当前未关注 → 发起关注。关注者由服务端从令牌取，请求体只传 followee_id
+      await instance.post(apiUrls.post_follow(), {followee_id: followee_id});
       account.follow.is_following = true;
       bumpCount(1);
       await MessagePlugin.success('关注成功');
     } else {
       // 已关注 → 取消关注（统一 await，保证异常能被上层捕获）
-      await instance.delete(apiUrls.delete_follow(follower_id, followee_id));
+      // 路径里只带 followee_id：旧写法 /follows/{a}/{b} 允许删别人的关注关系，后端已收窄
+      await instance.delete(apiUrls.delete_follow(followee_id));
       account.follow.is_following = false;
       bumpCount(-1);
       await MessagePlugin.success('取消关注成功');

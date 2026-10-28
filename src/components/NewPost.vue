@@ -76,6 +76,8 @@ const handlePublish = async () => {
       post_type: 1,
       from_device: 9,
       status: 1,
+      // 后端返回的帖子一定带 created_at，本地乐观对象也补上，避免后续排序/展示取不到时间
+      created_at: new Date().toISOString(),
     };
 
     // ⚠️ 必须 await：publish_post 返回的是 Promise。
@@ -198,7 +200,7 @@ const formatUploadResp = (resp: any) => {
         <!-- 用户头像 -->
         <UserAvatar
           :avatar="appStore.useAccountStore.account?.avatar"
-          :nickname="appStore.useAccountStore.account?.nick_name"
+          :nickname="appStore.useAccountStore.account?.nickname"
         />
         <!-- 输入框 -->
         <t-input
@@ -258,7 +260,7 @@ const formatUploadResp = (resp: any) => {
         <div style="display: flex; align-items: center; gap: 16px">
           <UserAvatar
             :avatar="appStore.useAccountStore.account?.avatar"
-            :nickname="appStore.useAccountStore.account?.nick_name"
+            :nickname="appStore.useAccountStore.account?.nickname"
           />
           <t-dropdown :options="dropdownOptions" @click="handleMenuClick">
             <t-button variant="text">

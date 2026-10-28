@@ -180,7 +180,7 @@ const onEnter = () => {
 interface SearchUser {
   account_id: string;
   username?: string;
-  nick_name?: string;
+  nickname?: string;
   bio?: string;
   avatar?: string;
   [property: string]: any;
@@ -190,8 +190,8 @@ interface SearchPost {
   post_id: string;
   account_id: string;
   content?: {text?: string; [k: string]: any};
-  create_at?: string;
-  gmt_created?: string;
+  /** 后端统一用 created_at */
+  created_at?: string;
   [property: string]: any;
 }
 
@@ -370,13 +370,13 @@ const toggleFollow = async (u: SearchUser) => {
   followingMap[u.account_id] = target;
   try {
     if (target) {
+      // 关注者取自令牌，请求体只传 followee_id
       await instance.post(apiUrls.post_follow(), {
-        follower_id: appStore.useAccountStore.account.account_id,
         followee_id: u.account_id,
       });
       await MessagePlugin.success('关注成功');
     } else {
-      await instance.delete(apiUrls.delete_follow(appStore.useAccountStore.account.account_id, u.account_id));
+      await instance.delete(apiUrls.delete_follow(u.account_id));
       await MessagePlugin.success('取消关注成功');
     }
   } catch (e) {
@@ -546,11 +546,11 @@ onMounted(async () => {
               <t-list-item v-for="u in userItems" :key="u.account_id" class="user-row" @click="goUser(u)">
                 <t-list-item-meta>
                   <template #image>
-                    <UserAvatar :avatar="u.avatar" :nickname="u.nick_name" />
+                    <UserAvatar :avatar="u.avatar" :nickname="u.nickname" />
                   </template>
                   <template #title>
                     <span class="meta-title">
-                      <template v-for="(part, i) in highlight(u.nick_name ?? '', keyword)" :key="i">
+                      <template v-for="(part, i) in highlight(u.nickname ?? '', keyword)" :key="i">
                         <mark v-if="part.hit" class="hl">{{ part.text }}</mark>
                         <template v-else>{{ part.text }}</template>
                       </template>
