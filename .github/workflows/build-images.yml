@@ -164,12 +164,22 @@ jobs:
           HUB_NS="${HUB_USER:-${GITHUB_REPOSITORY_OWNER}}"
           HUB_IMAGE="${HUB_NS}/${IMAGE_NAME}"
 
+          # 用户名填成邮箱/带空格时，docker tag 只会回一句 invalid reference format，
+          # 看不出是哪个 secret 错了，这里提前给出可读原因
+          case "${HUB_IMAGE}" in
+            *@*|*\ *)
+              echo "::error title=Docker Hub 用户名非法::拼出的镜像名是 ${HUB_IMAGE}，含 @ 或空格。检查 secrets.DOCKERHUB_USERNAME / DOCKER_USERNAME 是否填成了邮箱"
+              exit 1 ;;
+          esac
+
           if [ "${WANT_PUSH}" = "true" ] && [ -n "${HUB_USER:-}" ] && [ -n "${HUB_PASS:-}" ]; then
-            if echo "${HUB_PASS}" | docker login -u "${HUB_USER}" --password-stdin >/dev/null 2>&1; then
+            # 登录失败的原文必须留下：只写 "凭据无效" 会让人分不清是 token 没写权限、
+            # 开了 2FA 还是账号密码错，而这三种的处理方式完全不同
+            if HUB_ERR="$(echo "${HUB_PASS}" | docker login -u "${HUB_USER}" --password-stdin 2>&1 >/dev/null)"; then
               PUSH_HUB="true"
               echo "Docker Hub 登录成功：${HUB_IMAGE}"
             else
-              echo "::warning title=Docker Hub 登录失败::凭据无效或网络异常，跳过推送"
+              echo "::warning title=Docker Hub 登录失败::$(echo "${HUB_ERR}" | tail -1)"
             fi
           else
             echo "Docker Hub 凭据未配置或本次不需要推送，跳过"
@@ -177,21 +187,28 @@ jobs:
 
           if [ "${WANT_PUSH}" = "true" ] && [ -n "${ALIYUN_REGISTRY:-}" ] \
              && [ -n "${ALIYUN_NAMESPACE:-}" ] && [ -n "${ALI_USER:-}" ] && [ -n "${ALI_PASS:-}" ]; then
-            if echo "${ALI_PASS}" | docker login -u "${ALI_USER}" --password-stdin "${ALIYUN_REGISTRY}" >/dev/null 2>&1; then
+            if ALI_ERR="$(echo "${ALI_PASS}" | docker login -u "${ALI_USER}" --password-stdin "${ALIYUN_REGISTRY}" 2>&1 >/dev/null)"; then
               PUSH_ALI="true"
               echo "阿里云 ACR 登录成功：${ALIYUN_REGISTRY}/${ALIYUN_NAMESPACE}/${IMAGE_NAME}"
             else
-              echo "::warning title=阿里云登录失败::凭据无效或网络异常，跳过推送"
+              echo "::warning title=阿里云登录失败::$(echo "${ALI_ERR}" | tail -1)"
             fi
           else
             echo "阿里云凭据未配置（或缺少 vars.ALIYUN_NAMESPACE），跳过"
+          fi
+
+          # 没配齐时不要拼出 "//vue_tuiwen" 这种看着像坏掉的值，留空由摘要显示为「未配置」
+          if [ -n "${ALIYUN_REGISTRY:-}" ] && [ -n "${ALIYUN_NAMESPACE:-}" ]; then
+            ALI_IMAGE="${ALIYUN_REGISTRY}/${ALIYUN_NAMESPACE}/${IMAGE_NAME}"
+          else
+            ALI_IMAGE=""
           fi
 
           {
             echo "push_hub=${PUSH_HUB}"
             echo "push_aliyun=${PUSH_ALI}"
             echo "hub_image=${HUB_IMAGE}"
-            echo "aliyun_image=${ALIYUN_REGISTRY:-}/${ALIYUN_NAMESPACE:-}/${IMAGE_NAME}"
+            echo "aliyun_image=${ALI_IMAGE}"
           } >> "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------------------------------
@@ -236,13 +253,25 @@ jobs:
           IMAGE: ${{ needs.meta.outputs.hub_image }}
         run: |
           set -euo pipefail
-          docker tag "${IMAGE_NAME}:${VERSION}" "${IMAGE}:${VERSION}"
-          for t in ${EXTRA_TAGS}; do
-            docker tag "${IMAGE_NAME}:${VERSION}" "${IMAGE}:${t}"
-          done
-          docker push "${IMAGE}:${VERSION}"
-          for t in ${EXTRA_TAGS}; do docker push "${IMAGE}:${t}"; done
-          echo "已推送 ${IMAGE}:${VERSION} ${EXTRA_TAGS}"
+
+          # 打标签 + 推送，失败时把 docker 的原文写进注解。
+          # 只让 job 变红是没用的：日志要管理员权限才看得到，
+          # 而注解在 run 页面顶部和 API 里都能直接读到（denied / unauthorized 一眼可辨）。
+          tag_and_push() {
+            local ref="$1" out
+            if ! out=$(docker tag "${IMAGE_NAME}:${VERSION}" "${ref}" 2>&1); then
+              echo "::error title=docker tag 失败::${ref} :: $(echo "${out}" | tr '\n' ' ' | cut -c1-280)"
+              exit 1
+            fi
+            if ! out=$(docker push "${ref}" 2>&1); then
+              echo "::error title=Docker Hub 推送失败::${ref} :: $(echo "${out}" | tr '\n' ' ' | cut -c1-280)"
+              exit 1
+            fi
+            echo "已推送 ${ref}"
+          }
+
+          tag_and_push "${IMAGE}:${VERSION}"
+          for t in ${EXTRA_TAGS}; do tag_and_push "${IMAGE}:${t}"; done
 
       - name: 推送到阿里云 ACR
         if: needs.meta.outputs.push_aliyun == 'true'
@@ -252,13 +281,22 @@ jobs:
           IMAGE: ${{ needs.meta.outputs.aliyun_image }}
         run: |
           set -euo pipefail
-          docker tag "${IMAGE_NAME}:${VERSION}" "${IMAGE}:${VERSION}"
-          for t in ${EXTRA_TAGS}; do
-            docker tag "${IMAGE_NAME}:${VERSION}" "${IMAGE}:${t}"
-          done
-          docker push "${IMAGE}:${VERSION}"
-          for t in ${EXTRA_TAGS}; do docker push "${IMAGE}:${t}"; done
-          echo "已推送 ${IMAGE}:${VERSION} ${EXTRA_TAGS}"
+
+          tag_and_push() {
+            local ref="$1" out
+            if ! out=$(docker tag "${IMAGE_NAME}:${VERSION}" "${ref}" 2>&1); then
+              echo "::error title=docker tag 失败::${ref} :: $(echo "${out}" | tr '\n' ' ' | cut -c1-280)"
+              exit 1
+            fi
+            if ! out=$(docker push "${ref}" 2>&1); then
+              echo "::error title=阿里云 ACR 推送失败::${ref} :: $(echo "${out}" | tr '\n' ' ' | cut -c1-280)"
+              exit 1
+            fi
+            echo "已推送 ${ref}"
+          }
+
+          tag_and_push "${IMAGE}:${VERSION}"
+          for t in ${EXTRA_TAGS}; do tag_and_push "${IMAGE}:${t}"; done
 
       - name: 写入摘要
         if: always()
