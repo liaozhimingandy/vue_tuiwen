@@ -79,6 +79,8 @@ docker build -t vue_tuiwen:dev . && docker run --rm -p 8080:80 vue_tuiwen:dev
 | `formatDateTimeWithZone(v)` | 带偏移，如 `2026-10-29 14:32 (UTC+08:00)`，用于需要明确口径的地方 |
 | `parseServerTime(v)` | 只解析不格式化（排序、比较、二次计算用） |
 | `getLocalTimeZone()` / `getLocalTimeZoneOffset()` | 当前展示时区名 / 偏移 |
+| `isInDailyWindow(start, end)` | 判断是否落在"每天 start~end 点"窗口内（支持跨零点） |
+| `secondsUntilDailyWindowEnd(end)` | 距窗口结束还有多少秒（倒计时） |
 
 几个必须知道的坑：
 
@@ -87,6 +89,16 @@ docker build -t vue_tuiwen:dev . && docker run --rm -p 8080:80 vue_tuiwen:dev
 - **纯日期（`2026-10-29`）不做时区换算**。生日这类字段是"日历上的一天"，换算会推前一天。
 - **6 位小数秒会截成 3 位**。Safari 解析 `.123456Z` 会直接返回 `Invalid Date`。
 - 旧代码里的 `timestampFormat()` 保留为 `formatSmartTime` 的别名，行为一致。
+
+### 上报时区（`X-Timezone`）
+
+请求拦截器会给**每个请求**加一个 `X-Timezone: <IANA 时区名>` 头（`services/index.ts`）。
+「天亮即焚」的场次窗口按**用户本地** 23:00~06:00 判定，服务端拿不到这个头就会退回
+业务时区（Asia/Shanghai），出国用户会看到"页面显示开放中、接口却返回空列表"。
+
+前端判断开放状态用的是 `isInDailyWindow()`，时区来源与这个头相同（都是 `getLocalTimeZone()`），
+所以两边不会打架。改场次时间要同时改三处：`SnapPage.vue` 的常量、页面文案、
+后端 `.env` 的 `SNAP_SESSION_OPEN_HOUR` / `SNAP_SESSION_BURN_HOUR`。
 
 ## 故障排查
 

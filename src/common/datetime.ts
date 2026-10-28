@@ -144,6 +144,35 @@ export function parseServerTime(input?: string | number | Date | null): Date | n
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/**
+ * 缓存的时分秒格式化器
+ *
+ * `formatSmartTime` 会在列表里逐条调用，`new Intl.DateTimeFormat()` 的构造开销
+ * 比 format 本身大得多（每条一次的话，长列表滚动会明显掉帧）。
+ * 时区一变（`setDisplayTimeZone`）就重建，所以这里同时记住它对应的时区名。
+ */
+let partsFormatterCache: Intl.DateTimeFormat | null = null;
+let partsFormatterZone: string | null = null;
+
+/** 取（或重建）当前时区对应的格式化器 */
+function partsFormatter(): Intl.DateTimeFormat {
+  const zone = getLocalTimeZone();
+  if (!partsFormatterCache || partsFormatterZone !== zone) {
+    partsFormatterCache = new Intl.DateTimeFormat('en-CA', {
+      timeZone: zone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    partsFormatterZone = zone;
+  }
+  return partsFormatterCache;
+}
+
 /** 在当前时区取某个时刻的各字段（用 Intl 取，避免手写 getFullYear 这类依赖运行环境的写法） */
 function localParts(date: Date): {
   year: number;
@@ -153,18 +182,8 @@ function localParts(date: Date): {
   minute: number;
   second: number;
 } {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: getLocalTimeZone(),
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
   const parts: Record<string, number> = {};
-  for (const part of formatter.formatToParts(date)) {
+  for (const part of partsFormatter().formatToParts(date)) {
     if (part.type !== 'literal') parts[part.type] = Number(part.value);
   }
   // 个别时区在 24 点整会给出 hour=24，归一成 0
@@ -297,4 +316,44 @@ export function compareTimeDesc(a?: string | null, b?: string | null): number {
   if (!left) return 1;
   if (!right) return -1;
   return right.getTime() - left.getTime();
+}
+
+/**
+ * 判断某个时刻是否落在「每天 startHour 点 ~ endHour 点」的窗口内
+ *
+ * 窗口左闭右开，支持跨零点（`startHour > endHour`，例如 23 → 6 表示 23:00~次日 06:00）。
+ *
+ * 用的是当前**展示时区**（默认浏览器系统时区）的墙钟，而不是 `Date#getHours()`：
+ * 后者只认系统时区，一旦覆盖时区（`setDisplayTimeZone`）就会和展示的时间对不上。
+ * 更重要的是，这个时区与上报给后端的 `X-Timezone` 是**同一来源**（`getLocalTimeZone`），
+ * 所以「前端认为开放」和「后端返回数据」不会打架。
+ *
+ * @param startHour 起始小时（含），0-23
+ * @param endHour 结束小时（不含），0-23
+ * @param date 目标时刻，默认当前时间
+ *
+ * @example
+ * isInDailyWindow(23, 6)  // 当地 23:30 → true；当地 12:00 → false
+ */
+export function isInDailyWindow(startHour: number, endHour: number, date: Date = new Date()): boolean {
+  // 起止相同表示全天开放，否则这个窗口永远为空，容易被误用成"关闭"
+  if (startHour === endHour) return true;
+
+  const {hour} = localParts(date);
+  return startHour < endHour ? hour >= startHour && hour < endHour : hour >= startHour || hour < endHour;
+}
+
+/**
+ * 距离窗口结束（`endHour` 整点）还有多少秒，用于倒计时
+ *
+ * 取"下一个 endHour 整点"：正好站在 endHour 整点时返回 24 小时，
+ * 因为那一刻窗口已经结束（左闭右开），下一次结束在明天同一时刻。
+ *
+ * @param endHour 窗口结束小时，0-23
+ * @param date 目标时刻，默认当前时间
+ */
+export function secondsUntilDailyWindowEnd(endHour: number, date: Date = new Date()): number {
+  const {hour, minute, second} = localParts(date);
+  const remain = (endHour - hour) * 3600 - minute * 60 - second;
+  return remain > 0 ? remain : remain + 86400;
 }

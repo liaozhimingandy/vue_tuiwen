@@ -17,6 +17,7 @@ import appStore from '@/stores';
 import {apiUrls} from './api.ts';
 import type {IToken} from '../interface';
 import {logger} from '../common/utils.ts';
+import {getLocalTimeZone} from '../common/datetime.ts';
 import {getApiBaseUrl, runtimeRedetectApi} from '../common/endpoint-detector.ts';
 
 /** 是否正在刷新 token（刷新锁，避免并发刷新） */
@@ -96,6 +97,11 @@ instance.interceptors.request.use(
     if (token.access_token) {
       requestConfig.headers['Authorization'] = `Bearer ${token.access_token}`;
     }
+    // 上报浏览器时区（IANA 名，如 Asia/Shanghai）：
+    // 「天亮即焚」的场次窗口按**用户本地** 23:00~06:00 计算，服务端拿不到这个头就会
+    // 退回业务时区，出国用户会看到"页面显示开放中、接口却返回空列表"。
+    // 与 SnapPage 里判断开放状态用的是同一个来源（getLocalTimeZone），不会打架。
+    requestConfig.headers['X-Timezone'] = getLocalTimeZone();
     //加载loading
     addLoading();
     return requestConfig;

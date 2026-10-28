@@ -200,10 +200,24 @@ import {Ticker} from '@tombcato/smart-ticker/vue';
 import '@tombcato/smart-ticker/style.css';
 import FeedbackDialog from '../components/FeedbackDialog.vue';
 import {notificationManager} from '@/common/notification-manager.ts';
+import {isInDailyWindow, secondsUntilDailyWindowEnd} from '@/common/datetime.ts';
+
+/**
+ * 「天亮即焚」开放时段（按**用户本地时间**）
+ *
+ * ⚠️ 必须与后端 .env 的 `SNAP_SESSION_OPEN_HOUR` / `SNAP_SESSION_BURN_HOUR` 保持一致，
+ * 也要与页面文案「每日23:00-次日06:00开放」一致。
+ *
+ * 判断用的是「用户所在时区」的墙钟，后端同样按请求头 `X-Timezone` 上报的时区算窗口
+ * （见 services/index.ts 的请求拦截器），两边时区来源相同，不会出现
+ * "页面显示开放中、接口却返回空列表"。
+ */
+const SNAP_OPEN_HOUR = 23;
+const SNAP_BURN_HOUR = 6;
 
 const visible = ref(false);
 const isOpen = ref(isLateNightTime());
-let sec = ref(getRemainingSecondsTo6AM());
+let sec = ref(getRemainingSecondsToClose());
 const snaps = ref<ISnap[]>([]);
 // 播放声音
 const {notifyWithSound} = useNotification();
@@ -247,7 +261,7 @@ const subscribeRemind = async () => {
 };
 
 function tick() {
-  sec.value = getRemainingSecondsTo6AM();
+  sec.value = getRemainingSecondsToClose();
   isOpen.value = isLateNightTime();
 }
 
@@ -355,30 +369,24 @@ onUnmounted(() => {
 });
 
 /**
- * 判断当前是否属于深夜来一发开放时段：23:00 ~ 次日 06:00
+ * 判断当前是否属于「天亮即焚」开放时段：本地时间 23:00 ~ 次日 06:00
  *
- * ⚠️ 与页面文案「每日23:00-次日06:00开放」保持一致。
- * 原实现写的是 hour >= 18，导致 18:00~23:00 页面显示"开放中"却和自身说明矛盾。
+ * 原实现写死 `hour >= 23 || hour < 6` 且用 `new Date().getHours()`（只认系统时区），
+ * 与后端按配置计算窗口的做法各写一份，改一处就漂移。现在统一走 datetime.ts，
+ * 时区口径与展示、与上报给后端的 X-Timezone 完全一致。
  */
 function isLateNightTime(): boolean {
-  const hour = new Date().getHours();
-  // 23点之后 或者 0-6点
-  return hour >= 23 || hour < 6;
+  return isInDailyWindow(SNAP_OPEN_HOUR, SNAP_BURN_HOUR);
 }
 
 /**
- * 获取距离板块关闭(早上6点)剩余倒计时秒数
+ * 获取距离板块关闭（本地时间 06:00）剩余秒数
+ *
+ * 原来用 `new Date()` 手工加减，跨月/夏令时/整点边界都要自己处理；
+ * 现在交给 secondsUntilDailyWindowEnd，站在 06:00 整点时返回 24 小时而不是 0。
  */
-function getRemainingSecondsTo6AM(): number {
-  const now = new Date();
-  let target = new Date();
-  if (now.getHours() >= 6) {
-    // 如果现在>=6点，则关闭，目标为明天6点
-    target.setDate(target.getDate() + 1);
-  }
-  target.setHours(6, 0, 0, 0);
-  const diff = target.getTime() - now.getTime();
-  return Math.max(0, Math.floor(diff / 1000));
+function getRemainingSecondsToClose(): number {
+  return secondsUntilDailyWindowEnd(SNAP_BURN_HOUR);
 }
 
 const onConfirm = async () => {
