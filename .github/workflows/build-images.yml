@@ -404,6 +404,10 @@ jobs:
             exit 1
           fi
 
+          # 推完把标签清单写进注解：作业日志要管理员权限才看得到，
+          # 注解谁都能读，"这次到底推了几个标签" 一眼可查（也方便核对没在乱建标签）
+          PUSHED=""
+
           # 打标签 + 推送，失败时把 docker 的原文写进注解。
           # 只让 job 变红是没用的：日志要仓库管理员权限才看得到，
           # 而注解在 run 页面顶部和 API 里都能直接读到（denied / unauthorized 一眼可辨）。
@@ -423,10 +427,13 @@ jobs:
               exit 1
             fi
             echo "已推送 ${ref}"
+            PUSHED="${PUSHED}${ref} "
           }
 
           tag_and_push "${IMAGE}:${VERSION}"
           for t in ${EXTRA_TAGS}; do tag_and_push "${IMAGE}:${t}"; done
+
+          echo "::notice title=Docker Hub 已推送 $(printf '%s' "${PUSHED}" | wc -w) 个标签::${PUSHED}"
 
       - name: 推送到阿里云 ACR
         if: needs.meta.outputs.push_aliyun == 'true'
@@ -447,6 +454,9 @@ jobs:
             exit 1
           fi
 
+          # 同 Docker Hub 步骤：推完把标签清单写进注解
+          PUSHED=""
+
           tag_and_push() {
             local ref="$1" out
             if ! out=$(docker tag "${IMAGE_NAME}:${VERSION}" "${ref}" 2>&1); then
@@ -461,10 +471,13 @@ jobs:
               exit 1
             fi
             echo "已推送 ${ref}"
+            PUSHED="${PUSHED}${ref} "
           }
 
           tag_and_push "${IMAGE}:${VERSION}"
           for t in ${EXTRA_TAGS}; do tag_and_push "${IMAGE}:${t}"; done
+
+          echo "::notice title=阿里云 ACR 已推送 $(printf '%s' "${PUSHED}" | wc -w) 个标签::${PUSHED}"
 
       - name: 写入摘要
         if: always()
