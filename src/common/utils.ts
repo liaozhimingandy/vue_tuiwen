@@ -6,77 +6,18 @@
  */
 import {config} from './config.ts';
 import {CUSTOM_FACE_MAP, CUSTOM_FACE_REG} from './emoji.ts';
-
-/**
- * 数字补零：不足两位时前面补 0
- * @param num 待处理数字（或数字字符串）
- */
-const zeroize = (num: string) => {
-  return (String(num).length === 1 ? '0' : '') + num;
-};
+import {compareTimeDesc, formatSmartTime} from './datetime.ts';
 
 /**
  * 将时间字符串格式化为站内展示用的相对时间
  *
- * 规则：1 分钟内 → "刚刚"；1 小时内 → "N分钟前"；
- * 当天 → "今天HH:mm"；前一天 → "昨天HH:mm"；
- * 同年 → "MM月DD日 HH:mm"；跨年 → "YYYY年MM月DD日 HH:mm"
+ * 时区处理已统一收敛到 `@/common/datetime.ts`（解析 → 换本地时区 → 渲染），
+ * 这里只保留旧函数名，避免历史调用点全部改一遍。新代码建议直接调
+ * `formatSmartTime` / `formatDateTime`，语义更明确。
  *
- * @param datetime 后端返回的时间字符串
+ * @param datetime 后端返回的时间字符串（UTC，带 Z）
  */
-export const timestampFormat = (datetime: string) => {
-  if (!datetime) return '';
-  const time = new Date(datetime).getTime();
-  // 非法时间串（后端字段缺失 / 格式异常）会得到 Invalid Date，
-  // 继续参与计算会渲染成 "NaN年NaN月NaN日 NaN:NaN"，这里直接兜底为空
-  if (Number.isNaN(time)) return '';
-
-  const timestamp = Math.floor(time / 1000);
-  const curTimestamp = Math.floor(Date.now() / 1000); // 当前时间戳
-  const timestampDiff = curTimestamp - timestamp; // 参数时间戳与当前时间戳相差秒数
-  const curDate = new Date(curTimestamp * 1000); // 当前时间日期对象
-  const tmDate = new Date(timestamp * 1000); // 参数时间戳转换成的日期对象
-  const Y = tmDate.getFullYear();
-  const m = tmDate.getMonth() + 1;
-  const d = tmDate.getDate();
-  const H = tmDate.getHours();
-  const i = tmDate.getMinutes();
-
-  if (timestampDiff < 60) {
-    // 一分钟以内
-    return '刚刚';
-  } else if (timestampDiff < 3600) {
-    // 一小时前之内
-    return Math.floor(timestampDiff / 60) + '分钟前';
-  } else if (curDate.getFullYear() === Y && curDate.getMonth() + 1 === m && curDate.getDate() === d) {
-    return '今天' + zeroize(String(H)) + ':' + zeroize(String(i));
-  } else {
-    /**
-     * 「昨天」按**日历日期**判断，而不是「当前时间戳往前推 86400 秒」。
-     * 后者会在这些场景算错：
-     * - 夏令时切换当天（一天并不是 86400 秒）；
-     * - 今天凌晨 00:30 看昨晚 23:59 的推文：减 86400 后落到前天，被误判为「前天」。
-     */
-    const yesterday = new Date(curDate.getFullYear(), curDate.getMonth(), curDate.getDate() - 1);
-    if (yesterday.getFullYear() === Y && yesterday.getMonth() + 1 === m && yesterday.getDate() === d) {
-      return '昨天' + zeroize(String(H)) + ':' + zeroize(String(i));
-    } else if (curDate.getFullYear() === Y) {
-      return zeroize(String(m)) + '月' + zeroize(String(d)) + '日 ' + zeroize(String(H)) + ':' + zeroize(String(i));
-    } else {
-      return (
-        Y +
-        '年' +
-        zeroize(String(m)) +
-        '月' +
-        zeroize(String(d)) +
-        '日 ' +
-        zeroize(String(H)) +
-        ':' +
-        zeroize(String(i))
-      );
-    }
-  }
-};
+export const timestampFormat = (datetime: string) => formatSmartTime(datetime);
 
 /**
  * 从实体对象上取时间字段
@@ -85,6 +26,9 @@ export const timestampFormat = (datetime: string) => {
  * 历史上出现过的 `create_at`（少个 d）与 `gmt_created`（老用户表命名）都已废弃。
  * 这里仍保留一条兜底链：接口缓存、离线数据里可能还残留旧字段，
  * 取不到时返回空字符串而不是让 `new Date(undefined)` 变成 NaN。
+ *
+ * 注意：取出来的只是原始字符串，格式化和时区换算统一交给
+ * `@/common/datetime.ts`（`formatSmartTime` / `formatDateTime`）。
  *
  * @param item 任意带时间字段的对象
  * @returns 时间字符串；均缺失时返回空字符串
@@ -104,7 +48,7 @@ export function compareByTimeDesc<T extends {created_at?: string | null; create_
   a: T,
   b: T,
 ): number {
-  return new Date(getEntityTime(b)).getTime() - new Date(getEntityTime(a)).getTime();
+  return compareTimeDesc(getEntityTime(a), getEntityTime(b));
 }
 
 /**

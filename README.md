@@ -67,6 +67,27 @@ npm ci && npm run type-check && npm run format:check && npm run build
 docker build -t vue_tuiwen:dev . && docker run --rm -p 8080:80 vue_tuiwen:dev
 ```
 
+## 时间与时区
+
+后端接口返回的时间一律是 **UTC**，形如 `2026-10-29T06:32:10.123456Z`；页面按**浏览器本地时区**渲染。
+所有时间展示都走 `src/common/datetime.ts`，不要直接 `new Date(str)` 拼字符串：
+
+| 函数 | 用途 |
+| --- | --- |
+| `formatSmartTime(v)` | 站内相对时间：刚刚 / N分钟前 / 今天14:32 / 昨天14:32 / 10月29日 14:32 |
+| `formatDateTime(v, preset)` | 绝对时间，`preset`：`datetime` / `date` / `time` / `full` |
+| `formatDateTimeWithZone(v)` | 带偏移，如 `2026-10-29 14:32 (UTC+08:00)`，用于需要明确口径的地方 |
+| `parseServerTime(v)` | 只解析不格式化（排序、比较、二次计算用） |
+| `getLocalTimeZone()` / `getLocalTimeZoneOffset()` | 当前展示时区名 / 偏移 |
+
+几个必须知道的坑：
+
+- **不带偏移的字符串按 UTC 解释**。ES 规范会把 `2026-10-29T06:32:10` 当本地时间解析，
+  后端万一漏了 `Z`，东八区用户看到的时间就早 8 小时，且不会报错 —— 这里统一兜底成 UTC。
+- **纯日期（`2026-10-29`）不做时区换算**。生日这类字段是"日历上的一天"，换算会推前一天。
+- **6 位小数秒会截成 3 位**。Safari 解析 `.123456Z` 会直接返回 `Invalid Date`。
+- 旧代码里的 `timestampFormat()` 保留为 `formatSmartTime` 的别名，行为一致。
+
 ## 故障排查
 
 **作业 3 秒结束、一个步骤都没有，提示 `The job was not started because recent account payments have failed or your spending limit needs to be increased`**
