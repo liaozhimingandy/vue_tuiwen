@@ -1,7 +1,8 @@
 # vue_tuiwen
 
-[![CI](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/ci.yml)
-[![Build Images](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/build-images.yml/badge.svg?branch=develop)](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/build-images.yml)
+[![CI](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/ci.yml)
+[![Build Images](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/build-images.yml/badge.svg?branch=main)](https://github.com/liaozhimingandy/vue_tuiwen/actions/workflows/build-images.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 # 部署方案
 使用cloudeflare的免费服务
@@ -69,3 +70,7 @@ docker build -t vue_tuiwen:dev . && docker run --rm -p 8080:80 vue_tuiwen:dev
 
 `docker/latest/server/default.conf` 的 `try_files $uri $uri/ /index.html` 被改动了。刷新 `/u/xxx/` 这类前端路由必须回退到
 `index.html`，否则用户刷新页面就是白屏。
+
+## 许可证
+
+[MIT](LICENSE)
