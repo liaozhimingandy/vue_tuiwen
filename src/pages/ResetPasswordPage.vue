@@ -135,8 +135,7 @@ const emailOptions = computed<AutoCompleteProps['options']>(() => {
   <t-layout style="min-height: 100vh; background-color: white">
     <t-content>
       <t-row justify="center">
-        <!-- 桌面占半屏；手机上必须整屏，否则表单只剩 180px 宽 -->
-        <t-col :span="isMobile ? 24 : 6">
+        <t-col :span="6">
           <t-space direction="vertical" style="width: 100%">
             <t-typography-title>密码重置</t-typography-title>
             <t-divider></t-divider>

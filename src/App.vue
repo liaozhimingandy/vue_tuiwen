@@ -3,29 +3,16 @@
  * 根组件
  * 负责全局主题/字体注入、首屏 loading 与路由出口渲染。
  * 注意：真正的"启动遮罩"在 index.html 里，这里的是 Vue 挂载后的二次加载态。
- *
- * 移动端在这里套一层 MobileShell（顶部标题 + 内容 + 底部 Tab），
- * 页面本身不需要知道自己是桌面还是移动端，也不用重复写导航结构。
- * 哪些页面要外壳由路由 meta 决定，见 common/mobile.ts。
  */
-import {computed, onMounted, ref} from 'vue';
-import {useRoute, useRouter} from 'vue-router';
+import {ref, onMounted} from 'vue';
+import {useRouter} from 'vue-router';
 
 import 'tdesign-vue-next/es/style/index.css';
 import {logger} from '@/common/utils.ts';
-import {useDeviceWatcher} from '@/common/device.ts';
-import {resolveMobileView} from '@/common/mobile.ts';
-import MobileShell from '@/layouts/MobileShell.vue';
 
 /** 是否仍在初始化（初始化期间显示全屏 loading，不渲染路由） */
 const is_loading = ref<boolean>(true);
 const router = useRouter();
-const route = useRoute();
-const {isMobile} = useDeviceWatcher();
-
-const mobileView = computed(() => resolveMobileView(route));
-/** 是否走移动端外壳：桌面端、沉浸页（短视频/登录）都不套 */
-const useMobileShell = computed(() => isMobile.value && mobileView.value.shell);
 
 onMounted(async () => {
   try {
@@ -68,13 +55,6 @@ onMounted(async () => {
       <t-loading indicator loading preventScrollThrough text="页面加载中..." size="large" :delay="500" />
     </div>
     <!-- 加载完成后显示内容 -->
-    <!--
-      移动端套一层外壳：顶部标题栏 + 内容 + 底部 Tab 栏。
-      沉浸式页面（短视频、登录注册等）在路由 meta 上标记 mobileShell: false 即可跳过。
-    -->
-    <MobileShell v-else-if="useMobileShell">
-      <router-view />
-    </MobileShell>
     <router-view v-else />
   </t-config-provider>
 </template>

@@ -27,7 +27,6 @@ import Header from '../components/Header.vue';
 import appStore from '@/stores';
 import {logger} from '@/common/utils.ts';
 import {useDeviceWatcher} from '@/common/device.ts';
-import {measureMobileChrome} from '@/common/mobile.ts';
 import {apiUrls, update_self_account, get_posts} from '@/services/api.ts';
 
 /** 移动端断点统一取自 common/device.ts，避免页面里再维护一份 window.innerWidth 判断 */
@@ -43,19 +42,10 @@ const {posts} = storeToRefs(appStore.usePostStore);
 const router = useRouter();
 
 /**
- * 计算滚动容器高度：视口高度 - 顶部导航高度 - 底部 Tab 栏高度 - 间距
- *
- * 移动端直接量外壳（.mobile-shell）的上下 padding，而不是自己再算一遍
- * 「46 + 安全区」——安全区高度只有 CSS 的 env() 知道，JS 里拿不到，
- * 而外壳的 padding 已经包含了它，读现值最省事也最不会漂移。
- * Header 还没渲染出来时按 0 处理，避免读 `.offsetHeight` 抛错。
+ * 计算滚动容器高度：视口高度 - 顶部 Header 高度 - 间距
+ * Header 还没渲染出来时按 0 处理，避免读 `.offsetHeight` 抛错
  */
 const updateContentHeight = () => {
-  if (isMobile.value) {
-    contentHeight.value = window.innerHeight - measureMobileChrome() - 8;
-    return;
-  }
-
   const headerEl = headerRef.value?.$el ?? headerRef.value;
   const headerHeight = headerEl?.offsetHeight ?? 0;
   contentHeight.value = window.innerHeight - headerHeight - 12;
@@ -290,8 +280,7 @@ onBeforeUnmount(() => {
 
 <template>
   <t-layout style="min-height: 100vh; text-align: center">
-    <!-- 桌面顶栏；移动端由 MobileShell 的标题栏接管，这里不再渲染，否则两套头会叠在一起 -->
-    <t-header v-if="!isMobile" ref="headerRef" :style="{width: '100%', 'background-color': 'white'}">
+    <t-header ref="headerRef" :style="{width: '100%', 'background-color': 'white'}">
       <Header selected-keys="home" />
     </t-header>
     <t-content style="padding-top: 8px">
@@ -385,13 +374,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* 移动端底部有 Tab 栏，回到顶部按钮要抬到栏上方，否则永远压在栏下面点不到 */
-@media (max-width: 767px) {
-  :deep(.t-back-top) {
-    bottom: calc(var(--m-tabbar-h) + var(--m-safe-bottom) + 16px) !important;
-  }
-}
-
 .content {
   align-content: center;
   height: v-bind(contentHeight + 'px');

@@ -17,7 +17,7 @@
 -->
 <template>
   <t-layout>
-    <t-content class="dcf-content" style="margin: 0 60px">
+    <t-content style="margin: 0 60px">
       <t-typography-title>DCF企业自由现金流估值模型</t-typography-title>
       <!-- =========================
            估值模式
@@ -958,12 +958,5 @@ watch(
   border-left: 4px solid var(--td-brand-color);
   /* 左边内边距 = 线条与文字的距离 */
   padding-left: 12px;
-}
-
-/* 移动端：60px 的两侧留白在 390px 屏上吃掉三成宽度，表格会被挤成一条 */
-@media (max-width: 767px) {
-  .dcf-content {
-    margin: 0 12px !important;
-  }
 }
 </style>

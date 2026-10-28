@@ -209,8 +209,7 @@ const onSearch = async (val: string) => {
         class="login-center"
         style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%"
       >
-        <!-- 固定 400px 在 390px 的窄屏上会溢出横向滚动条 -->
-        <t-card :style="{width: isMobile ? 'calc(100vw - 32px)' : '400px'}" header-bordered>
+        <t-card style="width: 400px" header-bordered>
           <!-- Logo区域 -->
           <template #title>
             <div style="display: flex; align-items: center; gap: 8px">
