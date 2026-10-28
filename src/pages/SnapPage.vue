@@ -1,7 +1,8 @@
 <template>
-  <t-layout style="height: 100vh; background-color: #f7f7fa; z-index: 1">
+  <t-layout class="snap-layout" style="height: 100vh; background-color: #f7f7fa; z-index: 1">
     <!-- 自定义顶部头部 -->
     <t-header
+      class="snap-header"
       style="
         height: 56px;
         background: rgba(20, 20, 35, 0.95);
@@ -26,7 +27,7 @@
         >{{ countDownText }}
       </t-typography-text>
     </t-header>
-    <t-content style="flex: 1; overflow: hidden; padding: 60px 0 0 0">
+    <t-content class="snap-content" style="flex: 1; overflow: hidden; padding: 60px 0 0 0">
       <t-row justify="center" style="height: 100%">
         <t-col :md="7" :xs="11" :sm="12" style="height: 100%; display: flex; flex-direction: column">
           <!-- 非开放时段 -->
@@ -547,5 +548,35 @@ const onHandleClick: StickyToolProps['onClick'] = (context) => {
   text-align: center;
   width: auto;
   background-color: white;
+}
+
+/* ==================== 移动端 ====================
+   本页自带深色顶栏（含倒计时），所以路由上标了 mobileHeader: false，
+   外壳只提供底部 Tab 栏。这里要做的就是把高度和刘海屏对齐：
+   - 页面高度扣掉底部 Tab 栏，否则列表最后一条会被压在栏下面点不到；
+   - 顶栏是 position: fixed，必须自己躲开状态栏（没有外壳的 navbar 帮忙）；
+   - 正文的 padding-top 跟着顶栏一起下移，否则会被顶栏盖住一截。 */
+@media (max-width: 767px) {
+  /* 先给不支持 dvh 的老浏览器一个 vh 兜底，再由 @supports 覆盖成动态视口高度：
+     地址栏收起时 100vh 会比可视区高出一截，列表底部会被 Tab 栏压住。 */
+  .snap-layout {
+    height: calc(100vh - var(--m-tabbar-h) - var(--m-safe-bottom)) !important;
+  }
+
+  @supports (height: 100dvh) {
+    .snap-layout {
+      height: calc(100dvh - var(--m-tabbar-h) - var(--m-safe-bottom)) !important;
+    }
+  }
+
+  .snap-header {
+    height: calc(56px + var(--m-safe-top)) !important;
+    padding-top: var(--m-safe-top) !important;
+    box-sizing: border-box;
+  }
+
+  .snap-content {
+    padding-top: calc(60px + var(--m-safe-top)) !important;
+  }
 }
 </style>

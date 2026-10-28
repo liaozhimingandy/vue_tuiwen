@@ -21,6 +21,10 @@ import {MessagePlugin} from 'tdesign-vue-next';
 import type {AutoCompleteProps, FormProps} from 'tdesign-vue-next';
 import {LockOnIcon, MailIcon} from 'tdesign-icons-vue-next';
 import {config} from '@/common/config.ts';
+import {useDeviceWatcher} from '@/common/device.ts';
+
+/** 移动端断点：注册卡片宽度要按视口收窄，固定 400px 会溢出 */
+const {isMobile} = useDeviceWatcher();
 
 const formRef = ref(null);
 /** 注册提交中：弱网下连点容易重复注册，按钮需禁用 + loading */
@@ -131,7 +135,8 @@ const mailOptions = computed<AutoCompleteProps['options']>(() => {
     <div class="circle circle-purple"></div>
     <div class="circle circle-teal"></div>
     <div style="height: 100vh; background-color: #e9ebee; display: flex; justify-content: center; align-items: center">
-      <t-card style="width: 400px" header-bordered>
+      <!-- 固定 400px 在窄屏上会溢出横向滚动条 -->
+      <t-card :style="{width: isMobile ? 'calc(100vw - 32px)' : '400px'}" header-bordered>
         <!-- Logo区域 -->
         <template #title>
           <div style="display: flex; align-items: center; gap: 8px">

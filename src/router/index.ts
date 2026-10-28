@@ -29,9 +29,15 @@ NProgress.configure({
 
 /**
  * 路由表
- * meta.title：浏览器标题后缀（拼在 `${title} | alsoapp` 中）
+ * meta.title：浏览器标题后缀（拼在 `${title} | alsoapp` 中），移动端顶栏也直接用它做标题
  * meta.public：免登录可访问（守卫据此自动生成白名单，不必两处维护）
  * meta.need_two_step_verification：进入前需先通过人机预检
+ *
+ * 移动端外壳（见 common/mobile.ts）：
+ * - meta.mobileTab：一级 Tab 页（home / snap / video / me），显示底部导航栏
+ * - meta.mobileHeader: false：页面自己画了头部（如「天亮即焚」的深色顶栏），外壳不再重复画
+ * - meta.mobileShell: false：完全不要外壳（登录注册、短视频、全屏编辑器这类沉浸页）
+ * 三者都不写 = 普通二级页：有返回箭头 + 标题，没有底部栏。
  *
  * ⚠️ 分包约定：**所有页面一律使用动态 import()**
  * 原因：静态 import 会被打进入口 chunk，导致「首屏必须下载全部页面 + 它们的依赖」。
@@ -43,24 +49,30 @@ NProgress.configure({
  * 否则未登录用户访问会被重定向到登录页。
  */
 const routes: RouteRecordRaw[] = [
-  {path: '/', name: 'home', component: () => import('@/pages/HomePage.vue'), meta: {title: '首页'}},
+  {
+    path: '/',
+    name: 'home',
+    component: () => import('@/pages/HomePage.vue'),
+    meta: {title: '首页', mobileTab: 'home'},
+  },
   {
     path: '/two_step_verification/authentication/',
     name: 'two_step_verification',
     component: () => import('@/pages/TwoStepVerificationPage.vue'),
-    meta: {title: '人机验证', public: true},
+    // 人机验证是独立全屏页，套外壳反而挡住验证组件
+    meta: {title: '人机验证', public: true, mobileShell: false},
   },
   {
     path: '/login/',
     name: 'login',
     component: () => import('@/pages/LoginPage.vue'),
-    meta: {title: '登录', public: true, need_two_step_verification: true},
+    meta: {title: '登录', public: true, need_two_step_verification: true, mobileShell: false},
   },
   {
     path: '/register/',
     name: 'register',
     component: () => import('@/pages/RegisterPage.vue'),
-    meta: {title: '注册', public: true, need_two_step_verification: true},
+    meta: {title: '注册', public: true, need_two_step_verification: true, mobileShell: false},
   },
   {
     path: '/settings/',
@@ -74,32 +86,51 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/SearchResultPage.vue'),
     meta: {title: '搜索结果'},
   },
-  {path: '/friends/', name: 'friends', component: () => import('@/pages/FriendsPage.vue'), meta: {title: '朋友'}},
+  {
+    path: '/friends/',
+    name: 'friends',
+    component: () => import('@/pages/FriendsPage.vue'),
+    meta: {title: '朋友'},
+  },
   {
     path: '/shorts/',
     name: 'shorts',
     component: () => import('@/pages/ShortsPage.vue'),
-    meta: {title: '短视频', public: true},
+    // 全屏视频浮层：自己带返回按钮，外壳会挡内容
+    meta: {title: '短视频', public: true, mobileShell: false},
   },
   {
     path: '/videos/',
     name: 'video_feed',
     component: () => import('@/pages/VideoFeedPage.vue'),
-    meta: {title: '视频', public: true},
+    // 抖音式全屏信息流，同上
+    meta: {title: '视频', public: true, mobileShell: false},
   },
-  {path: '/hot/', name: 'hot', component: () => import('@/pages/HotPage.vue'), meta: {title: '热点'}},
-  {path: '/logo/', name: 'logo', component: () => import('@/pages/LogoPage.vue'), meta: {title: 'logo'}},
+  {
+    path: '/hot/',
+    name: 'hot',
+    component: () => import('@/pages/HotPage.vue'),
+    meta: {title: '热点'},
+  },
+  {
+    path: '/logo/',
+    name: 'logo',
+    component: () => import('@/pages/LogoPage.vue'),
+    // 设计稿预览页，桌面端用，移动端不套壳
+    meta: {title: 'logo', mobileShell: false},
+  },
   {
     path: '/snaps/',
     name: 'snap',
     component: () => import('@/pages/SnapPage.vue'),
-    meta: {title: '天亮即焚', public: true},
+    // 页面自带深色顶栏（含倒计时），所以 mobileHeader: false —— 外壳只给底部栏
+    meta: {title: '天亮即焚', public: true, mobileTab: 'snap', mobileHeader: false},
   },
   {
     path: '/test/',
     name: 'test',
     component: () => import('@/pages/TestPage.vue'),
-    meta: {title: '测试'},
+    meta: {title: '测试', mobileShell: false},
   },
   {
     path: '/articles/',
@@ -117,13 +148,14 @@ const routes: RouteRecordRaw[] = [
     path: '/u/:username/',
     name: 'user',
     component: () => import('@/pages/UserPage.vue'),
+    // 既是"我的"也是别人的主页，没法固定高亮某个 Tab，按二级页处理（返回箭头）
     meta: {title: '用户中心'},
   },
   {
     path: '/reset_password/',
     name: 'reset_password',
     component: () => import('@/pages/ResetPasswordPage.vue'),
-    meta: {title: '密码重置', public: true, need_two_step_verification: true},
+    meta: {title: '密码重置', public: true, need_two_step_verification: true, mobileShell: false},
   },
   {
     path: '/models/dcf/',
@@ -135,7 +167,7 @@ const routes: RouteRecordRaw[] = [
     path: '/:catchALL(.*)/',
     name: 'not-found',
     component: () => import('@/pages/NotFoundPage.vue'),
-    meta: {title: 'Not Found'},
+    meta: {title: 'Not Found', mobileShell: false},
   },
 ];
 

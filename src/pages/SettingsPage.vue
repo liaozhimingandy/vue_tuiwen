@@ -28,6 +28,11 @@ import router from '@/router';
 import type {UploadProps} from 'tdesign-vue-next';
 import {LockOnIcon} from 'tdesign-icons-vue-next';
 import {getResourceUrl, logger} from '@/common/utils.ts';
+import {useDeviceWatcher} from '@/common/device.ts';
+import {measureMobileChrome} from '@/common/mobile.ts';
+
+/** 移动端断点：顶栏改由 MobileShell 提供，标签页也从左侧竖排改成顶部横排 */
+const {isMobile} = useDeviceWatcher();
 
 const activeKey = ref(1);
 const {account} = storeToRefs(appStore.useAccountStore);
@@ -39,6 +44,13 @@ const contentHeight = ref<number | undefined>(undefined);
  * 用于 <style> 中 v-bind(contentHeight) 撑开滚动容器
  */
 const updateContentHeight = () => {
+  // 移动端顶栏由外壳提供（页面自己的 t-header 已隐藏），直接量外壳留白：
+  // 刘海屏的安全区只有 CSS 算得出来，用常量拼会在 iPhone 上少算几十像素
+  if (isMobile.value) {
+    contentHeight.value = window.innerHeight - measureMobileChrome() - 8;
+    return;
+  }
+
   // headerRef 是组件实例，真实 DOM 在 $el 上；未挂载时兜底为 0
   const headerHeight = (headerRef.value?.$el as HTMLElement | undefined)?.offsetHeight ?? 0;
   contentHeight.value = window.innerHeight - headerHeight - 12;
@@ -386,14 +398,16 @@ onBeforeUnmount(() => {
 
 <template>
   <t-layout style="min-height: 100vh; text-align: center">
-    <t-header ref="headerRef" :style="{width: '100%', 'background-color': 'white'}">
+    <!-- 移动端顶栏由 MobileShell 接管（标题 + 返回），这里只留桌面版 -->
+    <t-header v-if="!isMobile" ref="headerRef" :style="{width: '100%', 'background-color': 'white'}">
       <Header selected-keys="none" />
     </t-header>
     <t-content style="padding-top: 8px">
       <t-row justify="center">
         <t-col :md="6" :xs="12" :sm="12">
           <c-scrollbar trigger="hover" class="content">
-            <t-tabs :default-value="activeKey" animated placement="left" size="large">
+            <!-- 左侧竖排标签在手机上会吃掉三分之一宽度，移动端改成顶部横排 -->
+            <t-tabs :default-value="activeKey" animated :placement="isMobile ? 'top' : 'left'" size="large">
               <t-tab-panel :value="1" label="个人资料">
                 <t-typography-title level="h4">个人资料</t-typography-title>
                 <t-form

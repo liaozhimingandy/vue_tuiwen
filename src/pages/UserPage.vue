@@ -337,7 +337,8 @@ onMounted(() => {
 
 <template>
   <t-layout style="min-height: 100vh; text-align: center">
-    <t-header :style="{width: '100%', 'background-color': 'white'}">
+    <!-- 移动端顶栏由 MobileShell 接管（标题 + 返回），这里只留桌面版 -->
+    <t-header v-if="!isMobile" :style="{width: '100%', 'background-color': 'white'}">
       <Header selected-keys="o" />
     </t-header>
     <t-content style="padding-top: 8px">

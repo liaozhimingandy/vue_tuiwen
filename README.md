@@ -100,6 +100,43 @@ docker build -t vue_tuiwen:dev . && docker run --rm -p 8080:80 vue_tuiwen:dev
 所以两边不会打架。改场次时间要同时改三处：`SnapPage.vue` 的常量、页面文案、
 后端 `.env` 的 `SNAP_SESSION_OPEN_HOUR` / `SNAP_SESSION_BURN_HOUR`。
 
+## 移动端
+
+`<= 767px` 视为移动端（`common/device.ts` 的 `BREAKPOINT_MOBILE`，与 CSS 断点一致）。
+移动端不另做一套页面，而是在 `App.vue` 里给 `router-view` 套一层 `layouts/MobileShell.vue`：
+
+```
+┌────────────────────────┐
+│ MobileNavBar  标题 / 返回 │  46px + 状态栏安全区，position: fixed
+├────────────────────────┤
+│                        │
+│        页面内容          │  由页面自己决定，外壳只负责上下留白
+│                        │
+├────────────────────────┤
+│ MobileTabBar 首页 树洞 …  │  54px + 底部安全区，position: fixed
+└────────────────────────┘
+```
+
+一页要长什么样，全写在路由 `meta` 上（见 `common/mobile.ts` 的 `resolveMobileView`）：
+
+| meta | 效果 | 例子 |
+| --- | --- | --- |
+| `mobileTab: 'home' \| 'snap' \| 'video' \| 'me'` | 一级页：显示底部 Tab 栏，无返回箭头 | 首页、天亮即焚 |
+| （不写 `mobileTab`） | 二级页：返回箭头 + 标题，无底部栏 | 设置、搜索结果、帖子详情 |
+| `mobileHeader: false` | 外壳不画标题栏，页面自带头部 | 天亮即焚（深色顶栏含倒计时） |
+| `mobileShell: false` | 完全不套外壳 | 登录注册、短视频、全屏视频流、404 |
+
+几个约定：
+
+- **高度只能从 CSS 变量取**：`--m-navbar-h` / `--m-tabbar-h` / `--m-safe-top` / `--m-safe-bottom`
+  （定义在 `style.css`）。`MobileNavBar`、`MobileTabBar`、`MobileShell` 的留白都用它们，
+  改高度只改一处；`common/mobile.ts` 里的 `MOBILE_NAVBAR_HEIGHT` / `MOBILE_TABBAR_HEIGHT`
+  是给需要自己算高度的页面（首页、设置页）用的副本，**改变量时必须同步**。
+- 页面自带的桌面顶栏要 `v-if="!isMobile"`：否则和外壳的标题栏叠成两层。
+- 需要自己算滚动容器高度的页面，移动端用 `measureMobileChrome()` 量外壳的上下 padding，
+  不要自己拼「46 + 安全区」—— 安全区高度只有 CSS 的 `env()` 知道，JS 读不到。
+- 沉浸式页面（`mobileShell: false`）必须自带返回入口，否则移动端没有浏览器后退键可用。
+
 ## 故障排查
 
 **作业 3 秒结束、一个步骤都没有，提示 `The job was not started because recent account payments have failed or your spending limit needs to be increased`**

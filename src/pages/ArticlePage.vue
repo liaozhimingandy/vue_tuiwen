@@ -27,6 +27,7 @@ import type {IPost} from '@/interface';
 import {post_right_map} from '@/common/constants.js';
 import {publish_post} from '@/services/api.ts';
 import {logger} from '@/common/utils.ts';
+import {useDeviceWatcher} from '@/common/device.ts';
 
 /**
  * 富文本编辑器：异步加载，把 787KB 的 wangEditor 移出本页首屏阻塞。
@@ -36,6 +37,9 @@ import {logger} from '@/common/utils.ts';
  * 注意不要改成静态 import —— 那样编辑器会重新被打进本页 chunk，
  * 首屏又得等它整个下载完（可用 npm run analyze:bundle 对比 ArticlePage 的体积）。
  */
+/** 移动端断点：顶栏由 MobileShell 提供，页内不再渲染桌面顶栏 */
+const {isMobile} = useDeviceWatcher();
+
 const ArticleEditor = defineAsyncComponent({
   loader: () => import('@/components/ArticleEditor.vue'),
   loadingComponent: EditorSkeleton,
@@ -136,7 +140,8 @@ const onPublish = async () => {
 
 <template>
   <t-layout style="min-height: 100vh">
-    <t-header :style="{width: '100vw', 'background-color': 'white'}">
+    <!-- 移动端顶栏由 MobileShell 接管，这里只留桌面版（100vw 会顶出横向滚动条） -->
+    <t-header v-if="!isMobile" :style="{width: '100%', 'background-color': 'white'}">
       <Header selected-keys="none" />
     </t-header>
     <t-content style="margin-top: 2px">

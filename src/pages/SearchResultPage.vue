@@ -447,7 +447,8 @@ onMounted(async () => {
 
 <template>
   <t-layout>
-    <t-header>
+    <!-- 移动端顶栏由 MobileShell 接管（标题「搜索结果」+ 返回），这里只留桌面版 -->
+    <t-header v-if="!isMobile">
       <Header selected-keys="none" />
     </t-header>
     <t-content>
