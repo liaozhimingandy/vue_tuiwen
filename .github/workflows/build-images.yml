@@ -335,6 +335,35 @@ jobs:
             -t "${IMAGE_NAME}:${VERSION}" \
             .
 
+      # 每个作业都在一台全新的 runner 上跑，meta 作业里的 docker login 不会带过来。
+      # 少了这一步，docker push 就是匿名推送，registry 只回一句
+      #   unauthorized: access token has insufficient scopes
+      # 看起来像 "token 没写权限"，实际是 "压根没登录" —— 排查时极易误判。
+      - name: 登录 Docker Hub
+        if: needs.meta.outputs.push_hub == 'true'
+        env:
+          HUB_USER: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME }}
+          HUB_PASS: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          USER="$(printf '%s' "${HUB_USER:-}" | tr -d '[:space:]')"
+          [ -n "${USER}" ] || { echo "::error title=Docker Hub 用户名为空::读不到 secrets.DOCKERHUB_USERNAME / DOCKER_USERNAME"; exit 1; }
+          # 密码只去掉回车换行：保留中间空格，否则 --password-stdin 读到的密码会变
+          printf '%s' "${HUB_PASS:-}" | tr -d '\r\n' | docker login -u "${USER}" --password-stdin
+
+      - name: 登录阿里云 ACR
+        if: needs.meta.outputs.push_aliyun == 'true'
+        env:
+          ALIYUN_REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+          ALI_USER: ${{ secrets.ALIYUN_USERNAME || secrets.DOCKER_USERNAME }}
+          ALI_PASS: ${{ secrets.ALIYUN_PASSWORD || secrets.DOCKER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          REGISTRY="$(printf '%s' "${ALIYUN_REGISTRY:-}" | tr -d '[:space:]')"
+          USER="$(printf '%s' "${ALI_USER:-}" | tr -d '[:space:]')"
+          [ -n "${REGISTRY}" ] && [ -n "${USER}" ] || { echo "::error title=阿里云凭据为空::缺少 secrets.ALIYUN_REGISTRY 或 ALIYUN_USERNAME"; exit 1; }
+          printf '%s' "${ALI_PASS:-}" | tr -d '\r\n' | docker login -u "${USER}" --password-stdin "${REGISTRY}"
+
       - name: 推送到 Docker Hub
         if: needs.meta.outputs.push_hub == 'true'
         env:
