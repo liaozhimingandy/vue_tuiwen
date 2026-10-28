@@ -39,7 +39,7 @@ RUN npm run build && cp dist/index.html dist/404.html
 # ---------------------------------------------------------------------------
 # 2) 运行阶段：nginx 托管静态文件
 # ---------------------------------------------------------------------------
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 
 LABEL org.opencontainers.image.title="vue_tuiwen"
 LABEL org.opencontainers.image.description="推文 H5 静态站点"
